@@ -1,0 +1,3 @@
+[submodule "lava"]
+	path = lava
+	url = https://github.com/Breush/lava-jai
