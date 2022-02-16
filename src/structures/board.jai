@@ -3,7 +3,7 @@ Board :: struct {
     size : float;
 
     eye : *Magma.Eye;
-    squares : [8][8]BoardSquare;
+    squares : [CoordCount]BoardSquare;
 
     squareShader : *Magma.Shader;
     squareSize : float;
@@ -19,14 +19,15 @@ BoardSquare :: struct {
 }
 
 init_board :: () {
-    using instance.board;
+    using *instance.board;
 
     _init_resources();
     _init_camera(); // @todo :UiInSill Should probably part of Sill.
 
-    size = cast(float) Basic.min(eye.extent.width, eye.extent.height);
-    center.x = cast(float) eye.extent.width / 2;
-    center.y = cast(float) eye.extent.height / 2;
+    // We want to fit the board in the left part of the screen nicely à 95% of the available space.
+    size = 0.95 * Basic.min(eye.extent.width / 2.0, cast(float) eye.extent.height);
+    center.x = -size / 2.0;
+    center.y = 0;
     squareSize = size / 8;
 
     _init_meshes();
@@ -50,7 +51,7 @@ board_handle_input_event :: (event : Crater.Event) {
 
         if normalizedPosition.x >= 0 && normalizedPosition.x < 8 &&
            normalizedPosition.y >= 0 && normalizedPosition.y < 8 {
-            hoveredSquare = *squares[cast(int) normalizedPosition.x][cast(int) normalizedPosition.y];
+            hoveredSquare = *squares[coord(cast(u8) normalizedPosition.x, cast(u8) normalizedPosition.y)];
         } else {
             hoveredSquare = null;
         }
@@ -59,19 +60,22 @@ board_handle_input_event :: (event : Crater.Event) {
             Magma.material_set(hoveredSquare.mesh.material, "hovered", true);
         }
     }
+
+    // @todo It's game controller's job to do that.
+    else if event.kind == .KeyPressed {
+        if event.key.which == .Right then game_go_to_next_move(*instance.game);
+        else if event.key.which == .Left then game_go_to_previous_move(*instance.game);
+        else if event.key.which == .Down then game_go_to_next_variant(*instance.game);
+        else if event.key.which == .Up then game_go_to_previous_variant(*instance.game);
+    }
 }
 
 update_board_to_position :: (position : Position) {
     using instance.board;
 
-    for row : 0..7 {
-        for col : 0..7 {
-            square := *squares[row][col];
-
-            pieceId := get_piece_id(position.squares[row][col].piece);
-            pieceTexture := piecesTextures[pieceId];
-            Magma.material_set(square.mesh.material, "pieceTexture", pieceTexture);
-        }
+    for *square, coord : squares {
+        pieceTexture := piecesTextures[piece_id(position.board[coord])];
+        Magma.material_set(square.mesh.material, "pieceTexture", pieceTexture);
     }
 }
 
@@ -81,7 +85,7 @@ whiteSquareColor :: Chamber.vec3.{0.933, 0.933, 0.824};
 blackSquareColor :: Chamber.vec3.{0.462, 0.588, 0.337};
 
 _init_resources :: () {
-    using instance.board;
+    using *instance.board;
 
     squareShader = Magma.create_shader(instance.renderer, "./assets/materials/square");
 
@@ -90,28 +94,28 @@ _init_resources :: () {
         Magma.texture_load_from_file(piecesTextures[pieceId], filename);
     }
 
-    init_piece_texture(get_piece_id(.{ .B, .White }), "./assets/images/pieces/merida-wb.png");
-    init_piece_texture(get_piece_id(.{ .K, .White }), "./assets/images/pieces/merida-wk.png");
-    init_piece_texture(get_piece_id(.{ .N, .White }), "./assets/images/pieces/merida-wn.png");
-    init_piece_texture(get_piece_id(.{ .P, .White }), "./assets/images/pieces/merida-wp.png");
-    init_piece_texture(get_piece_id(.{ .Q, .White }), "./assets/images/pieces/merida-wq.png");
-    init_piece_texture(get_piece_id(.{ .R, .White }), "./assets/images/pieces/merida-wr.png");
-    init_piece_texture(get_piece_id(.{ .B, .Black }), "./assets/images/pieces/merida-bb.png");
-    init_piece_texture(get_piece_id(.{ .K, .Black }), "./assets/images/pieces/merida-bk.png");
-    init_piece_texture(get_piece_id(.{ .N, .Black }), "./assets/images/pieces/merida-bn.png");
-    init_piece_texture(get_piece_id(.{ .P, .Black }), "./assets/images/pieces/merida-bp.png");
-    init_piece_texture(get_piece_id(.{ .Q, .Black }), "./assets/images/pieces/merida-bq.png");
-    init_piece_texture(get_piece_id(.{ .R, .Black }), "./assets/images/pieces/merida-br.png");
+    init_piece_texture(piece_id(.{ .B, .White }), "./assets/images/pieces/merida-wb.png");
+    init_piece_texture(piece_id(.{ .K, .White }), "./assets/images/pieces/merida-wk.png");
+    init_piece_texture(piece_id(.{ .N, .White }), "./assets/images/pieces/merida-wn.png");
+    init_piece_texture(piece_id(.{ .P, .White }), "./assets/images/pieces/merida-wp.png");
+    init_piece_texture(piece_id(.{ .Q, .White }), "./assets/images/pieces/merida-wq.png");
+    init_piece_texture(piece_id(.{ .R, .White }), "./assets/images/pieces/merida-wr.png");
+    init_piece_texture(piece_id(.{ .B, .Black }), "./assets/images/pieces/merida-bb.png");
+    init_piece_texture(piece_id(.{ .K, .Black }), "./assets/images/pieces/merida-bk.png");
+    init_piece_texture(piece_id(.{ .N, .Black }), "./assets/images/pieces/merida-bn.png");
+    init_piece_texture(piece_id(.{ .P, .Black }), "./assets/images/pieces/merida-bp.png");
+    init_piece_texture(piece_id(.{ .Q, .Black }), "./assets/images/pieces/merida-bq.png");
+    init_piece_texture(piece_id(.{ .R, .Black }), "./assets/images/pieces/merida-br.png");
 
     // Use a transparent texture for emptiness.
     // @fixme This could be done "automatically" by Magma when the texture is set to "null".
-    emptyPieceId := get_piece_id(.{ kind = .Empty });
+    emptyPieceId := piece_id(.{ kind = .Empty });
     piecesTextures[emptyPieceId] = Magma.create_texture(instance.renderEngine);
     Magma.texture_load_from_memory(piecesTextures[emptyPieceId], .[0, 0, 0, 0], .{1, 1});
 }
 
 _init_camera :: () {
-    using instance.board;
+    using *instance.board;
 
     eye = Magma.renderer_get_eye(instance.renderer, 0);
 
@@ -126,14 +130,13 @@ _init_camera :: () {
 }
 
 _init_meshes :: () {
-    using instance.board;
+    using *instance.board;
 
-    for row : 0..7 {
-    for col : 0..7 {
-        square := *squares[row][col];
+    for *square, coord : squares {
+        row, col := row_col(cast(u8) coord);
         square.mesh = _make_square_mesh();
-        square.mesh.translation.x = -size / 2 + (col + 0.5) * squareSize;
-        square.mesh.translation.y =  size / 2 - (row + 0.5) * squareSize;
+        square.mesh.translation.x = center.x - size / 2 + (col + 0.5) * squareSize;
+        square.mesh.translation.y = center.y + size / 2 - (row + 0.5) * squareSize;
         square.mesh.scaling.x = squareSize;
         square.mesh.scaling.y = squareSize;
         Magma.mesh_commit_instance(square.mesh);
@@ -148,7 +151,6 @@ _init_meshes :: () {
         }
 
         Magma.material_set(square.mesh.material, "color", color);
-    }
     }
 }
 

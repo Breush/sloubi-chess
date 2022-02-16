@@ -6,9 +6,15 @@ Crater :: #import "Crater";
 Chamber :: #import "Chamber";
 
 Hash :: #import "Hash_Table";
+File :: #import "File";
 
-#load "board.jai";
-#load "position.jai";
+#load "structures/board.jai";
+#load "structures/coord.jai";
+#load "structures/game.jai";
+#load "structures/piece.jai";
+#load "structures/position.jai";
+#load "readers/fen.jai";
+#load "readers/pgn.jai";
 
 instance : struct {
     window : *Crater.Window;
@@ -21,6 +27,7 @@ instance : struct {
     running := true;
 
     board : Board;
+    game : Game;
 }
 
 main :: () {
@@ -36,6 +43,12 @@ main :: () {
     Magma.target_bind(instance.windowTarget, Magma.renderer_get_output(instance.renderer));
 
     init_board();
+
+    // load_pgn("./assets/pgns/opera-game.pgn");
+    load_pgn("./assets/pgns/test-crazy-moves.pgn");
+    // load_pgn("./assets/pgns/reti-bogoliouboff-new_york-1924.pgn");
+    // load_pgn("./assets/pgns/test-fen-and-comments.pgn");
+    // load_pgn("./assets/pgns/benko-revealed-intro.pgn");
 
     while instance.running {
         Basic.reset_temporary_storage();
