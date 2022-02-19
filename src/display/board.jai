@@ -18,7 +18,7 @@ BoardSquare :: struct {
     mesh : *Magma.Mesh;
 }
 
-init_board :: () {
+board_init :: () {
     using *instance.board;
 
     _init_resources();
@@ -34,7 +34,7 @@ init_board :: () {
 
     // Drawing a position
     position := get_starting_position();
-    update_board_to_position(position);
+    board_update_to_position(position);
 }
 
 board_handle_input_event :: (event : Crater.Event) {
@@ -70,7 +70,7 @@ board_handle_input_event :: (event : Crater.Event) {
     }
 }
 
-update_board_to_position :: (position : Position) {
+board_update_to_position :: (position : Position) {
     using instance.board;
 
     for *square, coord : squares {
@@ -81,8 +81,12 @@ update_board_to_position :: (position : Position) {
 
 #scope_file
 
-whiteSquareColor :: Chamber.vec3.{0.933, 0.933, 0.824};
-blackSquareColor :: Chamber.vec3.{0.462, 0.588, 0.337};
+// White/green
+// whiteSquareColor :: Chamber.vec3.{0.933, 0.933, 0.824};
+// blackSquareColor :: Chamber.vec3.{0.462, 0.588, 0.337};
+// White/orange
+whiteSquareColor :: Chamber.vec3.{0.905, 0.911, 0.822};
+blackSquareColor :: Chamber.vec3.{0.703, 0.573, 0.335};
 
 _init_resources :: () {
     using *instance.board;
@@ -94,18 +98,18 @@ _init_resources :: () {
         Magma.texture_load_from_file(piecesTextures[pieceId], filename);
     }
 
-    init_piece_texture(piece_id(.{ .B, .White }), "./assets/images/pieces/merida-wb.png");
-    init_piece_texture(piece_id(.{ .K, .White }), "./assets/images/pieces/merida-wk.png");
-    init_piece_texture(piece_id(.{ .N, .White }), "./assets/images/pieces/merida-wn.png");
-    init_piece_texture(piece_id(.{ .P, .White }), "./assets/images/pieces/merida-wp.png");
-    init_piece_texture(piece_id(.{ .Q, .White }), "./assets/images/pieces/merida-wq.png");
-    init_piece_texture(piece_id(.{ .R, .White }), "./assets/images/pieces/merida-wr.png");
-    init_piece_texture(piece_id(.{ .B, .Black }), "./assets/images/pieces/merida-bb.png");
-    init_piece_texture(piece_id(.{ .K, .Black }), "./assets/images/pieces/merida-bk.png");
-    init_piece_texture(piece_id(.{ .N, .Black }), "./assets/images/pieces/merida-bn.png");
-    init_piece_texture(piece_id(.{ .P, .Black }), "./assets/images/pieces/merida-bp.png");
-    init_piece_texture(piece_id(.{ .Q, .Black }), "./assets/images/pieces/merida-bq.png");
-    init_piece_texture(piece_id(.{ .R, .Black }), "./assets/images/pieces/merida-br.png");
+    init_piece_texture(piece_id(.{ .B, .White }), "./assets/images/pieces/staunty-wb.png");
+    init_piece_texture(piece_id(.{ .K, .White }), "./assets/images/pieces/staunty-wk.png");
+    init_piece_texture(piece_id(.{ .N, .White }), "./assets/images/pieces/staunty-wn.png");
+    init_piece_texture(piece_id(.{ .P, .White }), "./assets/images/pieces/staunty-wp.png");
+    init_piece_texture(piece_id(.{ .Q, .White }), "./assets/images/pieces/staunty-wq.png");
+    init_piece_texture(piece_id(.{ .R, .White }), "./assets/images/pieces/staunty-wr.png");
+    init_piece_texture(piece_id(.{ .B, .Black }), "./assets/images/pieces/staunty-bb.png");
+    init_piece_texture(piece_id(.{ .K, .Black }), "./assets/images/pieces/staunty-bk.png");
+    init_piece_texture(piece_id(.{ .N, .Black }), "./assets/images/pieces/staunty-bn.png");
+    init_piece_texture(piece_id(.{ .P, .Black }), "./assets/images/pieces/staunty-bp.png");
+    init_piece_texture(piece_id(.{ .Q, .Black }), "./assets/images/pieces/staunty-bq.png");
+    init_piece_texture(piece_id(.{ .R, .Black }), "./assets/images/pieces/staunty-br.png");
 
     // Use a transparent texture for emptiness.
     // @fixme This could be done "automatically" by Magma when the texture is set to "null".
@@ -125,7 +129,7 @@ _init_camera :: () {
 
     eye.extent = Magma.renderer_get_extent(instance.renderer, 0);
     eye.viewMatrix = Chamber.look_at_matrix(.{0, 0, -1}, .{0, 0, 0}, .{0, -1, 0});
-    Chamber.infinite_orthographic_projection(*eye.projectionMatrix, .{0, 0}, extent, 0.01); // Orthographic camera with 1 pixel = 1 unit
+    Chamber.unnear_orthographic_projection(*eye.projectionMatrix, extent, 100.0); // Orthographic camera with 1 pixel = 1 unit
     Magma.eye_commit(eye);
 }
 

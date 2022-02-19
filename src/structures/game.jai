@@ -23,6 +23,14 @@ VariantIndex :: struct {
     index : u16;
 }
 
+game_update_to :: (game : *Game, nodeIndex : u16) {
+    game.nodeIndex = nodeIndex;
+
+    variant := game_current_variant(game);
+    board_update_to_position(variant.nodes[nodeIndex].position);
+    varianter_update_to_current_move(game);
+}
+
 game_current_variant :: (game : *Game) -> *Variant {
     variant := *game.mainVariant;
 
@@ -48,19 +56,13 @@ game_current_variant_parent_node :: (game : *Game) -> *Variant.Node {
 game_go_to_previous_move :: (game : *Game) {
     variant := game_current_variant(game);
     if game.nodeIndex == 0 then return;
-    game.nodeIndex -= 1;
-    update_board_to_position(variant.nodes[game.nodeIndex].position);
-
-    Chamber.debug("(PREV) Showing move: ", game.variantIndices, " ", game.nodeIndex);
+    game_update_to(game, game.nodeIndex - 1);
 }
 
 game_go_to_next_move :: (game : *Game) {
     variant := game_current_variant(game);
     if game.nodeIndex == variant.nodes.count - 1 then return;
-    game.nodeIndex += 1;
-    update_board_to_position(variant.nodes[game.nodeIndex].position);
-
-    Chamber.debug("(NEXT) Showing move: ", game.variantIndices, " ", game.nodeIndex);
+    game_update_to(game, game.nodeIndex + 1);
 }
 
 game_go_to_previous_variant :: (game : *Game) {

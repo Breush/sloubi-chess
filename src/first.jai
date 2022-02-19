@@ -34,6 +34,7 @@ String :: #import "String";
 
     // Compiler.compiler_begin_intercept(workspace);
     Compiler.add_build_file("./src/main.jai", workspace);
+    // while Compiler.compiler_wait_for_message() {};
     // Compiler.compiler_end_intercept(workspace);
 
     // Do not generate executable for this build program

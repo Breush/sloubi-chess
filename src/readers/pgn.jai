@@ -31,10 +31,6 @@ load_pgn :: (filename : string) -> bool {
 
     Chamber._CHECK(bytes.count == 0, Basic.tprint("Leftovers: %", bytes));
 
-    update_board_to_position(game.mainVariant.nodes[0].position);
-
-    game_debug_dump(<<game);
-
     return true;
 }
 
@@ -298,23 +294,40 @@ _parse_potential_result :: (bytes : *string) -> (bool, s8) {
 
 _parse_potential_comment :: (bytes : *string) -> (string, bool) {
     if (<<bytes)[0] != #char "{" then return ("", false);
+    Basic.advance(bytes);
+    _skip_blanks(bytes);
 
     sb : Basic.String_Builder;
     Basic.init_string_builder(*sb);
 
+    whitespacesToTrim := 0;
     previousIsBackslash := false;
-    Basic.advance(bytes);
     while previousIsBackslash || (<<bytes)[0] != #char "}" {
         previousIsBackslash = !previousIsBackslash && (<<bytes)[0] == #char "\\";
+        if (<<bytes)[0] == #char " " then whitespacesToTrim += 1;
+        else whitespacesToTrim = 0;
+
 
         if (<<bytes)[0] == #char "\n" then Basic.append(*sb, #char " ");
-        else if !previousIsBackslash then Basic.append(*sb, (<<bytes)[0]);
+        else if !previousIsBackslash {
+            // Special command. @todo Detect arrows and circles!
+            if (<<bytes)[0] == #char "[" && (<<bytes)[1] == #char "%" {
+                while (<<bytes)[0] != #char "]" {
+                    Basic.advance(bytes);
+                }
+            } else {
+                Basic.append(*sb, (<<bytes)[0]);
+            }
+        }
         Basic.advance(bytes);
+
     }
     Basic.advance(bytes);
     _skip_blanks(bytes);
 
-    return (Basic.builder_to_string(*sb), true);
+    str := Basic.builder_to_string(*sb);
+    str.count -= whitespacesToTrim;
+    return (str, true);
 }
 
 _parse_potential_comments :: (bytes : *string, variant : *Variant) {
