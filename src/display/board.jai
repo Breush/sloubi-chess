@@ -10,6 +10,8 @@ Board :: struct {
 
     piecesTextures : [PieceIdCount]*Magma.Texture;
 
+    orientation : Color;
+
     // @fixme :UiInSill Make UI part of Sill.
     hoveredSquare : *BoardSquare;
 }
@@ -41,17 +43,28 @@ board_handle_input_event :: (event : Crater.Event) {
     using instance.board;
 
     if event.kind == .MousePointerMoved {
-        normalizedPosition : Chamber.vec2;
-        normalizedPosition.x = (cast(float) -event.mousePointer.y + center.y + size / 2) / squareSize;
-        normalizedPosition.y = (cast(float)  event.mousePointer.x - center.x + size / 2) / squareSize;
+        // @note Mouse coordinates are in (0,0),(width,height) space,
+        // but we are with (0,0) being the center.
+        mouseCoord : Chamber.vec2;
+        mouseCoord.x = event.mousePointer.x - eye.extent.width / 2.0;
+        mouseCoord.y = -(event.mousePointer.y - eye.extent.height / 2.0);
+
+        normalizedCoord : Chamber.vec2;
+        normalizedCoord.x = (cast(float) (mouseCoord.y - center.y) + size / 2) / squareSize;
+        normalizedCoord.y = (cast(float) (mouseCoord.x - center.x) + size / 2) / squareSize;
+
+        if orientation == .Black {
+            normalizedCoord.x = 8 - normalizedCoord.x;
+            normalizedCoord.y = 8 - normalizedCoord.y;
+        }
 
         if hoveredSquare != null {
             Magma.material_set(hoveredSquare.mesh.material, "hovered", false);
         }
 
-        if normalizedPosition.x >= 0 && normalizedPosition.x < 8 &&
-           normalizedPosition.y >= 0 && normalizedPosition.y < 8 {
-            hoveredSquare = *squares[coord(cast(u8) normalizedPosition.x, cast(u8) normalizedPosition.y)];
+        if normalizedCoord.x >= 0 && normalizedCoord.x < 8 &&
+           normalizedCoord.y >= 0 && normalizedCoord.y < 8 {
+            hoveredSquare = *squares[coord(cast(u8) normalizedCoord.x, cast(u8) normalizedCoord.y)];
         } else {
             hoveredSquare = null;
         }
@@ -67,6 +80,24 @@ board_handle_input_event :: (event : Crater.Event) {
         else if event.key.which == .Left then game_go_to_previous_move(*instance.game);
         else if event.key.which == .Down then game_go_to_next_variant(*instance.game);
         else if event.key.which == .Up then game_go_to_previous_variant(*instance.game);
+    }
+}
+
+board_orient :: (_orientation : Color) {
+    using *instance.board;
+
+    orientation = _orientation;
+
+    for *square, coord : squares {
+        row, col := row_col(cast(u8) coord);
+        if orientation == .White {
+            square.mesh.translation.x = center.x - size / 2 + (col + 0.5) * squareSize;
+            square.mesh.translation.y = center.y + size / 2 - (row + 0.5) * squareSize;
+        } else {
+            square.mesh.translation.x = center.x - size / 2 + (7 - col + 0.5) * squareSize;
+            square.mesh.translation.y = center.y + size / 2 - (7 - row + 0.5) * squareSize;
+        }
+        Magma.mesh_commit_instance(square.mesh);
     }
 }
 
@@ -139,8 +170,6 @@ _init_meshes :: () {
     for *square, coord : squares {
         row, col := row_col(cast(u8) coord);
         square.mesh = _make_square_mesh();
-        square.mesh.translation.x = center.x - size / 2 + (col + 0.5) * squareSize;
-        square.mesh.translation.y = center.y + size / 2 - (row + 0.5) * squareSize;
         square.mesh.scaling.x = squareSize;
         square.mesh.scaling.y = squareSize;
         Magma.mesh_commit_instance(square.mesh);
@@ -156,6 +185,9 @@ _init_meshes :: () {
 
         Magma.material_set(square.mesh.material, "color", color);
     }
+
+    // Will update the position of the squares
+    board_orient(orientation);
 }
 
 _make_square_mesh :: () -> *Magma.Mesh {

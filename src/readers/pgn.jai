@@ -13,14 +13,19 @@ load_pgn :: (filename : string) -> bool {
     _skip_blanks(*bytes);
 
     while bytes[0] == #char "[" {
-        if bytes[1] == #char "F" && bytes[2] == #char "E" && bytes[3] == #char "N" && bytes[4] == #char " " {
-            Basic.advance(*bytes, 6); // @todo Skipping the quote without checking, is that correct?
-            Basic.log("[FEN] tag found.");
+        Basic.advance(*bytes);
+        tagName := _parse_word(*bytes);
+        Basic.advance(*bytes);
+        Basic.advance(*bytes); // Skipping the quote.
 
+        if tagName == "FEN" {
             game.mainVariant.nodes[0].position = load_fen(bytes);
+        } else if tagName == "BoardOrientation" {
+            game.boardOrientation = ifx bytes[0] == #char "W" then Color.White else Color.Black;
+        } else {
+            Basic.log("Ignored tag '%'...", tagName, flags = .WARNING);
         }
 
-        Basic.log("Ignored tag...", flags = .WARNING);
         _skip_to_end_of_tag(*bytes);
         _skip_blanks(*bytes);
     }
@@ -411,4 +416,16 @@ _parse_potential_annotation :: (bytes : *string) {
     }
 
     _skip_blanks(bytes);
+}
+
+_parse_word :: (bytes : *string) -> string {
+    word : string;
+    word.data = bytes.data;
+
+    while (<<bytes)[0] != #char " " && (<<bytes)[0] != #char "\n" {
+        word.count += 1;
+        Basic.advance(bytes);
+    }
+
+    return word;
 }

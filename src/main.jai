@@ -61,9 +61,10 @@ main :: () {
 
     // load_pgn("./assets/pgns/opera-game.pgn");
     // load_pgn("./assets/pgns/test-crazy-moves.pgn");
-    load_pgn("./assets/pgns/reti-bogoliouboff-new_york-1924.pgn");
+    // load_pgn("./assets/pgns/reti-bogoliouboff-new_york-1924.pgn");
     // load_pgn("./assets/pgns/test-fen-and-comments.pgn");
-    // load_pgn("./assets/pgns/benko-revealed-intro.pgn");
+    load_pgn("./assets/pgns/benko-revealed-intro.pgn");
+    // load_pgn("./assets/pgns/benko-revealed-intro-english.pgn");
     // load_pgn("./assets/pgns/breush-game.pgn");
 
     varianter_show(instance.game);
@@ -101,6 +102,7 @@ handle_input_events :: () {
         }
 
         board_handle_input_event(event);
+        varianter_handle_input_event(event);
 
         // @todo Delegate and handle.
         event = Crater.window_poll_event(instance.window);

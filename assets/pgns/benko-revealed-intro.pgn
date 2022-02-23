@@ -1,6 +1,7 @@
 [Event "Gambit Benko: The Benko Gambit Revealed - #1 Aperçu"]
 [Site ""]
 [Result "*"]
+[BoardOrientation "Black"]
 
 { Bienvenue dans le monde merveilleux du Gambit Benko. On va commencer par une vue rapide des coups d'ouverture afin que tout soit clair. }
 1. d4 { Les Blancs contrôlent c5 et e5 dès leur premier coup. } { [%csl Ge5,Gc5] } 1... Nf6 { En réponse, les Noirs se développent et gagnent le contrôle d'e4. } { [%csl Ge4][%cal Gf6e4] } 2. c4 { 2. e4 étant impossible, les Blancs choisissent le deuxième meilleur coup pour ajouter un pion au centre et s'assurer le contrôle de d5. } { [%csl Gd5][%cal Gc4d5] } (2. Nf3 { amène à la même réponse: } 2... c5 3. d5 b5 { Plus d'infos sur cette variante à la fin du prochain chapitre. }) 2... c5 { La première confrontation directe après l'installation centrale tranquille. Ce pion pose une question à d4, et challenge le contrôle de c5 et e5 - trois cases noires du centre. } { [%csl Gd4,Ge5,Gc5] } 3. d5 { Les Blancs concèdent les cases noires, mais a un avantage d'espace et espèrent créer une formidable chaîne de pions de cases blanches. A toutes choses égales, un avantage de terrain confère une grande mobilité et par conséquent fourni au joueur plus de chances de mettre en place un plan stratégique fort.

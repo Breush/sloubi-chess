@@ -2,6 +2,8 @@
 Game :: struct {
     mainVariant : Variant;
 
+    boardOrientation : Color;
+
     variantIndices : [..]VariantIndex; // Indices to go to the current variant.
     nodeIndex : u16;                   // Current node index in the variant described above.
 }
@@ -15,6 +17,8 @@ Variant :: struct {
         position : Position;
         variants : [..]Variant;
         comment : string;
+
+        using varienterData : VarianterNodeData;
     }
 }
 
@@ -27,6 +31,7 @@ game_update_to :: (game : *Game, nodeIndex : u16) {
     game.nodeIndex = nodeIndex;
 
     variant := game_current_variant(game);
+    board_orient(game.boardOrientation);
     board_update_to_position(variant.nodes[nodeIndex].position);
     varianter_update_to_current_move(game);
 }
@@ -55,7 +60,15 @@ game_current_variant_parent_node :: (game : *Game) -> *Variant.Node {
 
 game_go_to_previous_move :: (game : *Game) {
     variant := game_current_variant(game);
-    if game.nodeIndex == 0 then return;
+
+    if game.nodeIndex == 0 {
+        if game.variantIndices.count == 0 then return;
+        game_go_to_previous_variant(game);
+        game_go_to_previous_move(game);
+        game_go_to_previous_move(game);
+        return;
+    }
+
     game_update_to(game, game.nodeIndex - 1);
 }
 
@@ -76,6 +89,10 @@ game_go_to_previous_variant :: (game : *Game) {
 
             game.nodeIndex = 0;
             game_go_to_next_move(game);
+        } else {
+            game.nodeIndex = Basic.peek(game.variantIndices).nodeIndex;
+            Basic.array_resize(*game.variantIndices, game.variantIndices.count - 1);
+            game_update_to(game, game.nodeIndex);
         }
     }
 }
