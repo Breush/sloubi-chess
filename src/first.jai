@@ -23,11 +23,16 @@ String :: #import "String";
     Basic.array_add(*import_path, ..options.import_path);
     options.import_path = import_path;
 
-    if options.os_target == .LINUX { // @todo Should be done only in DEBUG mode, otherwise the paths will be wrong
+    if options.os_target == .LINUX {
         arguments: [..] string;
-        Basic.array_add(*arguments, "-rpath=$ORIGIN");
-        Basic.array_add(*arguments, Basic.tprint("-rpath=%../lava/bindings/Shaderc", #filepath));
-        Basic.array_add(*arguments, Basic.tprint("-rpath=%../lava/bindings/Xcb", #filepath));
+        Basic.array_add(*arguments, "-rpath='$ORIGIN/lib'");
+
+        // @todo Should only be added in DEBUG mode, otherwise the paths will be useless.
+        Basic.array_add(*arguments, "-rpath='$ORIGIN/../lava/bindings/Shaderc'");
+        Basic.array_add(*arguments, "-rpath='$ORIGIN/../lava/bindings/StbTrueType'");
+        Basic.array_add(*arguments, "-rpath='$ORIGIN/../lava/bindings/Xcb'"); // For libxcbglue.so
+        Basic.array_add(*arguments, "-rpath='$ORIGIN/../lava/bindings/Vulkan'");
+
         options.additional_linker_arguments = arguments;
     }
 

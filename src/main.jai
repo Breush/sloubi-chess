@@ -1,7 +1,7 @@
 // #import "Basic"()(MEMORY_DEBUGGER=true);
 
 Sill :: #import "Sill";
-Magma :: #import "Magma";
+Magma :: Sill.Magma;
 Crater :: #import "Crater";
 Chamber :: #import "Chamber";
 

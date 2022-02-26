@@ -2,7 +2,7 @@
 
 **SloubiChess** is a chess database program with focus on:
 - *variants* displayed looking *good* and *readable*, as most chess desktop apps are ugly ;
-- *training* by repeating your lines.
+- *training* by repeating your lines (next big feature, not yet implemented).
 
 It is **not** (yet?):
 - a database store of all GMs games ;
