@@ -3,6 +3,8 @@ Compiler :: #import "Compiler";
 File :: #import "File";
 String :: #import "String";
 
+#load "../lava/modules/Sill/meta.jai";
+
 #run () {
     Basic.set_working_directory(String.join(#filepath, "/.."));
     File.make_directory_if_it_does_not_exist("./bin");
@@ -32,10 +34,22 @@ String :: #import "String";
     // Building our main program
     Compiler.set_build_options(options, workspace);
 
-    // Compiler.compiler_begin_intercept(workspace);
+    Compiler.compiler_begin_intercept(workspace);
     Compiler.add_build_file("./src/main.jai", workspace);
-    // while Compiler.compiler_wait_for_message() {};
-    // Compiler.compiler_end_intercept(workspace);
+
+    while true {
+        message := Compiler.compiler_wait_for_message();
+        if !message break;
+        if message.workspace != workspace continue;
+
+        sill_meta_handle_message(message);
+
+        if message.kind == .COMPLETE {
+            break;
+        }
+    }
+
+    Compiler.compiler_end_intercept(workspace);
 
     // Do not generate executable for this build program
     Compiler.set_build_options_dc(.{ do_output = false });

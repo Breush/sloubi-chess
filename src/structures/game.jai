@@ -63,7 +63,7 @@ game_go_to_previous_move :: (game : *Game) {
 
     if game.nodeIndex == 0 {
         if game.variantIndices.count == 0 then return;
-        game_go_to_previous_variant(game);
+        game_go_to_previous_variation(game);
         game_go_to_previous_move(game);
         game_go_to_previous_move(game);
         return;
@@ -78,7 +78,7 @@ game_go_to_next_move :: (game : *Game) {
     game_update_to(game, game.nodeIndex + 1);
 }
 
-game_go_to_previous_variant :: (game : *Game) {
+game_go_to_previous_variation :: (game : *Game) {
     variant := game_current_variant(game);
 
     variantParentNode := game_current_variant_parent_node(game);
@@ -97,7 +97,7 @@ game_go_to_previous_variant :: (game : *Game) {
     }
 }
 
-game_go_to_next_variant :: (game : *Game) {
+game_go_to_next_variation :: (game : *Game) {
     variant := game_current_variant(game);
 
     // Is there a subvariant from where we are?

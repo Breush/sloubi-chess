@@ -1,36 +1,38 @@
-Board :: struct {
-    center : Chamber.vec2; // @todo :UiInStill Will become a transform2d component
-    size : float;
+BoardEntity :: struct {
+    using entity : Sill.Entity;
+
+    ui : Sill.UiComponent;
+    mesh : Sill.MeshComponent;
+    transform : Sill.TransformComponent;
 
     eye : *Magma.Eye;
-    squares : [CoordCount]BoardSquare;
-
     squareShader : *Magma.Shader;
-    squareSize : float;
-
     piecesTextures : [PieceIdCount]*Magma.Texture;
 
     orientation : Color;
 
-    // @fixme :UiInSill Make UI part of Sill.
-    hoveredSquare : *BoardSquare;
-}
-
-BoardSquare :: struct {
-    mesh : *Magma.Mesh;
+    hoveredCoord : Coord = 0xFF;
 }
 
 board_init :: () {
-    using *instance.board;
+    using instance.board;
+
+    instance.board = SillMeta.create_board_entity(instance.engine);
 
     _init_resources();
-    _init_camera(); // @todo :UiInSill Should probably part of Sill.
+    _init_camera(); // @todo :UiInSill Could be part of Sill.
 
     // We want to fit the board in the left part of the screen nicely à 95% of the available space.
-    size = 0.95 * Basic.min(eye.extent.width / 2.0, cast(float) eye.extent.height);
-    center.x = -size / 2.0;
-    center.y = 0;
-    squareSize = size / 8;
+    size := 0.95 * Basic.min(eye.extent.width / 2.0, cast(float) eye.extent.height);
+    extent : Chamber.vec2;
+    extent.width, extent.height = size, size;
+    Sill.ui_extent(*ui, extent);
+
+    transform.translation.x = -size / 2.0;
+    transform.factor = size;
+    Sill.transform_commit(*transform);
+
+    Sill.ui_on_update(*ui, xx _on_update, userData = instance.board);
 
     _init_meshes();
 
@@ -39,74 +41,33 @@ board_init :: () {
     board_update_to_position(position);
 }
 
-board_handle_input_event :: (event : Crater.Event) {
-    using instance.board;
-
-    if event.kind == .MousePointerMoved {
-        // @note Mouse coordinates are in (0,0),(width,height) space,
-        // but we are with (0,0) being the center.
-        mouseCoord : Chamber.vec2;
-        mouseCoord.x = event.mousePointer.x - eye.extent.width / 2.0;
-        mouseCoord.y = -(event.mousePointer.y - eye.extent.height / 2.0);
-
-        normalizedCoord : Chamber.vec2;
-        normalizedCoord.x = (cast(float) (mouseCoord.y - center.y) + size / 2) / squareSize;
-        normalizedCoord.y = (cast(float) (mouseCoord.x - center.x) + size / 2) / squareSize;
-
-        if orientation == .Black {
-            normalizedCoord.x = 8 - normalizedCoord.x;
-            normalizedCoord.y = 8 - normalizedCoord.y;
-        }
-
-        if hoveredSquare != null {
-            Magma.material_set(hoveredSquare.mesh.material, "hovered", false);
-        }
-
-        if normalizedCoord.x >= 0 && normalizedCoord.x < 8 &&
-           normalizedCoord.y >= 0 && normalizedCoord.y < 8 {
-            hoveredSquare = *squares[coord(cast(u8) normalizedCoord.x, cast(u8) normalizedCoord.y)];
-        } else {
-            hoveredSquare = null;
-        }
-
-        if hoveredSquare != null {
-            Magma.material_set(hoveredSquare.mesh.material, "hovered", true);
-        }
-    }
-
-    // @todo It's game controller's job to do that.
-    else if event.kind == .KeyPressed {
-        if event.key.which == .Right then game_go_to_next_move(*instance.game);
-        else if event.key.which == .Left then game_go_to_previous_move(*instance.game);
-        else if event.key.which == .Down then game_go_to_next_variant(*instance.game);
-        else if event.key.which == .Up then game_go_to_previous_variant(*instance.game);
-    }
-}
-
 board_orient :: (_orientation : Color) {
-    using *instance.board;
+    using instance.board;
 
     orientation = _orientation;
 
-    for *square, coord : squares {
+    for coord : 0..CoordCount-1 {
+        node := *mesh.nodes[coord + 1];
         row, col := row_col(cast(u8) coord);
         if orientation == .White {
-            square.mesh.translation.x = center.x - size / 2 + (col + 0.5) * squareSize;
-            square.mesh.translation.y = center.y + size / 2 - (row + 0.5) * squareSize;
+            node.transform.translation.x = -4 + (col + 0.5);
+            node.transform.translation.y =  4 - (row + 0.5);
         } else {
-            square.mesh.translation.x = center.x - size / 2 + (7 - col + 0.5) * squareSize;
-            square.mesh.translation.y = center.y + size / 2 - (7 - row + 0.5) * squareSize;
+            node.transform.translation.x = -4 + (7 - col + 0.5);
+            node.transform.translation.y =  4 - (7 - row + 0.5);
         }
-        Magma.mesh_commit_instance(square.mesh);
     }
+
+    Sill.mesh_commit_nodes(*mesh);
 }
 
 board_update_to_position :: (position : Position) {
     using instance.board;
 
-    for *square, coord : squares {
+    for coord : 0..CoordCount-1 {
+        node := *mesh.nodes[coord + 1];
         pieceTexture := piecesTextures[piece_id(position.board[coord])];
-        Magma.material_set(square.mesh.material, "pieceTexture", pieceTexture);
+        Magma.material_set(node.primitives[0].material, "pieceTexture", pieceTexture);
     }
 }
 
@@ -120,12 +81,12 @@ whiteSquareColor :: Chamber.vec3.{0.905, 0.911, 0.822};
 blackSquareColor :: Chamber.vec3.{0.703, 0.573, 0.335};
 
 _init_resources :: () {
-    using *instance.board;
+    using instance.board;
 
-    squareShader = Magma.create_shader(instance.renderer, "./assets/materials/square");
+    squareShader = Magma.create_shader(instance.engine.renderer, "./assets/materials/square");
 
     init_piece_texture :: (pieceId : PieceId, filename : string) {
-        piecesTextures[pieceId] = Magma.create_texture(instance.renderEngine);
+        piecesTextures[pieceId] = Magma.create_texture(instance.engine.renderEngine);
         Magma.texture_load_from_file(piecesTextures[pieceId], filename);
     }
 
@@ -145,45 +106,53 @@ _init_resources :: () {
     // Use a transparent texture for emptiness.
     // @fixme This could be done "automatically" by Magma when the texture is set to "null".
     emptyPieceId := piece_id(.{ kind = .Empty });
-    piecesTextures[emptyPieceId] = Magma.create_texture(instance.renderEngine);
+    piecesTextures[emptyPieceId] = Magma.create_texture(instance.engine.renderEngine);
     Magma.texture_load_from_memory(piecesTextures[emptyPieceId], .[0, 0, 0, 0], .{1, 1});
 }
 
 _init_camera :: () {
-    using *instance.board;
+    using instance.board;
 
-    eye = Magma.renderer_get_eye(instance.renderer, 0);
+    eye = Magma.renderer_get_eye(instance.engine.renderer, 0);
 
     extent : Chamber.vec2;
     extent.width = cast(float) eye.extent.width;
     extent.height = cast(float) eye.extent.height;
 
-    eye.extent = Magma.renderer_get_extent(instance.renderer, 0);
+    eye.extent = Magma.renderer_get_extent(instance.engine.renderer, 0);
     eye.viewMatrix = Chamber.look_at_matrix(.{0, 0, -1}, .{0, 0, 0}, .{0, -1, 0});
     Chamber.unnear_orthographic_projection(*eye.projectionMatrix, extent, 100.0); // Orthographic camera with 1 pixel = 1 unit
     Magma.eye_commit(eye);
 }
 
 _init_meshes :: () {
-    using *instance.board;
+    using instance.board;
 
-    for *square, coord : squares {
-        row, col := row_col(cast(u8) coord);
-        square.mesh = _make_square_mesh();
-        square.mesh.scaling.x = squareSize;
-        square.mesh.scaling.y = squareSize;
-        Magma.mesh_commit_instance(square.mesh);
+    // @note We create the square meshes to be size 1,
+    // but set the root node size to 1/8 so that the board is of size 1.
+    Basic.array_add(*mesh.nodes, .{});
+    mesh.nodes[0].transform.scaling = .{1.0 / 8.0, 1.0 / 8.0, 1.0};
 
-        square.mesh.material = Magma.create_material(squareShader);
+    for coord : 0..CoordCount-1 {
+        squareMesh := _make_square_mesh();
+        squareMesh.material = Magma.create_material(squareShader);
 
         color : Chamber.vec3 = ---;
+        row, col := row_col(cast(u8) coord);
         if ((row + col) % 2) {
             color = whiteSquareColor;
         } else {
             color = blackSquareColor;
         }
 
-        Magma.material_set(square.mesh.material, "color", color);
+        Magma.material_set(squareMesh.material, "color", color);
+
+        Basic.array_add(*mesh.nodes[0].children, cast(s64) mesh.nodes.count);
+        Basic.array_add(*mesh.nodes, .{});
+
+        node := Basic.peek_pointer(mesh.nodes);
+        node.parent = 0;
+        Basic.array_add(*node.primitives, squareMesh);
     }
 
     // Will update the position of the squares
@@ -191,20 +160,13 @@ _init_meshes :: () {
 }
 
 _make_square_mesh :: () -> *Magma.Mesh {
-    mesh := Magma.create_mesh(instance.renderScene);
+    mesh := Magma.create_mesh(instance.engine.scene);
 
     positions := Chamber.vec3.[
         .{-0.5, -0.5, 0. },
         .{-0.5,  0.5, 0. },
         .{ 0.5,  0.5, 0. },
         .{ 0.5, -0.5, 0. },
-    ];
-
-    normals := Chamber.vec3.[
-        .{ 0.,  0., 1. },
-        .{ 0.,  0., 1. },
-        .{ 0.,  0., 1. },
-        .{ 0.,  0., 1. },
     ];
 
     uvs := Chamber.vec2.[
@@ -219,7 +181,6 @@ _make_square_mesh :: () -> *Magma.Mesh {
     Basic.array_resize(*mesh.vertices, positions.count);
     for *vertex, i : mesh.vertices {
         vertex.position = positions[i];
-        vertex.normal = normals[i];
         vertex.uv = uvs[i];
     }
 
@@ -230,4 +191,29 @@ _make_square_mesh :: () -> *Magma.Mesh {
     Magma.mesh_commit_indices(mesh);
 
     return mesh;
+}
+
+_on_update :: (flags : Sill.UiComponent.CallbackFlags, using board : *BoardEntity) {
+    normalizedCoord : Chamber.vec2;
+    normalizedCoord.x = -8.0 * ui.relativeMousePointerPosition.y / ui.extent.width + 4.0;
+    normalizedCoord.y =  8.0 * ui.relativeMousePointerPosition.x / ui.extent.width + 4.0;
+
+    if orientation == .Black {
+        normalizedCoord.x = 8 - normalizedCoord.x;
+        normalizedCoord.y = 8 - normalizedCoord.y;
+    }
+
+    if hoveredCoord != 0xFF {
+        Magma.material_set(mesh.nodes[hoveredCoord + 1].primitives[0].material, "hovered", false);
+    }
+
+    if normalizedCoord.x >= 0 && normalizedCoord.x < 8 && normalizedCoord.y >= 0 && normalizedCoord.y < 8 {
+        hoveredCoord = coord(cast(u8) normalizedCoord.x, cast(u8) normalizedCoord.y);
+    } else {
+        hoveredCoord = 0xFF;
+    }
+
+    if hoveredCoord != 0xFF {
+        Magma.material_set(mesh.nodes[hoveredCoord + 1].primitives[0].material, "hovered", true);
+    }
 }

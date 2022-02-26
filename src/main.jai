@@ -1,5 +1,6 @@
 // #import "Basic"()(MEMORY_DEBUGGER=true);
 
+Sill :: #import "Sill";
 Magma :: #import "Magma";
 Crater :: #import "Crater";
 Chamber :: #import "Chamber";
@@ -18,16 +19,12 @@ File :: #import "File";
 #load "structures/position.jai";
 #load "readers/fen.jai";
 #load "readers/pgn.jai";
+#load "controller.jai";
 
-instance : struct {
-    window : *Crater.Window;
-    renderEngine : *Magma.Engine;
-    renderScene : *Magma.Scene;
+instance : Instance;
 
-    windowTarget : *Magma.WindowTarget;
-    renderer : *Magma.Renderer;
-
-    running := true;
+Instance :: struct {
+    engine : *Sill.Engine(SillMeta);
 
     fonts : struct {
         light : Chamber.Font;
@@ -35,26 +32,21 @@ instance : struct {
     };
 
     background : Background;
-    board : Board;
+    board : *BoardEntity;
     game : Game;
     varianter : Varianter;
+    controller : *ControllerEntity;
 }
 
 main :: () {
     Chamber.init_logger();
     context.log_level = .VERBOSE;
 
-    instance.window = Crater.create_window(.{width=1600, height=900}, "SloubiChess");
-    instance.renderEngine = Magma.create_engine();
-    instance.renderScene = Magma.create_scene(instance.renderEngine);
-
-    instance.windowTarget = Magma.create_window_target(instance.renderEngine, Crater.window_get_handle(instance.window));
-    instance.renderer = Magma.create_forward_renderer(instance.renderScene, Crater.window_get_extent(instance.window));
-    Magma.target_bind(instance.windowTarget, Magma.renderer_get_output(instance.renderer));
-
+    instance.engine = Sill.create_engine(SillMeta);
     instance.fonts.light = Chamber.font_load("./assets/fonts/Ubuntu-Light.ttf", 16);
     instance.fonts.bold = Chamber.font_load("./assets/fonts/Ubuntu-Bold.ttf", 16);
 
+    controller_init();
     board_init();
     background_init();
     varianter_init();
@@ -71,14 +63,7 @@ main :: () {
     game_update_to(*instance.game, 0);
     // game_debug_dump(instance.game);
 
-    while instance.running {
-        Basic.reset_temporary_storage();
-        handle_input_events();
-
-        // But we draw as fast as we can.
-        Magma.engine_update(instance.renderEngine);
-        Magma.engine_draw(instance.renderEngine);
-    }
+    Sill.engine_run(instance.engine);
 
     // cleanup();
     // Chamber.cleanup_logger();
@@ -87,31 +72,8 @@ main :: () {
 
 #scope_file
 
-handle_input_events :: () {
-    event := Crater.window_poll_event(instance.window);
-
-    while event.kind != Crater.Event.Kind.None {
-        if event.kind == Crater.Event.Kind.WindowClosed {
-            instance.running = false;
-            return;
-        }
-        else if event.kind == Crater.Event.Kind.KeyPressed &&
-                event.key.which == Crater.Key.Escape {
-            instance.running = false;
-            return;
-        }
-
-        board_handle_input_event(event);
-        varianter_handle_input_event(event);
-
-        // @todo Delegate and handle.
-        event = Crater.window_poll_event(instance.window);
-    }
-}
-
 cleanup :: () {
-    Magma.destroy_engine(instance.renderEngine);
-    Crater.destroy_window(instance.window);
+    Sill.destroy_engine(instance.engine);
 }
 
 #import "Math";

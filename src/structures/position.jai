@@ -221,7 +221,7 @@ position_play_move :: (position : *Position, sourceCoord : Coord, targetCoord : 
     piece := position.board[sourceCoord];
     capture := (position.board[targetCoord].kind != .Empty);
 
-    Basic.log("%. Playing % from % to %.", fullMoveNumber, piece.kind, coord_to_algebraic(sourceCoord), coord_to_algebraic(targetCoord), flags = .VERBOSE_ONLY);
+    // Basic.log("%. Playing % from % to %.", fullMoveNumber, piece.kind, coord_to_algebraic(sourceCoord), coord_to_algebraic(targetCoord), flags = .VERBOSE_ONLY);
 
     if piece.kind == .Pawn {
         capture = !coord_same_col(sourceCoord, targetCoord);

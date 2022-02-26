@@ -29,8 +29,8 @@ varianter_init :: () {
     ui.extent.width = 800 - 2 * HORIZONTAL_PADDING; // @todo Un-hardcode that
     ui.extent.height = 900 - 2 * VERTICAL_PADDING;
 
-    decorumShader = Magma.create_shader(instance.renderer, "./assets/materials/decorum");
-    textShader = Magma.create_shader(instance.renderer, "./assets/materials/text", .{ depthWriteEnabled = false, alphaBlendingEnabled = true });
+    decorumShader = Magma.create_shader(instance.engine.renderer, "./assets/materials/decorum");
+    textShader = Magma.create_shader(instance.engine.renderer, "./assets/materials/text", .{ depthWriteEnabled = false, alphaBlendingEnabled = true });
 }
 
 varianter_show :: (game : Game) {
@@ -278,10 +278,10 @@ _make_text_mesh :: (text : string, position: Chamber.vec2, font : *Chamber.Font,
     // @todo Have a clever way to keep the texture up-to-date.
     // And not recreate it each time...
     glyphInfos := Chamber.font_glyph_infos(font, text); // @todo Get them without the blanks characters.
-    fontTexture := Magma.create_texture(instance.renderEngine);
+    fontTexture := Magma.create_texture(instance.engine.renderEngine);
     Magma.texture_load_from_memory(fontTexture, font.pixels, font.extent);
 
-    mesh := Magma.create_mesh(instance.renderScene);
+    mesh := Magma.create_mesh(instance.engine.scene);
     mesh.material = Magma.create_material(textShader);
     mesh.translation.xy = position;
     mesh.translation.z = -0.1;
@@ -376,7 +376,7 @@ _make_text_mesh :: (text : string, position: Chamber.vec2, font : *Chamber.Font,
 }
 
 _make_decorum_mesh :: (position : Chamber.vec2, width : float, height : float) -> *Magma.Mesh {
-    mesh := Magma.create_mesh(instance.renderScene);
+    mesh := Magma.create_mesh(instance.engine.scene);
 
     Basic.array_resize(*mesh.vertices, 4);
     Basic.array_resize(*mesh.indices, 6);

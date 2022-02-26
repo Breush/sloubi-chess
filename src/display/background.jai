@@ -6,11 +6,11 @@ Background :: struct {
 background_init :: () {
     using *instance.background;
 
-    shader = Magma.create_shader(instance.renderer, "./assets/materials/background");
-    mesh = Magma.create_mesh(instance.renderScene);
+    shader = Magma.create_shader(instance.engine.renderer, "./assets/materials/background");
+    mesh = Magma.create_mesh(instance.engine.scene);
     mesh.material = Magma.create_material(shader);
 
-    extent := Crater.window_get_extent(instance.window);
+    extent := Crater.window_get_extent(instance.engine.window);
 
     positions := Chamber.vec3.[
         .{-0.5, -0.5, 0. },
