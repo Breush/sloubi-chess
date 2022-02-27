@@ -21,6 +21,8 @@ File :: #import "File";
 #load "readers/pgn.jai";
 #load "controller.jai";
 
+CommandLine :: #import "Command_Line";
+
 instance : Instance;
 
 Instance :: struct {
@@ -38,9 +40,22 @@ Instance :: struct {
     controller : *ControllerEntity;
 }
 
+Arguments :: struct {
+    pgn : string;
+}
+
 main :: () {
     Chamber.init_logger();
     context.log_level = .VERBOSE;
+
+    // @todo Have a better command line parser, checking required arguments and such.
+    success, args, setArgs := CommandLine.parse_arguments(Arguments);
+    if !success then return;
+
+    if !setArgs.pgn {
+        Basic.log("No PGN file specified. Please relaunch with -pgn <PGN_FILE>.", flags = .WARNING);
+        return;
+    }
 
     instance.engine = Sill.create_engine(SillMeta);
     instance.fonts.light = Chamber.font_load("./assets/fonts/Ubuntu-Light.ttf", 16);
@@ -51,13 +66,7 @@ main :: () {
     background_init();
     varianter_init();
 
-    // load_pgn("./assets/pgns/opera-game.pgn");
-    // load_pgn("./assets/pgns/test-crazy-moves.pgn");
-    // load_pgn("./assets/pgns/reti-bogoliouboff-new_york-1924.pgn");
-    // load_pgn("./assets/pgns/test-fen-and-comments.pgn");
-    load_pgn("./assets/pgns/benko-revealed-intro.pgn");
-    // load_pgn("./assets/pgns/benko-revealed-intro-english.pgn");
-    // load_pgn("./assets/pgns/breush-game.pgn");
+    load_pgn(args.pgn);
 
     varianter_show(instance.game);
     game_update_to(*instance.game, 0);
