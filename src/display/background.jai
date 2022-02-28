@@ -6,9 +6,11 @@ Background :: struct {
 background_init :: () {
     using *instance.background;
 
-    shader = Magma.create_shader(instance.engine.renderer, "./assets/materials/background");
+    shader = Magma.create_shader(instance.engine.renderer, "./assets/materials/monochrome");
     mesh = Magma.create_mesh(instance.engine.scene);
     mesh.material = Magma.create_material(shader);
+
+    Magma.material_set(mesh.material, "color", instance.config.background.color);
 
     extent := Crater.window_get_extent(instance.engine.window);
 

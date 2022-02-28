@@ -14,6 +14,10 @@
 
 #include "$/forward-renderer/default-header.frag"
 
+layout(std140, set = MATERIAL_DESCRIPTOR_SET_INDEX, binding = 0) uniform MaterialShaderObject {
+    vec3 color;
+} material;
+
 vec3 toLinear(vec3 sRGB)
 {
     bvec3 cutoff = lessThan(sRGB, vec3(0.04045));
@@ -24,8 +28,7 @@ vec3 toLinear(vec3 sRGB)
 }
 
 void main() {
-    outColor = vec4(vec3(0.173), 1.0);
-    outColor = vec4(toLinear(outColor.rgb), 1.0);
+    outColor = vec4(toLinear(material.color), 1.0);
 }
 
 #endif

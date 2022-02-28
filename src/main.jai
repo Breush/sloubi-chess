@@ -19,6 +19,7 @@ File :: #import "File";
 #load "structures/position.jai";
 #load "readers/fen.jai";
 #load "readers/pgn.jai";
+#load "config.jai";
 #load "controller.jai";
 
 CommandLine :: #import "Command_Line";
@@ -35,13 +36,15 @@ Instance :: struct {
 
     background : Background;
     board : *BoardEntity;
+    config : Config;
+    controller : *ControllerEntity;
     game : Game;
     varianter : Varianter;
-    controller : *ControllerEntity;
 }
 
 Arguments :: struct {
     pgn : string;
+    config := "./assets/config.json";
 }
 
 main :: () {
@@ -61,6 +64,7 @@ main :: () {
     instance.fonts.light = Chamber.font_load("./assets/fonts/Ubuntu-Light.ttf", 16);
     instance.fonts.bold = Chamber.font_load("./assets/fonts/Ubuntu-Bold.ttf", 16);
 
+    config_init(*instance.config, args.config);
     controller_init();
     board_init();
     background_init();

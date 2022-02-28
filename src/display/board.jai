@@ -73,13 +73,6 @@ board_update_to_position :: (position : Position) {
 
 #scope_file
 
-// White/green
-// whiteSquareColor :: Chamber.vec3.{0.933, 0.933, 0.824};
-// blackSquareColor :: Chamber.vec3.{0.462, 0.588, 0.337};
-// White/orange
-whiteSquareColor :: Chamber.vec3.{0.905, 0.911, 0.822};
-blackSquareColor :: Chamber.vec3.{0.703, 0.573, 0.335};
-
 _init_resources :: () {
     using instance.board;
 
@@ -90,18 +83,18 @@ _init_resources :: () {
         Magma.texture_load_from_file(piecesTextures[pieceId], filename);
     }
 
-    init_piece_texture(piece_id(.{ .B, .White }), "./assets/images/pieces/staunty-wb.png");
-    init_piece_texture(piece_id(.{ .K, .White }), "./assets/images/pieces/staunty-wk.png");
-    init_piece_texture(piece_id(.{ .N, .White }), "./assets/images/pieces/staunty-wn.png");
-    init_piece_texture(piece_id(.{ .P, .White }), "./assets/images/pieces/staunty-wp.png");
-    init_piece_texture(piece_id(.{ .Q, .White }), "./assets/images/pieces/staunty-wq.png");
-    init_piece_texture(piece_id(.{ .R, .White }), "./assets/images/pieces/staunty-wr.png");
-    init_piece_texture(piece_id(.{ .B, .Black }), "./assets/images/pieces/staunty-bb.png");
-    init_piece_texture(piece_id(.{ .K, .Black }), "./assets/images/pieces/staunty-bk.png");
-    init_piece_texture(piece_id(.{ .N, .Black }), "./assets/images/pieces/staunty-bn.png");
-    init_piece_texture(piece_id(.{ .P, .Black }), "./assets/images/pieces/staunty-bp.png");
-    init_piece_texture(piece_id(.{ .Q, .Black }), "./assets/images/pieces/staunty-bq.png");
-    init_piece_texture(piece_id(.{ .R, .Black }), "./assets/images/pieces/staunty-br.png");
+    init_piece_texture(piece_id(.{ .B, .White }), Basic.tprint("./assets/images/pieces/%-wb.png", instance.config.board.pieces));
+    init_piece_texture(piece_id(.{ .K, .White }), Basic.tprint("./assets/images/pieces/%-wk.png", instance.config.board.pieces));
+    init_piece_texture(piece_id(.{ .N, .White }), Basic.tprint("./assets/images/pieces/%-wn.png", instance.config.board.pieces));
+    init_piece_texture(piece_id(.{ .P, .White }), Basic.tprint("./assets/images/pieces/%-wp.png", instance.config.board.pieces));
+    init_piece_texture(piece_id(.{ .Q, .White }), Basic.tprint("./assets/images/pieces/%-wq.png", instance.config.board.pieces));
+    init_piece_texture(piece_id(.{ .R, .White }), Basic.tprint("./assets/images/pieces/%-wr.png", instance.config.board.pieces));
+    init_piece_texture(piece_id(.{ .B, .Black }), Basic.tprint("./assets/images/pieces/%-bb.png", instance.config.board.pieces));
+    init_piece_texture(piece_id(.{ .K, .Black }), Basic.tprint("./assets/images/pieces/%-bk.png", instance.config.board.pieces));
+    init_piece_texture(piece_id(.{ .N, .Black }), Basic.tprint("./assets/images/pieces/%-bn.png", instance.config.board.pieces));
+    init_piece_texture(piece_id(.{ .P, .Black }), Basic.tprint("./assets/images/pieces/%-bp.png", instance.config.board.pieces));
+    init_piece_texture(piece_id(.{ .Q, .Black }), Basic.tprint("./assets/images/pieces/%-bq.png", instance.config.board.pieces));
+    init_piece_texture(piece_id(.{ .R, .Black }), Basic.tprint("./assets/images/pieces/%-br.png", instance.config.board.pieces));
 
     // Use a transparent texture for emptiness.
     // @fixme This could be done "automatically" by Magma when the texture is set to "null".
@@ -137,14 +130,8 @@ _init_meshes :: () {
         squareMesh := _make_square_mesh();
         squareMesh.material = Magma.create_material(squareShader);
 
-        color : Chamber.vec3 = ---;
         row, col := row_col(cast(u8) coord);
-        if ((row + col) % 2) {
-            color = whiteSquareColor;
-        } else {
-            color = blackSquareColor;
-        }
-
+        color := ifx (row + col) % 2 then instance.config.board.lightSquareColor else instance.config.board.darkSquareColor;
         Magma.material_set(squareMesh.material, "color", color);
 
         Basic.array_add(*mesh.nodes[0].children, cast(s64) mesh.nodes.count);

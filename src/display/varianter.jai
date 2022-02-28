@@ -29,7 +29,7 @@ varianter_init :: () {
     ui.extent.width = 800 - 2 * HORIZONTAL_PADDING; // @todo Un-hardcode that
     ui.extent.height = 900 - 2 * VERTICAL_PADDING;
 
-    decorumShader = Magma.create_shader(instance.engine.renderer, "./assets/materials/decorum");
+    decorumShader = Magma.create_shader(instance.engine.renderer, "./assets/materials/monochrome");
     textShader = Magma.create_shader(instance.engine.renderer, "./assets/materials/text", .{ depthWriteEnabled = false, alphaBlendingEnabled = true });
 }
 
@@ -148,13 +148,13 @@ varianter_update_to_current_move :: (game : *Game) {
     variant := game_current_variant(game);
 
     if selectedNode != null && selectedNode.fullMoveMesh != null {
-        Magma.material_set(selectedNode.fullMoveMesh.material, "color", Chamber.vec3.{1, 1, 1});
+        Magma.material_set(selectedNode.fullMoveMesh.material, "color", instance.config.moves.mainColor);
     }
     if selectedNode != null && selectedNode.commentMesh != null {
-        Magma.material_set(selectedNode.commentMesh.material, "color", Chamber.vec3.{1, 1, 1});
+        Magma.material_set(selectedNode.commentMesh.material, "color", instance.config.moves.mainColor);
     }
     if selectedNode != null && selectedNode.decorumMesh != null {
-        Magma.material_set(selectedNode.decorumMesh.material, "color", Chamber.vec3.{1, 1, 1});
+        Magma.material_set(selectedNode.decorumMesh.material, "color", instance.config.moves.mainColor);
     }
 
     selectedNode = *variant.nodes[game.nodeIndex];
@@ -162,15 +162,15 @@ varianter_update_to_current_move :: (game : *Game) {
     startY := 0.0;
     if selectedNode.fullMoveMesh != null {
         startY = selectedNode.fullMoveMesh.translation.y;
-        Magma.material_set(selectedNode.fullMoveMesh.material, "color", Chamber.vec3.{1, 0.7, 0.3});
+        Magma.material_set(selectedNode.fullMoveMesh.material, "color", instance.config.moves.selectedColor);
     }
     if selectedNode.commentMesh != null {
         if startY == 0.0 then startY = selectedNode.commentMesh.translation.y;
-        Magma.material_set(selectedNode.commentMesh.material, "color", Chamber.vec3.{1, 0.9, 0.7});
+        Magma.material_set(selectedNode.commentMesh.material, "color", instance.config.moves.selectedCommentColor);
     }
     if selectedNode.decorumMesh != null {
         if startY == 0.0 then startY = selectedNode.decorumMesh.translation.y;
-        Magma.material_set(selectedNode.decorumMesh.material, "color", Chamber.vec3.{1, 0.7, 0.3});
+        Magma.material_set(selectedNode.decorumMesh.material, "color", instance.config.moves.selectedColor);
     }
 
     // Scroll to be sure that the selected node is visible.
@@ -286,7 +286,7 @@ _make_text_mesh :: (text : string, position: Chamber.vec2, font : *Chamber.Font,
     mesh.translation.xy = position;
     mesh.translation.z = -0.1;
     Magma.material_set(mesh.material, "fontTexture", fontTexture);
-    Magma.material_set(mesh.material, "color", Chamber.vec3.{1, 1, 1});
+    Magma.material_set(mesh.material, "color", instance.config.moves.mainColor);
 
     currentWidth := 0.0;
     offset : Chamber.vec2;
@@ -398,7 +398,7 @@ _make_decorum_mesh :: (position : Chamber.vec2, width : float, height : float) -
     mesh.indices[5] = 0;
 
     mesh.material = Magma.create_material(instance.varianter.decorumShader);
-    Magma.material_set(mesh.material, "color", Chamber.vec3.{1, 1, 1});
+    Magma.material_set(mesh.material, "color", instance.config.moves.mainColor);
 
     Magma.mesh_commit_vertices(mesh);
     Magma.mesh_commit_indices(mesh);
