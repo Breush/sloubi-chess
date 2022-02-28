@@ -44,15 +44,13 @@ varianter_show_variant :: (variant : *Variant, startPosition : Chamber.vec2, wid
     position := startPosition;
     splitWidth := (width - SPLIT_PADDING) / 2;
     offsetToBlack := (width + SPLIT_PADDING) / 2;
+    fullStyleWidth := width * instance.config.moves.comments.fullStyleWidth;
+    fullStyleOffsetToBlack := Math.floor(width - fullStyleWidth + 0.5);
 
     lastSplitHeight : float;
 
     for nodeIndex : 0..variant.nodes.count-1 {
         node := *variant.nodes[nodeIndex];
-
-        isWhiteMove := (node.position.moveIndex % 2 != 0);
-        splitHeight : float;
-        flushSplitHeight := !isWhiteMove || node.variants.count != 0;
 
         if nodeIndex == 0 {
             commentHeight, mesh := _make_text_mesh(node.comment, position, *instance.fonts.light, width);
@@ -63,10 +61,12 @@ varianter_show_variant :: (variant : *Variant, startPosition : Chamber.vec2, wid
             continue;
         }
 
-        commentLocation := _detect_comment_location(variant, nodeIndex, isWhiteMove);
+        commentLocation := _detect_comment_location(variant, nodeIndex);
+        splitHeight : float;
+        flushSplitHeight := commentLocation.color == .Black || node.variants.count != 0;
 
-        // Pre-flushing before a non-aligned full.
-        if commentLocation == .SidedFull || commentLocation == .Full {
+        // Pre-flushing.
+        if commentLocation.preflushed {
             position.y += lastSplitHeight;
             lastSplitHeight = 0;
         }
@@ -76,7 +76,7 @@ varianter_show_variant :: (variant : *Variant, startPosition : Chamber.vec2, wid
             font := ifx depth == 0 then *instance.fonts.bold else *instance.fonts.light;
 
             commentPosition := position;
-            if !isWhiteMove then commentPosition.x += offsetToBlack;
+            if commentLocation.color == .Black then commentPosition.x += offsetToBlack;
             fullMoveIndex := (node.position.moveIndex + 1) / 2;
             fullMoveText := Basic.tprint("%.% %", fullMoveIndex, ifx node.position.moveIndex % 2 then "" else ".. ", position_last_move_to_san(node.position));
             fullMoveHeight, mesh := _make_text_mesh(fullMoveText, commentPosition, font, splitWidth);
@@ -84,32 +84,31 @@ varianter_show_variant :: (variant : *Variant, startPosition : Chamber.vec2, wid
             node.fullMoveMesh = mesh;
         }
 
-        if commentLocation == .Half {
+        if commentLocation.style == .Half {
             commentPosition := position;
             commentPosition.y += LINE_HEIGHT;
-            if !isWhiteMove then commentPosition.x += offsetToBlack;
+            if commentLocation.color == .Black then commentPosition.x += offsetToBlack;
 
             commentHeight, mesh := _make_text_mesh(node.comment, commentPosition, *instance.fonts.light, splitWidth);
             node.commentMesh = mesh;
             splitHeight += commentHeight;
             if depth == 0 then splitHeight += LINE_HEIGHT;
-        } else if commentLocation == .SidedFull || commentLocation == .SidedFullAligned ||
-                  commentLocation == .Full || commentLocation == .FullAligned {
+        } else if commentLocation.style == .SidedFull || commentLocation.style == .Full {
             commentPosition := position;
             commentPosition.y += LINE_HEIGHT;
+            if commentLocation.padded then commentPosition.x += fullStyleOffsetToBlack;
 
             flushSplitHeight = true;
-            isSided := commentLocation == .SidedFull || commentLocation == .SidedFullAligned;
-            startingOffsetX := ifx isSided && !isWhiteMove then offsetToBlack else 0.0;
-            commentHeight, mesh := _make_text_mesh(node.comment, commentPosition, *instance.fonts.light, width, startingOffsetX);
+            startingOffsetX := ifx commentLocation.style == .SidedFull && commentLocation.padded then offsetToBlack - fullStyleOffsetToBlack else 0.0;
+            commentHeight, mesh := _make_text_mesh(node.comment, commentPosition, *instance.fonts.light, fullStyleWidth, startingOffsetX);
             node.commentMesh = mesh;
             splitHeight += commentHeight;
             if depth == 0 then splitHeight += LINE_HEIGHT;
-        } else if commentLocation == .Inline {
+        } else if commentLocation.style == .Inline {
             commentPosition := position;
             commentPosition.x += Math.floor(splitWidth / 4);
-            if !isWhiteMove then commentPosition.x += offsetToBlack;
-            commentHeight, mesh := _make_text_mesh(Basic.tprint("(%)", node.comment), commentPosition, *instance.fonts.light, 10000);
+            if commentLocation.color == .Black then commentPosition.x += offsetToBlack;
+            commentHeight, mesh := _make_text_mesh(node.comment, commentPosition, *instance.fonts.lightItalic, splitWidth);
             node.commentMesh = mesh;
         }
 
@@ -189,59 +188,67 @@ varianter_handle_input_event :: (event : Crater.Event) {
     }
 }
 
-#scope_file
-
-CommentLocation :: enum {
+CommentStyle :: enum {
     None :: 0;
     Inline;
     Half;
-    SidedFull;
-    SidedFullAligned;
     Full;
-    FullAligned;
+    SidedFull;
 }
 
-_detect_comment_location :: (variant : *Variant, nodeIndex : s64, isWhiteMove : bool) -> CommentLocation {
+#scope_file
+
+CommentLocation :: struct {
+    color : Color;
+    style : CommentStyle;
+    preflushed : bool;
+    padded : bool; // Usually true if black, but can be set to false on last move of a variation.
+}
+
+_detect_comment_location :: (variant : *Variant, nodeIndex : s64) -> CommentLocation {
     node := variant.nodes[nodeIndex];
-    commentLocation := _detect_comment_location(node.comment);
+
+    commentLocation : CommentLocation;
+    commentLocation.style = _detect_comment_style(node.comment);
+    commentLocation.color = ifx node.position.moveIndex % 2 != 0 then Color.White else .Black;
+    commentLocation.padded = commentLocation.color == .Black;
+
+    nextCommentStyle := ifx nodeIndex != variant.nodes.count - 1 then _detect_comment_style(variant.nodes[nodeIndex + 1].comment) else .None;
+    previousCommentStyle := ifx nodeIndex != 0 then _detect_comment_style(variant.nodes[nodeIndex - 1].comment) else .None;
 
     // Promotion of white half comment to full if next black is expected to be full.
-    if commentLocation == .Half && isWhiteMove && nodeIndex + 1 < variant.nodes.count &&
-       _detect_comment_location(variant.nodes[nodeIndex + 1].comment) == .SidedFull {
-        commentLocation = .SidedFull;
+    if commentLocation.style == .Half && commentLocation.color == .White &&
+       (nextCommentStyle == .Full || nextCommentStyle == .SidedFull) {
+        commentLocation.style = .Full;
     }
-    // Promotion of white half comment to full if there are any variants.
-    else if commentLocation == .Half && isWhiteMove && node.variants.count > 0 {
-        commentLocation = .SidedFull;
-    }
-    // Align a black full comment when the white before was None or Inline.
-    // So that we don't flush and the Black's full move info on the same line.
-    else if commentLocation == .SidedFull && !isWhiteMove && nodeIndex > 0 &&
-       (_detect_comment_location(variant.nodes[nodeIndex - 1].comment) == .None ||
-        _detect_comment_location(variant.nodes[nodeIndex - 1].comment) == .Inline) {
-        commentLocation = .SidedFullAligned;
+    // Promotion of white half comment to full if there are any variation.
+    else if commentLocation.style == .Half && commentLocation.color == .White && node.variants.count > 0 {
+        commentLocation.style = .Full;
     }
 
-    // Promote a sided half or full to a non-sided full if it is the last move.
-    if (commentLocation == .Half || commentLocation == .SidedFull) && nodeIndex == variant.nodes.count - 1 {
-        if !isWhiteMove && nodeIndex > 0 &&
-           (_detect_comment_location(variant.nodes[nodeIndex - 1].comment) == .None ||
-            _detect_comment_location(variant.nodes[nodeIndex - 1].comment) == .Inline) {
-            commentLocation = .FullAligned;
-        } else {
-            commentLocation = .Full;
-        }
+    // @todo Do that on option only?
+    // Turn a Half or SidedFull to unpadded Full if it is the last move.
+    if (commentLocation.style == .Half || commentLocation.style == .SidedFull) && nodeIndex == variant.nodes.count - 1 {
+        commentLocation.style = .Full;
+        commentLocation.padded = false;
+    }
+
+    // Don't preflush a black comment when the white before was None or Inline.
+    commentLocation.preflushed = (commentLocation.style == .Full) || (commentLocation.style == .SidedFull);
+    if commentLocation.preflushed && commentLocation.color == .Black &&
+            (previousCommentStyle == .None || previousCommentStyle == .Inline) {
+        commentLocation.preflushed = false;
     }
 
     return commentLocation;
 }
 
-_detect_comment_location :: (comment : string) -> CommentLocation {
+_detect_comment_style :: (comment : string) -> CommentStyle {
     // @todo Completely arbitrary, but gives good enough results.
     if comment.count == 0 then return .None;
-    if comment.count <= 30 then return .Inline;
-    if comment.count <= 150 then return .Half;
-    return .SidedFull;
+    if comment.count <= 30 then return instance.config.moves.comments.shortStyle;
+    if comment.count <= 150 then return instance.config.moves.comments.normalStyle;
+    return instance.config.moves.comments.longStyle;
 }
 
 _scroll :: (delta : float) {

@@ -11,6 +11,24 @@
     "moves": {
         "mainColor": [1, 1, 1],                 // RGB color, 0 to 1 values
         "selectedColor": [1, 0.7, 0.3],         // RGB color, 0 to 1 values
-        "selectedCommentColor": [1, 0.9, 0.7]   // RGB color, 0 to 1 values
+        "selectedCommentColor": [1, 0.9, 0.7],  // RGB color, 0 to 1 values
+        "comments": {
+            // We have three types of comments:
+            // - short, few characters long, designed to be inlined
+            // - normal, not going over 3 lines of "Half" style
+            // - long, anything else bigger
+            // And four styles to display them:
+            // - "Inline", where the comment is next to the move number
+            // - "Half", restricted to color's half
+            // - "Full", taking the full width available
+            // - "SidedFull", taking the full width available but first line is padded to color's half
+            "shortStyle": "Inline",
+            "normalStyle": "Half",
+            "longStyle": "SidedFull",
+            // A Full or SidedFull comment can take only a proportion of available width.
+            // Using a SidedFull comment with the fullWidth set to 0.5 would give the exact same output
+            // as a Half comment.
+            "fullStyleWidth": 0.75   // Expected value to be between 0.5 and 1.
+        }
     }
 }

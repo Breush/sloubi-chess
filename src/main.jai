@@ -31,6 +31,7 @@ Instance :: struct {
 
     fonts : struct {
         light : Chamber.Font;
+        lightItalic : Chamber.Font;
         bold : Chamber.Font;
     };
 
@@ -62,6 +63,7 @@ main :: () {
 
     instance.engine = Sill.create_engine(SillMeta);
     instance.fonts.light = Chamber.font_load("./assets/fonts/Ubuntu-Light.ttf", 16);
+    instance.fonts.lightItalic = Chamber.font_load("./assets/fonts/Ubuntu-LightItalic.ttf", 16);
     instance.fonts.bold = Chamber.font_load("./assets/fonts/Ubuntu-Bold.ttf", 16);
 
     config_init(*instance.config, args.config);

@@ -12,6 +12,12 @@ Config :: struct {
         mainColor : Chamber.vec3;
         selectedColor : Chamber.vec3;
         selectedCommentColor : Chamber.vec3;
+        comments : struct {
+            shortStyle : CommentStyle;
+            normalStyle : CommentStyle;
+            longStyle : CommentStyle;
+            fullStyleWidth : float;
+        }
     }
 }
 
@@ -28,6 +34,10 @@ config_init :: (config : *Config, filename : string) {
     config.moves.mainColor = _read_vec3(json["moves"]["mainColor"]);
     config.moves.selectedColor = _read_vec3(json["moves"]["selectedColor"]);
     config.moves.selectedCommentColor = _read_vec3(json["moves"]["selectedCommentColor"]);
+    config.moves.comments.shortStyle = _read_comment_style(json["moves"]["comments"]["shortStyle"]);
+    config.moves.comments.normalStyle = _read_comment_style(json["moves"]["comments"]["normalStyle"]);
+    config.moves.comments.longStyle = _read_comment_style(json["moves"]["comments"]["longStyle"]);
+    config.moves.comments.fullStyleWidth = cast(float) json["moves"]["comments"]["fullStyleWidth"].number;
 }
 
 #scope_file
@@ -38,6 +48,14 @@ _read_vec3 :: (json : Chamber.JsonValue) -> Chamber.vec3 {
     value.y = cast(float) json[1].number;
     value.z = cast(float) json[2].number;
     return value;
+}
+
+_read_comment_style :: (json : Chamber.JsonValue) -> CommentStyle {
+    if json.str == "Inline" then return .Inline;
+    if json.str == "Half" then return .Half;
+    if json.str == "Full" then return .Full;
+    if json.str == "SidedFull" then return .SidedFull;
+    return .None;
 }
 
 #import "Chamber"; // For operator[] of JSON parser.
