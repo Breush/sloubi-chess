@@ -1,7 +1,7 @@
 # SloubiChess
 
 **SloubiChess** is a chess database program with focus on:
-- *variants* displayed looking *good* and *readable*, as most chess desktop apps are ugly ;
+- *variations* made to look *good* and *readable*, as most chess desktop apps are ugly ;
 - *training* by repeating your lines (next big feature, not yet implemented).
 
 It is **not** (yet?):
@@ -13,5 +13,5 @@ It is **not** (yet?):
 
 ```bash
 jai ./src/first.jai
-./bin/sloubi-chess
+./bin/sloubi-chess -pgn <PGN_FILE>
 ```

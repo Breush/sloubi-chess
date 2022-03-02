@@ -8,6 +8,14 @@ Config :: struct {
         lightSquareColor : Chamber.vec3;
         darkSquareColor : Chamber.vec3;
     }
+    controls : struct {
+        nextPly : Crater.Key;
+        previousPly : Crater.Key;
+        firstPly : Crater.Key;
+        lastPly : Crater.Key;
+        nextVariation : Crater.Key;
+        previousVariation : Crater.Key;
+    }
     moves : struct {
         mainColor : Chamber.vec3;
         selectedColor : Chamber.vec3;
@@ -31,12 +39,18 @@ config_init :: (config : *Config, filename : string) {
     config.board.pieces = json["board"]["pieces"].str;
     config.board.lightSquareColor = _read_vec3(json["board"]["lightSquareColor"]);
     config.board.darkSquareColor = _read_vec3(json["board"]["darkSquareColor"]);
+    config.controls.nextPly = _read_enum(json["controls"]["nextPly"], Crater.Key);
+    config.controls.previousPly = _read_enum(json["controls"]["previousPly"], Crater.Key);
+    config.controls.firstPly = _read_enum(json["controls"]["firstPly"], Crater.Key);
+    config.controls.lastPly = _read_enum(json["controls"]["lastPly"], Crater.Key);
+    config.controls.nextVariation = _read_enum(json["controls"]["nextVariation"], Crater.Key);
+    config.controls.previousVariation = _read_enum(json["controls"]["previousVariation"], Crater.Key);
     config.moves.mainColor = _read_vec3(json["moves"]["mainColor"]);
     config.moves.selectedColor = _read_vec3(json["moves"]["selectedColor"]);
     config.moves.selectedCommentColor = _read_vec3(json["moves"]["selectedCommentColor"]);
-    config.moves.comments.shortStyle = _read_comment_style(json["moves"]["comments"]["shortStyle"]);
-    config.moves.comments.normalStyle = _read_comment_style(json["moves"]["comments"]["normalStyle"]);
-    config.moves.comments.longStyle = _read_comment_style(json["moves"]["comments"]["longStyle"]);
+    config.moves.comments.shortStyle = _read_enum(json["moves"]["comments"]["shortStyle"], CommentStyle);
+    config.moves.comments.normalStyle = _read_enum(json["moves"]["comments"]["normalStyle"], CommentStyle);
+    config.moves.comments.longStyle = _read_enum(json["moves"]["comments"]["longStyle"], CommentStyle);
     config.moves.comments.fullStyleWidth = cast(float) json["moves"]["comments"]["fullStyleWidth"].number;
 }
 
@@ -50,12 +64,15 @@ _read_vec3 :: (json : Chamber.JsonValue) -> Chamber.vec3 {
     return value;
 }
 
-_read_comment_style :: (json : Chamber.JsonValue) -> CommentStyle {
-    if json.str == "Inline" then return .Inline;
-    if json.str == "Half" then return .Half;
-    if json.str == "Full" then return .Full;
-    if json.str == "SidedFull" then return .SidedFull;
-    return .None;
+_read_enum :: (json : Chamber.JsonValue, $T : Type) -> T {
+    typeInfo := type_info(T);
+    for name, index : typeInfo.names {
+        if name == json.str {
+            return cast(T) typeInfo.values[index];
+        }
+    }
+    Basic.log("Invalid value '%' for enum '%'.", json.str, T, flags = .ERROR);
+    return cast(T) 0;
 }
 
 #import "Chamber"; // For operator[] of JSON parser.

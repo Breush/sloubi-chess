@@ -58,6 +58,15 @@ game_current_variant_parent_node :: (game : *Game) -> *Variant.Node {
     return node;
 }
 
+game_go_to_first_ply :: (game : *Game) {
+    game_update_to(game, 0);
+}
+
+game_go_to_last_ply :: (game : *Game) {
+    variation := game_current_variant(game);
+    game_update_to(game, cast(u16) variation.nodes.count - 1);
+}
+
 game_go_to_previous_move :: (game : *Game) {
     variant := game_current_variant(game);
 
