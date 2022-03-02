@@ -20,6 +20,8 @@
         "previousVariation": "Up"
     },
     "moves": {
+        "fontFamily": "Ubuntu", // Currently has to be in assets/fonts/, Light, LightItalic and Bold variants should exist.
+        "fontSize": 16,
         "mainColor": [1, 1, 1],                 // RGB color, 0 to 1 values
         "selectedColor": [1, 0.7, 0.3],         // RGB color, 0 to 1 values
         "selectedCommentColor": [1, 0.9, 0.7],  // RGB color, 0 to 1 values

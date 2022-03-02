@@ -17,6 +17,8 @@ Config :: struct {
         previousVariation : Crater.Key;
     }
     moves : struct {
+        fontFamily : string;
+        fontSize : s64;
         mainColor : Chamber.vec3;
         selectedColor : Chamber.vec3;
         selectedCommentColor : Chamber.vec3;
@@ -45,6 +47,8 @@ config_init :: (config : *Config, filename : string) {
     config.controls.lastPly = _read_enum(json["controls"]["lastPly"], Crater.Key);
     config.controls.nextVariation = _read_enum(json["controls"]["nextVariation"], Crater.Key);
     config.controls.previousVariation = _read_enum(json["controls"]["previousVariation"], Crater.Key);
+    config.moves.fontFamily = json["moves"]["fontFamily"].str;
+    config.moves.fontSize = cast(s64) json["moves"]["fontSize"].number;
     config.moves.mainColor = _read_vec3(json["moves"]["mainColor"]);
     config.moves.selectedColor = _read_vec3(json["moves"]["selectedColor"]);
     config.moves.selectedCommentColor = _read_vec3(json["moves"]["selectedCommentColor"]);

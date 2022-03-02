@@ -61,12 +61,13 @@ main :: () {
         return;
     }
 
-    instance.engine = Sill.create_engine(SillMeta);
-    instance.fonts.light = Chamber.font_load("./assets/fonts/Ubuntu-Light.ttf", 16);
-    instance.fonts.lightItalic = Chamber.font_load("./assets/fonts/Ubuntu-LightItalic.ttf", 16);
-    instance.fonts.bold = Chamber.font_load("./assets/fonts/Ubuntu-Bold.ttf", 16);
-
     config_init(*instance.config, args.config);
+
+    instance.engine = Sill.create_engine(SillMeta);
+    instance.fonts.light = Chamber.font_load(Basic.tprint("./assets/fonts/%-Light.ttf", instance.config.moves.fontFamily), cast(float) instance.config.moves.fontSize);
+    instance.fonts.lightItalic = Chamber.font_load(Basic.tprint("./assets/fonts/%-LightItalic.ttf", instance.config.moves.fontFamily), cast(float) instance.config.moves.fontSize);
+    instance.fonts.bold = Chamber.font_load(Basic.tprint("./assets/fonts/%-Bold.ttf", instance.config.moves.fontFamily), cast(float) instance.config.moves.fontSize);
+
     controller_init();
     board_init();
     background_init();
