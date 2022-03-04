@@ -15,6 +15,8 @@ Position :: struct {
 
     moveIndex : u16; // @note Therefore contains the color to play: even = white, odd = black.
     lastMove : Move;
+    annotation : PositionAnnotation;
+    observationAnnotations : [..]ObservationAnnotation;
 
     movesSinceLastCaptureOrPawnMove : u8;
 
@@ -36,6 +38,105 @@ Move :: struct {
 
     capture : bool;
     promotion : bool;
+    annotation : MoveAnnotation;
+}
+
+MoveAnnotation :: enum u8 {
+    None :: 0;
+    Good; // !
+    Mistake; // ?
+    Brillant; // ‼
+    Blunder; // ⁇
+    Interesting; // ⁉
+    Dubious; // ⁈
+    Forced; // □
+    Zugzwang; // ⨀
+}
+
+PositionAnnotation :: enum u8 {
+    None :: 0;
+    Drawish; // =
+    Unclear; // ∞
+    WhiteSlightAdvantage; // ⩲
+    BlackSlightAdvantage; // ⩱
+    WhiteModerateAdvantage; // ±
+    BlackModerateAdvantage; // ∓
+    WhiteDecisiveAdvantage; // ∔
+    BlackDecisiveAdvantage; // ∸
+}
+
+ObservationAnnotation :: enum u8 {
+    None :: 0;
+    SpaceAdvantage; // ○
+    TimeAdvantage; // ↻
+    Initiative; // ↑
+    Attack; // →
+    Compensation; // ≒
+    Counterplay; // ⇆
+    TimeControlPressure; // ⨁
+    WithIdea; // ∆
+    Novelty; // ℕ
+}
+
+annotation_color :: (annotation : MoveAnnotation) -> Chamber.vec3 {
+    if #complete annotation == {
+        case .None; return instance.config.moves.mainColor;
+        case .Good; return instance.config.moves.goodColor;
+        case .Mistake; return instance.config.moves.mistakeColor;
+        case .Brillant; return instance.config.moves.brillantColor;
+        case .Blunder; return instance.config.moves.blunderColor;
+        case .Interesting; return instance.config.moves.interestingColor;
+        case .Dubious; return instance.config.moves.dubiousColor;
+        case .Forced; return instance.config.moves.mainColor;
+        case .Zugzwang; return instance.config.moves.mainColor;
+    }
+    return instance.config.moves.mainColor;
+}
+
+annotation_to_utf8 :: (annotation : MoveAnnotation) -> string {
+    if #complete annotation == {
+        case .None; return "";
+        case .Good; return "!";
+        case .Mistake; return "?";
+        case .Brillant; return "‼";
+        case .Blunder; return "⁇";
+        case .Interesting; return "⁉";
+        case .Dubious; return "⁈";
+        case .Forced; return "□";
+        case .Zugzwang; return "⨀";
+    }
+    return "";
+}
+
+annotation_to_utf8 :: (annotation : PositionAnnotation) -> string {
+    if #complete annotation == {
+        case .None; return "";
+        case .Drawish; return "=";
+        case .Unclear; return "∞";
+        case .WhiteSlightAdvantage; return "⩲";
+        case .BlackSlightAdvantage; return "⩱";
+        case .WhiteModerateAdvantage; return "±";
+        case .BlackModerateAdvantage; return "∓";
+        case .WhiteDecisiveAdvantage; return "∔";
+        case .BlackDecisiveAdvantage; return "∸";
+    }
+    return "";
+}
+
+annotation_to_utf8 :: (annotation : ObservationAnnotation) -> string {
+    if #complete annotation == {
+        case .None; return "";
+        case .SpaceAdvantage; return "○";
+        case .TimeAdvantage; return "↻";
+        case .Initiative; return "↑";
+        case .Attack; return "→";
+        case .Compensation; return "≒";
+        case .Counterplay; return "⇆";
+        case .TimeControlPressure; return "⨁";
+        case .WithIdea; return "∆";
+        case .Novelty; return "ℕ";
+    }
+    return "";
 }
 
 get_starting_position :: () -> Position {
@@ -157,7 +258,7 @@ position_find_piece_sources :: (position : Position, piece : Piece, sourceHintCo
 }
 
 // SAN: Standard Algebraic Notation
-position_last_move_to_san :: (position : Position) -> string {
+position_last_move_to_san :: (position : Position, annotations := false) -> string {
     if position.lastMove.sourceCoord == position.lastMove.targetCoord then return "??";
 
     piece := position.board[position.lastMove.targetCoord];
@@ -205,9 +306,20 @@ position_last_move_to_san :: (position : Position) -> string {
         }
     }
 
-    return Basic.tprint("%1%2%3%4%5%6", piece_to_algebraic(piece), row_col_to_algebraic(sourceRow, sourceCol, silentOnInvalid = true),
+    annotationsStr : string;
+    if annotations {
+        annotationsStr = Basic.tprint("%", annotation_to_utf8(position.lastMove.annotation));
+        annotationsStr = Basic.tprint("%1%2", annotationsStr, annotation_to_utf8(position.annotation));
+        for annotation : position.observationAnnotations {
+            annotationsStr = Basic.tprint("%1%2", annotationsStr, annotation_to_utf8(annotation));
+        }
+    }
+
+    pieceStr := ifx instance.config.moves.pieceAsSymbol then piece_to_symbol(piece) else piece_to_algebraic(piece);
+
+    return Basic.tprint("%1%2%3%4%5%6%7", pieceStr, row_col_to_algebraic(sourceRow, sourceCol, silentOnInvalid = true),
                                         capture, row_col_to_algebraic(targetRow, targetCol, silentOnInvalid = true),
-                                        promotion, check);
+                                        promotion, check, annotationsStr);
 }
 
 position_play_move :: (position : *Position, sourceCoord : Coord, targetCoord : Coord, promotionPieceKind : PieceKind) {

@@ -41,6 +41,159 @@ load_pgn :: (filename : string) -> bool {
 
 #scope_file
 
+// Based on https://en.wikipedia.org/wiki/Numeric_Annotation_Glyphs
+Nag :: enum {
+    None :: 0;
+    Good :: 1; // !
+    Mistake :: 2; // ?
+    Brillant :: 3; // !!
+    Blunder :: 4; // ??
+    Interesting :: 5; // !?
+    Dubious :: 6; // ?!
+    Forced :: 7; // □
+    Singular :: 8;
+    Worst :: 9;
+
+    Drawish :: 10; // =
+    EqualQuiet :: 11;
+    EqualActive :: 12;
+    Unclear :: 13; // ∞
+
+    WhiteSlightAdvantage :: 14; // ⩲
+    BlackSlightAdvantage :: 15; // ⩱
+    WhiteModerateAdvantage :: 16; // ±
+    BlackModerateAdvantage :: 17; // ∓
+    WhiteDecisiveAdvantage :: 18; // +-
+    BlackDecisiveAdvantage :: 19; // -+
+    WhiteCrushingAdvantage :: 20;
+    BlackCrushingAdvantage :: 21;
+
+    WhiteZugzwang :: 22; // ⨀
+    BlackZugzwang :: 23; // ⨀
+
+    WhiteSlightSpaceAdvantage :: 24;
+    BlackSlightSpaceAdvantage :: 25;
+    WhiteModerateSpaceAdvantage :: 26; // ○
+    BlackModerateSpaceAdvantage :: 27; // ○
+    WhiteDecisiveSpaceAdvantage :: 28;
+    BlackDecisiveSpaceAdvantage :: 29;
+
+    WhiteSlightTimeAdvantage :: 30;
+    BlackSlightTimeAdvantage :: 31;
+    WhiteModerateTimeAdvantage :: 32; // ↻
+    BlackModerateTimeAdvantage :: 33; // ↻
+    WhiteDecisiveTimeAdvantage :: 34;
+    BlackDecisiveTimeAdvantage :: 35;
+
+    WhiteInitiative :: 36; // ↑
+    BlackInitiative :: 37; // ↑
+    WhiteLastingInitiative :: 38;
+    BlackLastingInitiative :: 39;
+
+    WhiteAttack :: 40; // →
+    BlackAttack :: 41; // →
+
+    WhiteInsufficientCompensation :: 42;
+    BlackInsufficientCompensation :: 43;
+    WhiteSufficientCompensation :: 44; // =∞
+    BlackSufficientCompensation :: 45; // =∞
+    WhiteEffectiveCompensation :: 46;
+    BlackEffectiveCompensation :: 47;
+
+    // 48 to 129 are not really interesting.
+
+    WhiteSlightCounterplay :: 130;
+    BlackSlightCounterplay :: 131;
+    WhiteModerateCounterplay :: 132; // ⇆
+    BlackModerateCounterplay :: 133; // ⇆
+    WhiteDecisiveCounterplay :: 134;
+    BlackDecisiveCounterplay :: 135;
+
+    WhiteModerateTimeControlPressure :: 136;
+    BlackModerateTimeControlPressure :: 137;
+    WhiteSevereTimeControlPressure :: 138; // ⨁
+    BlackSevereTimeControlPressure :: 139; // ⨁
+
+    // 140+ are non-standard. I keep here those used by lichess.
+
+    WithIdea :: 140; // ∆
+    Novelty :: 146; // ℕ
+}
+
+_nag_to_move_annotation :: (nag : Nag) -> MoveAnnotation {
+    if nag == {
+        case .None; return .None;
+        case .Good; return .Good;
+        case .Mistake; return .Mistake;
+        case .Brillant; return .Brillant;
+        case .Blunder; return .Blunder;
+        case .Interesting; return .Interesting;
+        case .Dubious; return .Dubious;
+        case .Forced; return .Forced;
+        case .WhiteZugzwang; return .Zugzwang;
+        case .BlackZugzwang; return .Zugzwang;
+    }
+    return .None;
+}
+
+_nag_to_position_annotation :: (nag : Nag) -> PositionAnnotation {
+    if nag == {
+        case .None; return .None;
+        case .Drawish; return .Drawish;
+        case .Unclear; return .Unclear;
+        case .WhiteSlightAdvantage; return .WhiteSlightAdvantage;
+        case .BlackSlightAdvantage; return .BlackSlightAdvantage;
+        case .WhiteModerateAdvantage; return .WhiteModerateAdvantage;
+        case .BlackModerateAdvantage; return .BlackModerateAdvantage;
+        case .WhiteDecisiveAdvantage; return .WhiteDecisiveAdvantage;
+        case .BlackDecisiveAdvantage; return .BlackDecisiveAdvantage;
+        case .WhiteCrushingAdvantage; return .WhiteDecisiveAdvantage;
+        case .BlackCrushingAdvantage; return .BlackDecisiveAdvantage;
+    }
+    return .None;
+}
+
+_nag_to_observation_annotation :: (nag : Nag) -> ObservationAnnotation {
+    if nag == {
+        case .None; return .None;
+        case .WhiteSlightSpaceAdvantage; return .SpaceAdvantage;
+        case .BlackSlightSpaceAdvantage; return .SpaceAdvantage;
+        case .WhiteModerateSpaceAdvantage; return .SpaceAdvantage;
+        case .BlackModerateSpaceAdvantage; return .SpaceAdvantage;
+        case .WhiteDecisiveSpaceAdvantage; return .SpaceAdvantage;
+        case .BlackDecisiveSpaceAdvantage; return .SpaceAdvantage;
+        case .WhiteSlightTimeAdvantage; return .TimeAdvantage;
+        case .BlackSlightTimeAdvantage; return .TimeAdvantage;
+        case .WhiteModerateTimeAdvantage; return .TimeAdvantage;
+        case .BlackModerateTimeAdvantage; return .TimeAdvantage;
+        case .WhiteDecisiveTimeAdvantage; return .TimeAdvantage;
+        case .BlackDecisiveTimeAdvantage; return .TimeAdvantage;
+        case .WhiteInitiative; return .Initiative;
+        case .BlackInitiative; return .Initiative;
+        case .WhiteLastingInitiative; return .Initiative;
+        case .BlackLastingInitiative; return .Initiative;
+        case .WhiteAttack; return .Attack;
+        case .BlackAttack; return .Attack;
+        case .WhiteSufficientCompensation; return .Compensation;
+        case .BlackSufficientCompensation; return .Compensation;
+        case .WhiteEffectiveCompensation; return .Compensation;
+        case .BlackEffectiveCompensation; return .Compensation;
+        case .WhiteSlightCounterplay; return .Counterplay;
+        case .BlackSlightCounterplay; return .Counterplay;
+        case .WhiteModerateCounterplay; return .Counterplay;
+        case .BlackModerateCounterplay; return .Counterplay;
+        case .WhiteDecisiveCounterplay; return .Counterplay;
+        case .BlackDecisiveCounterplay; return .Counterplay;
+        case .WhiteModerateTimeControlPressure; return .TimeControlPressure;
+        case .BlackModerateTimeControlPressure; return .TimeControlPressure;
+        case .WhiteSevereTimeControlPressure; return .TimeControlPressure;
+        case .BlackSevereTimeControlPressure; return .TimeControlPressure;
+        case .WithIdea; return .WithIdea;
+        case .Novelty; return .Novelty;
+    }
+    return .None;
+}
+
 _skip_blanks :: (bytes : *string) {
     while bytes.count > 0 &&
           ((<<bytes)[0] == #char " " || (<<bytes)[0] == #char "\t" ||
@@ -91,6 +244,9 @@ _parse_potential_move_number :: (bytes : *string) -> bool {
 
 _parse_move :: (bytes : *string, variant : *Variant, color : Color) {
     lastPosition := Basic.peek(variant.nodes).position;
+    lastPosition.annotation = .None;
+    lastPosition.observationAnnotations.count = 0;
+    lastPosition.lastMove = .{};
 
     capture : bool;
     sourceCoord, targetCoord : Coord = 0xFF, 0xFF;
@@ -393,7 +549,7 @@ _parse_potential_annotated_move :: (bytes : *string, variant : *Variant, color :
 
     _parse_potential_move_number(bytes);
     _parse_move(bytes, variant, color);
-    _parse_potential_annotation(bytes);
+    while _parse_potential_annotation(bytes, variant) {}
     _parse_potential_comments(bytes, variant);
 
     if (<<bytes)[0] == #char ")" then return false;
@@ -403,19 +559,48 @@ _parse_potential_annotated_move :: (bytes : *string, variant : *Variant, color :
 }
 
 // Ignoring NAG et al. for now
-_parse_potential_annotation :: (bytes : *string) {
+_parse_potential_annotation :: (bytes : *string, variant : *Variant) -> bool {
+    nag : Nag;
+
     if (<<bytes)[0] == #char "$" {
         Basic.advance(bytes);
-        while (<<bytes)[0] >= #char "0" && (<<bytes)[0] <= #char "9" {
-            Basic.advance(bytes);
-        }
+        ok : bool;
+        nagValue : s64;
+        nagValue, ok, (<<bytes) = Basic.to_integer(<<bytes);
+        nag = cast(Nag) nagValue;
     }
 
-    while (<<bytes)[0] == #char "!" || (<<bytes)[0] == #char "?" {
+    if (<<bytes)[0] == #char "!" {
         Basic.advance(bytes);
+        if (<<bytes)[0] == #char "!" { nag = .Brillant; Basic.advance(bytes); }
+        else if (<<bytes)[0] == #char "?" { nag == .Interesting; Basic.advance(bytes); }
+        else nag = .Good;
+    } else if (<<bytes)[0] == #char "?" {
+        Basic.advance(bytes);
+        if (<<bytes)[0] == #char "?" { nag = .Blunder; Basic.advance(bytes); }
+        else if (<<bytes)[0] == #char "!" { nag == .Dubious; Basic.advance(bytes); }
+        else nag = .Mistake;
     }
 
     _skip_blanks(bytes);
+
+    if nag != .None {
+        position := *Basic.peek_pointer(variant.nodes).position;
+        moveAnnotation := _nag_to_move_annotation(nag);
+        if moveAnnotation != .None {
+            position.lastMove.annotation = moveAnnotation;
+        }
+        positionAnnotation := _nag_to_position_annotation(nag);
+        if positionAnnotation != .None {
+            position.annotation = positionAnnotation;
+        }
+        observationAnnotation := _nag_to_observation_annotation(nag);
+        if observationAnnotation != .None {
+            Basic.array_add(*position.observationAnnotations, observationAnnotation);
+        }
+    }
+
+    return nag != .None;
 }
 
 _parse_word :: (bytes : *string) -> string {

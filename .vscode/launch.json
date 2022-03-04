@@ -9,7 +9,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/bin/sloubi-chess",
-            "args": [],
+            "args": [ "-pgn", "./assets/pgns/benko-revealed-intro.pgn" ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [

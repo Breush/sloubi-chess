@@ -64,6 +64,8 @@
             "label": "run",
             "type": "shell",
             "command": " ${workspaceFolder}/bin/sloubi-chess -pgn ./assets/pgns/benko-revealed-intro.pgn",
+            // "command": " ${workspaceFolder}/bin/sloubi-chess -pgn ./assets/pgns/test-fen-and-comments.pgn",
+            // "command": " ${workspaceFolder}/bin/sloubi-chess -pgn ./assets/pgns/opera-game.pgn",
             "options": {
                 "env": {
                     "VK_LAYER_PATH": "${workspaceFolder}/lava/bindings/Vulkan/layers",

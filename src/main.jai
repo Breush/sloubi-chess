@@ -63,10 +63,16 @@ main :: () {
 
     config_init(*instance.config, args.config);
 
+    // @todo We're missing a notion in fonts, which would allow us to use a shared fallback.
+    // Currently, we would need to duplicate the "dejaVu" fallback font for each family.
+    boldFontFiles : [2]string;
+    boldFontFiles[0] = Basic.tprint("./assets/fonts/%-Bold.ttf", instance.config.moves.fontFamily);
+    boldFontFiles[1] = "./assets/fonts/DejaVuSans.ttf";
+
     instance.engine = Sill.create_engine(SillMeta);
     instance.fonts.light = Chamber.font_load(Basic.tprint("./assets/fonts/%-Light.ttf", instance.config.moves.fontFamily), cast(float) instance.config.moves.fontSize);
     instance.fonts.lightItalic = Chamber.font_load(Basic.tprint("./assets/fonts/%-LightItalic.ttf", instance.config.moves.fontFamily), cast(float) instance.config.moves.fontSize);
-    instance.fonts.bold = Chamber.font_load(Basic.tprint("./assets/fonts/%-Bold.ttf", instance.config.moves.fontFamily), cast(float) instance.config.moves.fontSize);
+    instance.fonts.bold = Chamber.font_load(boldFontFiles, cast(float) instance.config.moves.fontSize);
 
     controller_init();
     board_init();

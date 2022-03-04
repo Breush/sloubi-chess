@@ -20,8 +20,15 @@ Config :: struct {
         fontFamily : string;
         fontSize : s64;
         mainColor : Chamber.vec3;
+        interestingColor : Chamber.vec3;
+        goodColor : Chamber.vec3;
+        brillantColor : Chamber.vec3;
+        dubiousColor : Chamber.vec3;
+        mistakeColor : Chamber.vec3;
+        blunderColor : Chamber.vec3;
         selectedColor : Chamber.vec3;
         selectedCommentColor : Chamber.vec3;
+        pieceAsSymbol : bool;
         comments : struct {
             shortStyle : CommentStyle;
             normalStyle : CommentStyle;
@@ -50,8 +57,15 @@ config_init :: (config : *Config, filename : string) {
     config.moves.fontFamily = json["moves"]["fontFamily"].str;
     config.moves.fontSize = cast(s64) json["moves"]["fontSize"].number;
     config.moves.mainColor = _read_vec3(json["moves"]["mainColor"]);
+    config.moves.interestingColor = _read_vec3(json["moves"]["interestingColor"]);
+    config.moves.goodColor = _read_vec3(json["moves"]["goodColor"]);
+    config.moves.brillantColor = _read_vec3(json["moves"]["brillantColor"]);
+    config.moves.dubiousColor = _read_vec3(json["moves"]["dubiousColor"]);
+    config.moves.mistakeColor = _read_vec3(json["moves"]["mistakeColor"]);
+    config.moves.blunderColor = _read_vec3(json["moves"]["blunderColor"]);
     config.moves.selectedColor = _read_vec3(json["moves"]["selectedColor"]);
     config.moves.selectedCommentColor = _read_vec3(json["moves"]["selectedCommentColor"]);
+    config.moves.pieceAsSymbol = json["moves"]["pieceAsSymbol"].boolean;
     config.moves.comments.shortStyle = _read_enum(json["moves"]["comments"]["shortStyle"], CommentStyle);
     config.moves.comments.normalStyle = _read_enum(json["moves"]["comments"]["normalStyle"], CommentStyle);
     config.moves.comments.longStyle = _read_enum(json["moves"]["comments"]["longStyle"], CommentStyle);

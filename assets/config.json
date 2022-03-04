@@ -23,8 +23,15 @@
         "fontFamily": "Ubuntu", // Currently has to be in assets/fonts/, Light, LightItalic and Bold variants should exist.
         "fontSize": 16,
         "mainColor": [1, 1, 1],                 // RGB color, 0 to 1 values
+        "interestingColor": [0.4, 0.8, 0.9],    // RGB color, 0 to 1 values
+        "goodColor": [0.4, 0.5, 0.9],           // RGB color, 0 to 1 values
+        "brillantColor": [0.8, 0.4, 0.9],       // RGB color, 0 to 1 values
+        "dubiousColor": [0.9, 0.8, 0.3],        // RGB color, 0 to 1 values
+        "mistakeColor": [0.9, 0.5, 0.3],        // RGB color, 0 to 1 values
+        "blunderColor": [0.9, 0.1, 0.1],        // RGB color, 0 to 1 values
         "selectedColor": [1, 0.7, 0.3],         // RGB color, 0 to 1 values
         "selectedCommentColor": [1, 0.9, 0.7],  // RGB color, 0 to 1 values
+        "pieceAsSymbol": false, // true to uses symbols (♜♞♝♛♚), false to uses letters (RNBQK)
         "comments": {
             // We have three types of comments:
             // - short, few characters long, designed to be inlined

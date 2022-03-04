@@ -150,7 +150,7 @@ variant_debug_dump :: (variant : Variant, depth : u8) {
             prefix.count += 1;
         } else {
             fullMoveIndex := (node.position.moveIndex + 1) / 2;
-            Chamber.debug(prefix, fullMoveIndex, ifx node.position.moveIndex % 2 then ". " else "... ", position_last_move_to_san(node.position), " {", node.comment, "}");
+            Chamber.debug(prefix, fullMoveIndex, ifx node.position.moveIndex % 2 then ". " else "… ", position_last_move_to_san(node.position), " {", node.comment, "}");
         }
 
         for variant : node.variants {

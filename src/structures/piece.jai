@@ -47,6 +47,16 @@ piece_to_utf8 :: (piece : Piece) -> string {
     return " ";
 }
 
+piece_to_symbol :: (piece : Piece) -> string {
+    if piece.kind == .B then return "♝";
+    if piece.kind == .K then return "♚";
+    if piece.kind == .N then return "♞";
+    if piece.kind == .P then return "";
+    if piece.kind == .Q then return "♛";
+    if piece.kind == .R then return "♜";
+    return "?";
+}
+
 piece_to_algebraic :: (pieceKind : PieceKind) -> string {
     if pieceKind == .B then return "B";
     if pieceKind == .K then return "K";

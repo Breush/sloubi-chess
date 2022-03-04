@@ -16,6 +16,7 @@ Varianter :: struct {
 }
 
 VarianterNodeData :: struct {
+    moveColor : Chamber.vec3;
     fullMoveMesh : *Magma.Mesh;
     commentMesh : *Magma.Mesh;
     decorumMesh : *Magma.Mesh;
@@ -51,9 +52,10 @@ varianter_show_variant :: (variant : *Variant, startPosition : Chamber.vec2, wid
 
     for nodeIndex : 0..variant.nodes.count-1 {
         node := *variant.nodes[nodeIndex];
+        node.moveColor = annotation_color(node.position.lastMove.annotation);
 
         if nodeIndex == 0 {
-            commentHeight, mesh := _make_text_mesh(node.comment, position, *instance.fonts.light, width);
+            commentHeight, mesh := _make_text_mesh(node.comment, position, *instance.fonts.light, instance.config.moves.mainColor, width);
             if commentHeight == 0.0 then continue;
             node.commentMesh = mesh;
             position.y += commentHeight;
@@ -78,8 +80,8 @@ varianter_show_variant :: (variant : *Variant, startPosition : Chamber.vec2, wid
             commentPosition := position;
             if commentLocation.color == .Black then commentPosition.x += offsetToBlack;
             fullMoveIndex := (node.position.moveIndex + 1) / 2;
-            fullMoveText := Basic.tprint("%.% %", fullMoveIndex, ifx node.position.moveIndex % 2 then "" else ".. ", position_last_move_to_san(node.position));
-            fullMoveHeight, mesh := _make_text_mesh(fullMoveText, commentPosition, font, splitWidth);
+            fullMoveText := Basic.tprint("%.% %", fullMoveIndex, ifx node.position.moveIndex % 2 then "" else ".. ", position_last_move_to_san(node.position, annotations = true));
+            fullMoveHeight, mesh := _make_text_mesh(fullMoveText, commentPosition, font, node.moveColor, splitWidth);
             splitHeight = fullMoveHeight;
             node.fullMoveMesh = mesh;
         }
@@ -89,7 +91,7 @@ varianter_show_variant :: (variant : *Variant, startPosition : Chamber.vec2, wid
             commentPosition.y += LINE_HEIGHT;
             if commentLocation.color == .Black then commentPosition.x += offsetToBlack;
 
-            commentHeight, mesh := _make_text_mesh(node.comment, commentPosition, *instance.fonts.light, splitWidth);
+            commentHeight, mesh := _make_text_mesh(node.comment, commentPosition, *instance.fonts.light, node.moveColor, splitWidth);
             node.commentMesh = mesh;
             splitHeight += commentHeight;
             if depth == 0 then splitHeight += LINE_HEIGHT;
@@ -100,7 +102,7 @@ varianter_show_variant :: (variant : *Variant, startPosition : Chamber.vec2, wid
 
             flushSplitHeight = true;
             startingOffsetX := ifx commentLocation.style == .SidedFull && commentLocation.padded then offsetToBlack - fullStyleOffsetToBlack else 0.0;
-            commentHeight, mesh := _make_text_mesh(node.comment, commentPosition, *instance.fonts.light, fullStyleWidth, startingOffsetX);
+            commentHeight, mesh := _make_text_mesh(node.comment, commentPosition, *instance.fonts.light, node.moveColor, fullStyleWidth, startingOffsetX);
             node.commentMesh = mesh;
             splitHeight += commentHeight;
             if depth == 0 then splitHeight += LINE_HEIGHT;
@@ -108,7 +110,7 @@ varianter_show_variant :: (variant : *Variant, startPosition : Chamber.vec2, wid
             commentPosition := position;
             commentPosition.x += Math.floor(splitWidth / 4);
             if commentLocation.color == .Black then commentPosition.x += offsetToBlack;
-            commentHeight, mesh := _make_text_mesh(node.comment, commentPosition, *instance.fonts.lightItalic, splitWidth);
+            commentHeight, mesh := _make_text_mesh(node.comment, commentPosition, *instance.fonts.lightItalic, node.moveColor, splitWidth);
             node.commentMesh = mesh;
         }
 
@@ -146,30 +148,35 @@ varianter_update_to_current_move :: (game : *Game) {
 
     variant := game_current_variant(game);
 
-    if selectedNode != null && selectedNode.fullMoveMesh != null {
-        Magma.material_set(selectedNode.fullMoveMesh.material, "color", instance.config.moves.mainColor);
-    }
     if selectedNode != null && selectedNode.commentMesh != null {
-        Magma.material_set(selectedNode.commentMesh.material, "color", instance.config.moves.mainColor);
+        Magma.material_set(selectedNode.commentMesh.material, "color", selectedNode.moveColor);
+    }
+    if selectedNode != null && selectedNode.fullMoveMesh != null {
+        Magma.material_set(selectedNode.fullMoveMesh.material, "color", selectedNode.moveColor);
     }
     if selectedNode != null && selectedNode.decorumMesh != null {
-        Magma.material_set(selectedNode.decorumMesh.material, "color", instance.config.moves.mainColor);
+        Magma.material_set(selectedNode.decorumMesh.material, "color", selectedNode.moveColor);
     }
 
     selectedNode = *variant.nodes[game.nodeIndex];
 
-    startY := 0.0;
+    startY := -1.0;
+    if selectedNode.decorumMesh != null {
+        if startY == -1.0 then startY = selectedNode.decorumMesh.translation.y;
+        Magma.material_set(selectedNode.decorumMesh.material, "color", instance.config.moves.selectedColor);
+    }
     if selectedNode.fullMoveMesh != null {
         startY = selectedNode.fullMoveMesh.translation.y;
         Magma.material_set(selectedNode.fullMoveMesh.material, "color", instance.config.moves.selectedColor);
     }
     if selectedNode.commentMesh != null {
-        if startY == 0.0 then startY = selectedNode.commentMesh.translation.y;
+        if startY == -1.0 then startY = selectedNode.commentMesh.translation.y;
         Magma.material_set(selectedNode.commentMesh.material, "color", instance.config.moves.selectedCommentColor);
     }
-    if selectedNode.decorumMesh != null {
-        if startY == 0.0 then startY = selectedNode.decorumMesh.translation.y;
-        Magma.material_set(selectedNode.decorumMesh.material, "color", instance.config.moves.selectedColor);
+
+    // No mesh? It's the root node (others have a decorum or a full move mesh).
+    if startY == -1.0 {
+        startY = ui.position.y;
     }
 
     // Scroll to be sure that the selected node is visible.
@@ -277,7 +284,7 @@ _scroll :: (delta : float, variant : *Variant) {
     }
 }
 
-_make_text_mesh :: (text : string, position: Chamber.vec2, font : *Chamber.Font, maxWidth : float, startingOffsetX := 0.0) -> (float, *Magma.Mesh) {
+_make_text_mesh :: (text : string, position: Chamber.vec2, font : *Chamber.Font, color : Chamber.vec3, maxWidth : float, startingOffsetX := 0.0) -> (float, *Magma.Mesh) {
     using instance.varianter;
 
     if text.count == 0 then return 0.0, null;
@@ -293,7 +300,7 @@ _make_text_mesh :: (text : string, position: Chamber.vec2, font : *Chamber.Font,
     mesh.translation.xy = position;
     mesh.translation.z = -0.1;
     Magma.material_set(mesh.material, "fontTexture", fontTexture);
-    Magma.material_set(mesh.material, "color", instance.config.moves.mainColor);
+    Magma.material_set(mesh.material, "color", color);
 
     currentWidth := 0.0;
     offset : Chamber.vec2;
