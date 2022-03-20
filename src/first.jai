@@ -10,12 +10,18 @@ String :: #import "String";
     File.make_directory_if_it_does_not_exist("./bin");
 
     workspace := Compiler.compiler_create_workspace("sloubi-chess");
+    arguments := Compiler.compiler_get_command_line_arguments();
 
     options := Compiler.get_build_options();
     options.output_executable_name  = "sloubi-chess";
     options.output_path             = String.join(#filepath, "/../bin/");
     options.optimization_level      = .DEBUG;
     options.text_output_flags       = .OUTPUT_TIMING_INFO; // @note And not the linker lines.
+
+    if arguments.count > 0 && arguments[0] == "release" {
+        Basic.log("Building RELEASE.");
+        options.optimization_level = .RELEASE;
+    }
 
     import_path: [..] string;
     Basic.array_add(*import_path, "./lava/bindings");
