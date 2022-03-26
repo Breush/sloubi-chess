@@ -1,149 +1,141 @@
-/* A "Game" can be understood as a collections of variants starting from one position. */
+/* A "Game" can be understood as a collections of variations starting from one position. */
 Game :: struct {
-    mainVariant : Variant;
+    mainVariation : Variation;
 
     boardOrientation : Color;
 
-    variantIndices : [..]VariantIndex; // Indices to go to the current variant.
-    nodeIndex : u16;                   // Current node index in the variant described above.
+    node : *Variation.Node; // Current node.
+
+    // @note In order to never invalidate pointers but still
+    // have efficient memory layout, we use pools.
+    nodePool : Bucket_Array(Variation.Node, 128);
+    variationPool : Bucket_Array(Variation, 32);
 }
 
-Variant :: struct {
+Variation :: struct {
     // @note nodes[0].position is the initial position.
-    // And it should not get any variant in it.
-    nodes : [..]Node; // @note Do not flatten this, the struct might be needed for extra info about a variant.
+    // And it should not get any variation in it.
+    nodes : [..]*Node; // @note Do not flatten this, the struct might be needed for extra info about a variation.
 
+    parentNode : *Node; // Can be null for the main variation.
+    index : u16; // Index of the variation in the parent node.
+
+    // @todo Rename ply?
     Node :: struct {
         position : Position;
-        variants : [..]Variant;
+        variations : [..]*Variation;
         comment : string;
 
-        using varienterData : VarianterNodeData;
+        parentVariation : *Variation;
+        index : u16; // Index of the node in the parent variation.
+
+        using listData : ListNodeData;
     }
 }
 
-VariantIndex :: struct {
-    nodeIndex : u16;
-    index : u16;
+game_add_variation :: (game : *Game, parentNode : *Variation.Node) -> *Variation {
+    variation := find_and_occupy_empty_slot(*game.variationPool);
+    Basic.array_add(*parentNode.variations, variation);
+
+    variation.parentNode = parentNode;
+    variation.index = cast(u16) (parentNode.variations.count - 1);
+    return variation;
 }
 
-game_update_to :: (game : *Game, nodeIndex : u16) {
-    game.nodeIndex = nodeIndex;
+game_add_variation_node :: (game : *Game, parentVariation : *Variation) -> *Variation.Node {
+    node := find_and_occupy_empty_slot(*game.nodePool);
+    Basic.array_add(*parentVariation.nodes, node);
 
-    variant := game_current_variant(game);
-    board_orient(game.boardOrientation);
-    board_update_to_position(variant.nodes[nodeIndex].position);
-    varianter_update_to_current_move(game);
-}
-
-game_current_variant :: (game : *Game) -> *Variant {
-    variant := *game.mainVariant;
-
-    for variantIndex : game.variantIndices {
-        variant = *variant.nodes[variantIndex.nodeIndex].variants[variantIndex.index];
-    }
-
-    return variant;
-}
-
-game_current_variant_parent_node :: (game : *Game) -> *Variant.Node {
-    node : *Variant.Node;
-
-    variant := *game.mainVariant;
-    for variantIndex : game.variantIndices {
-        node = *variant.nodes[variantIndex.nodeIndex];
-        variant = *node.variants[variantIndex.index];
-    }
-
+    node.parentVariation = parentVariation;
+    node.index = cast(u16) (parentVariation.nodes.count - 1);
     return node;
 }
 
+game_update_to :: (game : *Game, nodeIndex : u16) { // @fixme remove this overload
+    if !game.node {
+        game.node = game.mainVariation.nodes[0];
+    }
+    game_update_to(game, game.node.parentVariation.nodes[nodeIndex]);
+}
+
+game_update_to :: (game : *Game, node : *Variation.Node) {
+    game.node = node;
+
+    variation := game_current_variation(game);
+    board_orient(game.boardOrientation);
+    board_update_to_position(node.position);
+    list_update_to_current_move(game);
+}
+
+game_current_variation :: (game : *Game) -> *Variation {
+    return game.node.parentVariation;
+}
+
 game_go_to_first_ply :: (game : *Game) {
-    game_update_to(game, 0);
+    game_update_to(game, game.node.parentVariation.nodes[0]);
 }
 
 game_go_to_last_ply :: (game : *Game) {
-    variation := game_current_variant(game);
-    game_update_to(game, cast(u16) variation.nodes.count - 1);
+    game_update_to(game, Basic.peek(game.node.parentVariation.nodes));
 }
 
 game_go_to_previous_move :: (game : *Game) {
-    variant := game_current_variant(game);
+    variation := game_current_variation(game);
 
-    if game.nodeIndex == 0 {
-        if game.variantIndices.count == 0 then return;
+    if game.node.index == 0 {
+        if game.node.parentVariation == *game.mainVariation then return;
         game_go_to_previous_variation(game);
         game_go_to_previous_move(game);
         game_go_to_previous_move(game);
         return;
     }
 
-    game_update_to(game, game.nodeIndex - 1);
+    game_update_to(game, game.node.index - 1);
 }
 
 game_go_to_next_move :: (game : *Game) {
-    variant := game_current_variant(game);
-    if game.nodeIndex == variant.nodes.count - 1 then return;
-    game_update_to(game, game.nodeIndex + 1);
+    if game.node.index == game.node.parentVariation.nodes.count - 1 then return;
+    game_update_to(game, game.node.index + 1);
 }
 
 game_go_to_previous_variation :: (game : *Game) {
-    variant := game_current_variant(game);
-
-    variantParentNode := game_current_variant_parent_node(game);
-    if variantParentNode != null {
-        variantIndex := Basic.peek_pointer(game.variantIndices);
-        if variantIndex.index > 0 {
-            variantIndex.index -= 1;
-
-            game.nodeIndex = 0;
-            game_go_to_next_move(game);
+    variation := game.node.parentVariation;
+    variationParentNode := variation.parentNode;
+    if variationParentNode != null {
+        if variation.index > 0 {
+            game_update_to(game, variationParentNode.variations[variation.index - 1].nodes[1]);
         } else {
-            game.nodeIndex = Basic.peek(game.variantIndices).nodeIndex;
-            Basic.array_resize(*game.variantIndices, game.variantIndices.count - 1);
-            game_update_to(game, game.nodeIndex);
+            game_update_to(game, variationParentNode);
         }
     }
 }
 
 game_go_to_next_variation :: (game : *Game) {
-    variant := game_current_variant(game);
-
-    // Is there a subvariant from where we are?
-    if variant.nodes[game.nodeIndex].variants.count != 0 {
-        variantIndex : VariantIndex;
-        variantIndex.nodeIndex = game.nodeIndex;
-        variantIndex.index = 0;
-        Basic.array_add(*game.variantIndices, variantIndex);
-
-        game.nodeIndex = 0;
-        game_go_to_next_move(game);
+    // Is there a subvariation from where we are?
+    if game.node.variations.count != 0 {
+        game_update_to(game, game.node.variations[0].nodes[1]);
     }
-    // Or is there a next variant in the parent one?
+    // Or is there a next variation in the parent one?
     else {
-        // @todo Decide on how to navigate variants by keyboard.
-        variantParentNode := game_current_variant_parent_node(game);
-        if variantParentNode != null {
-            variantIndex := Basic.peek_pointer(game.variantIndices);
-            if variantIndex.index < variantParentNode.variants.count - 1 {
-                variantIndex.index += 1;
-
-                game.nodeIndex = 0;
-                game_go_to_next_move(game);
+        variation := game.node.parentVariation;
+        variationParentNode := game.node.parentVariation.parentNode;
+        if variationParentNode != null {
+            if variation.index < variationParentNode.variations.count - 1 {
+                game_update_to(game, variationParentNode.variations[variation.index + 1].nodes[1]);
             }
         }
     }
 }
 
 game_debug_dump :: (game : Game) {
-    variant_debug_dump(game.mainVariant, 0);
+    variation_debug_dump(game.mainVariation, 0);
 }
 
-variant_debug_dump :: (variant : Variant, depth : u8) {
+variation_debug_dump :: (variation : Variation, depth : u8) {
     prefix := "| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ";
     prefix.count = depth * 2;
 
-    for node, nodeIndex : variant.nodes {
+    for node, nodeIndex : variation.nodes {
         if nodeIndex == 0 {
             prefix.count -= 1;
             Chamber.debug(prefix, "> {", node.comment, "}");
@@ -153,8 +145,8 @@ variant_debug_dump :: (variant : Variant, depth : u8) {
             Chamber.debug(prefix, fullMoveIndex, ifx node.position.moveIndex % 2 then ". " else "… ", position_last_move_to_san(node.position), " {", node.comment, "}");
         }
 
-        for variant : node.variants {
-            variant_debug_dump(variant, depth + 1);
+        for variation : node.variations {
+            variation_debug_dump(<<variation, depth + 1);
         }
     }
 }

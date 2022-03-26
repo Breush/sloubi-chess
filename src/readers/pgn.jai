@@ -5,8 +5,8 @@ load_pgn :: (filename : string) -> bool {
     defer Basic.free(fileBytes);
 
     game := *instance.game; // Filling the global game for now.
-    Basic.array_resize(*game.mainVariant.nodes, 1); // @fixme Do a mem leaks check...
-    game.mainVariant.nodes[0].position = get_starting_position();
+    rootNode := game_add_variation_node(game, *game.mainVariation);
+    rootNode.position = get_starting_position();
 
     // Parsing tags
     bytes := fileBytes;
@@ -19,7 +19,7 @@ load_pgn :: (filename : string) -> bool {
         Basic.advance(*bytes); // Skipping the quote.
 
         if tagName == "FEN" {
-            game.mainVariant.nodes[0].position = load_fen(bytes);
+            rootNode.position = load_fen(bytes);
         } else if tagName == "BoardOrientation" {
             game.boardOrientation = ifx bytes[0] == #char "W" then Color.White else Color.Black;
         } else {
@@ -30,8 +30,8 @@ load_pgn :: (filename : string) -> bool {
         _skip_blanks(*bytes);
     }
 
-    // Parsing main variant (and therefore its subvariants)
-    _parse_variant(*bytes, *game.mainVariant);
+    // Parsing main variation (and therefore its subvariations)
+    _parse_variation(*bytes, *game.mainVariation);
     _skip_blanks(*bytes);
 
     Chamber._CHECK(bytes.count == 0, Basic.tprint("Leftovers: %", bytes));
@@ -242,8 +242,8 @@ _parse_potential_move_number :: (bytes : *string) -> bool {
     return true;
 }
 
-_parse_move :: (bytes : *string, variant : *Variant, color : Color) {
-    lastPosition := Basic.peek(variant.nodes).position;
+_parse_move :: (bytes : *string, variation : *Variation, color : Color) {
+    lastPosition := Basic.peek(variation.nodes).position;
     lastPosition.annotation = .None;
     lastPosition.observationAnnotations.count = 0;
     lastPosition.lastMove = .{};
@@ -309,9 +309,8 @@ _parse_move :: (bytes : *string, variant : *Variant, color : Color) {
     if coord_is_valid(sourceCoord) {
         position_play_move(*lastPosition, sourceCoord, targetCoord, promotionPieceKind);
 
-        node : Variant.Node;
+        node := game_add_variation_node(*instance.game, variation);
         node.position = lastPosition;
-        Basic.array_add(*variant.nodes, node);
     }
 }
 
@@ -491,7 +490,7 @@ _parse_potential_comment :: (bytes : *string) -> (string, bool) {
     return (str, true);
 }
 
-_parse_potential_comments :: (bytes : *string, variant : *Variant) {
+_parse_potential_comments :: (bytes : *string, variation : *Variation) {
     fullComment : string;
 
     while true {
@@ -502,22 +501,20 @@ _parse_potential_comments :: (bytes : *string, variant : *Variant) {
         else fullComment = Basic.sprint("%\n%", fullComment, comment);
     }
 
-    Basic.peek_pointer(variant.nodes).comment = fullComment;
+    Basic.peek(variation.nodes).comment = fullComment;
 }
 
-_parse_potential_variant :: (bytes : *string, parentVariant : *Variant, color : Color) -> bool {
+_parse_potential_variation :: (bytes : *string, parentVariation : *Variation, color : Color) -> bool {
     if (<<bytes)[0] != #char "(" then return false;
     Basic.advance(bytes);
 
-    lastNode := Basic.peek_pointer(parentVariant.nodes);
-    Basic.array_resize(*lastNode.variants, lastNode.variants.count + 1);
-    variant := Basic.peek_pointer(lastNode.variants);
+    lastNode := Basic.peek(parentVariation.nodes);
+    variation := game_add_variation(*instance.game, lastNode);
 
-    Basic.array_resize(*variant.nodes, variant.nodes.count + 1);
-    node := Basic.peek_pointer(variant.nodes);
-    node.position = parentVariant.nodes[parentVariant.nodes.count - 2].position;
+    node := game_add_variation_node(*instance.game, variation);
+    node.position = parentVariation.nodes[parentVariation.nodes.count - 2].position;
 
-    _parse_variant(bytes, variant, color);
+    _parse_variation(bytes, variation, color);
 
     _skip_blanks(bytes);
     _parse_expected(bytes, #char ")");
@@ -525,32 +522,32 @@ _parse_potential_variant :: (bytes : *string, parentVariant : *Variant, color : 
     return true;
 }
 
-_parse_variant :: (bytes : *string, variant : *Variant, firstColor := Color.White) {
-    _parse_potential_comments(bytes, variant);
+_parse_variation :: (bytes : *string, variation : *Variation, firstColor := Color.White) {
+    _parse_potential_comments(bytes, variation);
 
     firstLoop := true;
     while bytes.count > 0 {
         if !firstLoop || firstColor == .White {
-            while _parse_potential_variant(bytes, variant, .Black) {}
-            if (<<bytes)[0] == #char ")" then break; // End of variant
-            if !_parse_potential_annotated_move(bytes, variant, .White) then break;
+            while _parse_potential_variation(bytes, variation, .Black) {}
+            if (<<bytes)[0] == #char ")" then break; // End of variation
+            if !_parse_potential_annotated_move(bytes, variation, .White) then break;
         }
 
-        while _parse_potential_variant(bytes, variant, .White) {}
+        while _parse_potential_variation(bytes, variation, .White) {}
         if (<<bytes)[0] == #char ")" then break;
-        if !_parse_potential_annotated_move(bytes, variant, .Black) then break;
+        if !_parse_potential_annotated_move(bytes, variation, .Black) then break;
 
         firstLoop = false;
     }
 }
 
-_parse_potential_annotated_move :: (bytes : *string, variant : *Variant, color : Color) -> bool {
-    // position_debug_dump(Basic.peek(variant.nodes).position);
+_parse_potential_annotated_move :: (bytes : *string, variation : *Variation, color : Color) -> bool {
+    // position_debug_dump(Basic.peek(variation.nodes).position);
 
     _parse_potential_move_number(bytes);
-    _parse_move(bytes, variant, color);
-    while _parse_potential_annotation(bytes, variant) {}
-    _parse_potential_comments(bytes, variant);
+    _parse_move(bytes, variation, color);
+    while _parse_potential_annotation(bytes, variation) {}
+    _parse_potential_comments(bytes, variation);
 
     if (<<bytes)[0] == #char ")" then return false;
     if _parse_potential_result(bytes) then return false;
@@ -559,7 +556,7 @@ _parse_potential_annotated_move :: (bytes : *string, variant : *Variant, color :
 }
 
 // Ignoring NAG et al. for now
-_parse_potential_annotation :: (bytes : *string, variant : *Variant) -> bool {
+_parse_potential_annotation :: (bytes : *string, variation : *Variation) -> bool {
     nag : Nag;
 
     if (<<bytes)[0] == #char "$" {
@@ -585,7 +582,7 @@ _parse_potential_annotation :: (bytes : *string, variant : *Variant) -> bool {
     _skip_blanks(bytes);
 
     if nag != .None {
-        position := *Basic.peek_pointer(variant.nodes).position;
+        position := *Basic.peek(variation.nodes).position;
         moveAnnotation := _nag_to_move_annotation(nag);
         if moveAnnotation != .None {
             position.lastMove.annotation = moveAnnotation;

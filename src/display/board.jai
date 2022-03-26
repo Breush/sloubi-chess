@@ -24,9 +24,7 @@ board_init :: () {
 
     // We want to fit the board in the left part of the screen nicely à 95% of the available space.
     size := 0.95 * Basic.min(eye.extent.width / 2.0, cast(float) eye.extent.height);
-    extent : Chamber.vec2;
-    extent.width, extent.height = size, size;
-    Sill.ui_extent(*ui, extent);
+    ui.extent.width, ui.extent.height = size, size;
 
     transform.translation.x = -size / 2.0;
     transform.factor = size;
@@ -69,6 +67,41 @@ board_update_to_position :: (position : Position) {
         pieceTexture := piecesTextures[piece_id(position.board[coord])];
         Magma.material_set(node.primitives[0].material, "pieceTexture", pieceTexture);
     }
+}
+
+// @fixme Move?
+_make_square_mesh :: () -> *Magma.Mesh {
+    mesh := Magma.create_mesh(instance.engine.scene);
+
+    positions := Chamber.vec3.[
+        .{-0.5, -0.5, 0. },
+        .{-0.5,  0.5, 0. },
+        .{ 0.5,  0.5, 0. },
+        .{ 0.5, -0.5, 0. },
+    ];
+
+    uvs := Chamber.vec2.[
+        .{ 0.,  0. },
+        .{ 0.,  1. },
+        .{ 1.,  1. },
+        .{ 1.,  0. },
+    ];
+
+    indices := u16.[0,  1,  2,  2,  3,  0];
+
+    Basic.array_resize(*mesh.vertices, positions.count);
+    for *vertex, i : mesh.vertices {
+        vertex.position = positions[i];
+        vertex.uv = uvs[i];
+    }
+
+    Basic.array_resize(*mesh.indices, indices.count);
+    memcpy(mesh.indices.data, indices.data, size_of(u16) * indices.count);
+
+    Magma.mesh_commit_vertices(mesh);
+    Magma.mesh_commit_indices(mesh);
+
+    return mesh;
 }
 
 #scope_file
@@ -144,40 +177,6 @@ _init_meshes :: () {
 
     // Will update the position of the squares
     board_orient(orientation);
-}
-
-_make_square_mesh :: () -> *Magma.Mesh {
-    mesh := Magma.create_mesh(instance.engine.scene);
-
-    positions := Chamber.vec3.[
-        .{-0.5, -0.5, 0. },
-        .{-0.5,  0.5, 0. },
-        .{ 0.5,  0.5, 0. },
-        .{ 0.5, -0.5, 0. },
-    ];
-
-    uvs := Chamber.vec2.[
-        .{ 0.,  0. },
-        .{ 0.,  1. },
-        .{ 1.,  1. },
-        .{ 1.,  0. },
-    ];
-
-    indices := u16.[0,  1,  2,  2,  3,  0];
-
-    Basic.array_resize(*mesh.vertices, positions.count);
-    for *vertex, i : mesh.vertices {
-        vertex.position = positions[i];
-        vertex.uv = uvs[i];
-    }
-
-    Basic.array_resize(*mesh.indices, indices.count);
-    memcpy(mesh.indices.data, indices.data, size_of(u16) * indices.count);
-
-    Magma.mesh_commit_vertices(mesh);
-    Magma.mesh_commit_indices(mesh);
-
-    return mesh;
 }
 
 _on_update :: (flags : Sill.UiComponent.CallbackFlags, using board : *BoardEntity) {

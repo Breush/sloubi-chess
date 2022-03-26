@@ -12,7 +12,7 @@ File :: #import "File";
 
 #load "display/background.jai";
 #load "display/board.jai";
-#load "display/varianter.jai";
+#load "display/list.jai";
 #load "structures/coord.jai";
 #load "structures/game.jai";
 #load "structures/piece.jai";
@@ -40,7 +40,7 @@ Instance :: struct {
     config : Config;
     controller : *ControllerEntity;
     game : Game;
-    varianter : Varianter;
+    list : List;
 }
 
 Arguments :: struct {
@@ -77,11 +77,11 @@ main :: () {
     controller_init();
     board_init();
     background_init();
-    varianter_init();
+    list_init();
 
     load_pgn(args.pgn);
 
-    varianter_show(instance.game);
+    list_show(instance.game);
     game_update_to(*instance.game, 0);
     // game_debug_dump(instance.game);
 
