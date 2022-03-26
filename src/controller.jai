@@ -17,6 +17,7 @@ controller_init :: () {
     Sill.input_action_bind(*engine.input, "game.variation.next", config.controls.nextVariation);
 
     Sill.behavior_on_update(*controller.behaviorComponent, xx (dt : float64, using instance : *Instance) {
+        // @fixme HAVE A STOP PROPAGATION IN UI
         if Sill.input_action_just_activated(*engine.input, "game.ply.previous", true)         then game_go_to_previous_move(*game);
         if Sill.input_action_just_activated(*engine.input, "game.ply.next", true)             then game_go_to_next_move(*game);
         if Sill.input_action_just_activated(*engine.input, "game.ply.first", true)            then game_go_to_first_ply(*game);

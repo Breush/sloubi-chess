@@ -1,3 +1,4 @@
 {
-    "the-language.projectFile": "${workspaceFolder}/src/first.jai"
+    "the-language.projectFile": "${workspaceFolder}/src/first.jai",
+    "files.trimTrailingWhitespace": true
 }
