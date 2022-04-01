@@ -305,107 +305,7 @@ _scroll :: (delta : float, variation : *Variation) {
     }
 }
 
-_make_text_mesh :: () -> *Magma.Mesh {
-    mesh := Magma.create_mesh(instance.engine.scene);
-    mesh.material = Magma.create_material(instance.list.textShader);
-    return mesh;
-}
-
-_make_text_mesh :: (text : string, position: Chamber.vec2, font : *Chamber.Font, color : Chamber.vec3, maxWidth : float, startingOffsetX := 0.0) -> (float, *Magma.Mesh) {
-    mesh := _make_text_mesh();
-    return _update_text_mesh(mesh, text, font, color, maxWidth, startingOffsetX), mesh;
-}
-
-Unicode :: #import "Unicode";
-
-CharInfo :: struct { // @fixme Also store how many bytes it is worth.
-    // Original glyph info, where the vertices should be
-    // without special placement.
-    glyphBlank : bool;
-    glyphOffset : Chamber.vec2;
-    glyphExtent : Chamber.vec2;
-    glyphAdvance : float;
-
-    effective : struct {
-        glyphOffset : Chamber.vec2;
-        xStart : float;
-        xEnd : float;
-        y : float;
-    }
-}
-
-_update_text_mesh :: (mesh : *Magma.Mesh, text : string, font : *Chamber.Font, color : Chamber.vec3, maxWidth : float, startingOffsetX := 0.0) -> float, []CharInfo {
-    using *instance.list;
-
-    mesh.disabled = (text.count == 0);
-    if mesh.disabled then return LINE_HEIGHT, .[];
-
-    // @todo Have a clever way to keep the texture up-to-date.
-    // And not recreate it each time...
-    glyphInfos := Chamber.font_glyph_infos(font, text); // @todo Get them without the blanks characters.
-    fontTexture := Magma.create_texture(instance.engine.renderEngine);
-    Magma.texture_load_from_memory(fontTexture, font.pixels, font.extent);
-
-    Magma.material_set(mesh.material, "fontTexture", fontTexture);
-    Magma.material_set(mesh.material, "color", color);
-
-    charInfos : [..]CharInfo;
-    Basic.array_resize(*charInfos, glyphInfos.count);
-
-    totalBlanks := 0;
-
-    for *glyphInfo, index : glyphInfos {
-        if glyphInfo.blank then totalBlanks += 1;
-        charInfos[index].glyphBlank = glyphInfo.blank;
-        charInfos[index].glyphOffset = glyphInfo.offset;
-        charInfos[index].glyphExtent = glyphInfo.extent;
-        charInfos[index].glyphAdvance = glyphInfo.advance;
-    }
-
-    // @todo Is baking all that into one texture worth it?
-    Basic.array_resize(*mesh.vertices, 4 * (glyphInfos.count - totalBlanks));
-    Basic.array_resize(*mesh.indices, 6 * (glyphInfos.count - totalBlanks));
-
-    index := 0;
-    for *glyphInfo : glyphInfos {
-        if glyphInfo.blank then continue;
-
-        mesh.vertices[4 * index + 0].position.x = glyphInfo.offset.x;
-        mesh.vertices[4 * index + 0].position.y = glyphInfo.offset.y;
-        mesh.vertices[4 * index + 1].position.x = glyphInfo.offset.x;
-        mesh.vertices[4 * index + 1].position.y = glyphInfo.offset.y + glyphInfo.extent.height;
-        mesh.vertices[4 * index + 2].position.x = glyphInfo.offset.x + glyphInfo.extent.width;
-        mesh.vertices[4 * index + 2].position.y = glyphInfo.offset.y + glyphInfo.extent.height;
-        mesh.vertices[4 * index + 3].position.x = glyphInfo.offset.x + glyphInfo.extent.width;
-        mesh.vertices[4 * index + 3].position.y = glyphInfo.offset.y;
-        mesh.vertices[4 * index + 0].uv.x = glyphInfo.minUv.x;
-        mesh.vertices[4 * index + 0].uv.y = glyphInfo.minUv.y;
-        mesh.vertices[4 * index + 1].uv.x = glyphInfo.minUv.x;
-        mesh.vertices[4 * index + 1].uv.y = glyphInfo.maxUv.y;
-        mesh.vertices[4 * index + 2].uv.x = glyphInfo.maxUv.x;
-        mesh.vertices[4 * index + 2].uv.y = glyphInfo.maxUv.y;
-        mesh.vertices[4 * index + 3].uv.x = glyphInfo.maxUv.x;
-        mesh.vertices[4 * index + 3].uv.y = glyphInfo.minUv.y;
-
-        mesh.indices[6 * index + 0] = cast(u16) (4 * index + 0);
-        mesh.indices[6 * index + 1] = cast(u16) (4 * index + 1);
-        mesh.indices[6 * index + 2] = cast(u16) (4 * index + 2);
-        mesh.indices[6 * index + 3] = cast(u16) (4 * index + 2);
-        mesh.indices[6 * index + 4] = cast(u16) (4 * index + 3);
-        mesh.indices[6 * index + 5] = cast(u16) (4 * index + 0);
-
-        index += 1;
-    }
-
-    Magma.mesh_commit_vertices(mesh);
-    Magma.mesh_commit_indices(mesh);
-    Magma.mesh_commit_instance(mesh);
-
-    return /*offset.y +*/ LINE_HEIGHT, charInfos;
-}
-
-_init_ply_entity :: (node : *Variation.Node, width : float, startingOffsetX := 0.0) {
-    node.plyEntity.startingOffsetX = startingOffsetX;
+_init_ply_entity :: (node : *Variation.Node, width : float) {
     node.plyEntity.ui.anchor = .TopLeft;
     node.plyEntity.ui.extent.width = width; // @fixme Also depends on other things, right?
     height : float;
@@ -414,23 +314,21 @@ _init_ply_entity :: (node : *Variation.Node, width : float, startingOffsetX := 0
 
     if node.index != 0 {
         Basic.array_add(*node.plyEntity.mesh.nodes, .{});
-        Basic.array_add(*Basic.peek_pointer(node.plyEntity.mesh.nodes).primitives, _make_text_mesh());
+        Basic.array_add(*Basic.peek_pointer(node.plyEntity.mesh.nodes).primitives, create_text_mesh());
         node.plyEntity.moveMeshNode = Basic.peek_pointer(node.plyEntity.mesh.nodes);
 
         // @fixme Used to be font bold/light based on variation depth.
         moveIndex := (node.position.moveIndex + 1) / 2;
         moveText := Basic.tprint("%.% %", moveIndex, ifx node.position.moveIndex % 2 then "" else ".. ", position_last_move_to_san(node.position, annotations = true));
-        _update_text_mesh(node.plyEntity.moveMeshNode.primitives[0], moveText, *instance.fonts.bold, node.moveColor, width);
+        text_mesh_update(node.plyEntity.moveMeshNode.primitives[0], moveText, *instance.fonts.bold, node.moveColor);
     }
 
     // ----- Comment
 
     Basic.array_add(*node.plyEntity.mesh.nodes, .{});
-    Basic.array_add(*Basic.peek_pointer(node.plyEntity.mesh.nodes).primitives, _make_text_mesh());
+    Basic.array_add(*Basic.peek_pointer(node.plyEntity.mesh.nodes).primitives, create_text_mesh());
     node.plyEntity.commentMeshNode = Basic.peek_pointer(node.plyEntity.mesh.nodes);
-
-    commentHeight, charInfos := _update_text_mesh(node.plyEntity.commentMeshNode.primitives[0], node.comment, *instance.fonts.light, instance.config.moves.mainColor, width, startingOffsetX);
-    node.plyEntity.charInfos = charInfos;
+    node.plyEntity.charInfos = text_mesh_update(node.plyEntity.commentMeshNode.primitives[0], node.comment, *instance.fonts.light, instance.config.moves.mainColor);
 
     Sill.ui_on_trigger(*node.plyEntity.ui, xx (flags : Sill.UiComponent.CallbackFlags, event : Crater.Event, stopPropagation : *bool, node : *Variation.Node) {
         Sill.ui_set_focused(*node.plyEntity.ui);
@@ -471,8 +369,7 @@ _init_ply_entity :: (node : *Variation.Node, width : float, startingOffsetX := 0
 
         // @todo Do a clever diff instead of regenerating everything?
         if textChanged then {
-            _, charInfos := _update_text_mesh(node.plyEntity.commentMeshNode.primitives[0], node.comment, *instance.fonts.light, instance.config.moves.mainColor, node.plyEntity.ui.extent.width, node.plyEntity.startingOffsetX);
-            node.plyEntity.charInfos = charInfos;
+            node.plyEntity.charInfos = text_mesh_update(node.plyEntity.commentMeshNode.primitives[0], node.comment, *instance.fonts.light, instance.config.moves.mainColor);
             _place_ply_entity(node, propagate = true);
         }
 
