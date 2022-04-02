@@ -65,7 +65,7 @@ _show_path :: (path : string) {
         if info.short_name[0] == #char "." then return;
 
         if info.is_directory then Basic.array_add(*entries.directories, Basic.copy_string(info.short_name));
-        else Basic.array_add(*entries.files, Basic.copy_string(info.short_name));
+        else if String.ends_with(info.short_name, ".pgn") Basic.array_add(*entries.files, Basic.copy_string(info.short_name));
     }
     File_Utilities.visit_files(path, false, *entries, visitor, visit_directories = true, follow_symlinks = false);
 
@@ -120,6 +120,8 @@ _make_entry :: (name : string, isDirectory : bool) -> *EntryEntity {
         } else if flags & .Click {
             if entryEntity.isDirectory {
                 _go_into_directory(entryEntity.fileOrDirectoryName);
+            } else if String.ends_with(entryEntity.fileOrDirectoryName, ".pgn") {
+                load_pgn(Basic.tprint("%/%", instance.fileSelect.currentPath, entryEntity.fileOrDirectoryName));
             }
         }
     }, Sill.UiComponent.CallbackFlags.Hover | .NoHover | .Click, entryEntity);

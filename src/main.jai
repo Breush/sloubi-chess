@@ -84,8 +84,6 @@ main :: () {
 
     if setArgs.pgn {
         load_pgn(args.pgn);
-        list_show(instance.game);
-        game_update_to(*instance.game, 0);
         // game_debug_dump(instance.game);
     } else {
         file_select_show();
