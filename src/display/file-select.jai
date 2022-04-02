@@ -3,6 +3,8 @@ FileSelectEntity :: struct {
 
     transform : Sill.TransformComponent;
     mesh : Sill.MeshComponent;
+
+    currentPath : string;
 }
 
 Entries :: struct {
@@ -16,24 +18,44 @@ EntryEntity :: struct {
     ui : Sill.UiComponent;
     transform : Sill.TransformComponent;
     mesh : Sill.MeshComponent;
+
+    isDirectory : bool;
+    fileOrDirectoryName : string;
 }
 
 file_select_show :: () {
-    currentPosition := -400.0; // @fixme
-
-    fileSelectEntity := SillMeta.create_file_select_entity(instance.engine);
-
-    Basic.array_add(*fileSelectEntity.mesh.nodes, .{});
+    fileSelect := SillMeta.create_file_select_entity(instance.engine);
+    instance.fileSelect = fileSelect;
 
     mesh := create_text_mesh();
-    Basic.array_add(*fileSelectEntity.mesh.nodes[0].primitives, mesh);
+    Basic.array_add(*fileSelect.mesh.nodes, .{});
+    Basic.array_add(*fileSelect.mesh.nodes[0].primitives, mesh);
 
-    fileSelectEntity.mesh.nodes[0].transform.translation.y += currentPosition; // @fixme Separate reflow?
-    currentPosition += 20; // @fixme Should depend on font size.
+    fileSelect.mesh.nodes[0].transform.translation.y = -450; // @fixme Better...
     text_mesh_update(mesh, "Select a PGN file", *instance.fonts.bold, *instance.config.moves.mainColor); // @fixme moves.mainColor, really?
+    Sill.mesh_commit_nodes(*fileSelect.mesh, instantly = true);
 
     startingPath := _starting_path();
-    Chamber.debug(startingPath);
+    _show_path(startingPath);
+}
+
+#scope_file
+
+_go_into_directory :: (path : string) {
+    _show_path(Basic.sprint("%/%", instance.fileSelect.currentPath, path)); // @fixme Might be wrong on Windows...
+}
+
+_show_path :: (path : string) {
+    // Removing old entries...
+    for child : instance.fileSelect.children {
+        Sill.destroy_entity(child);
+    }
+
+    Chamber.debug("Showing ", path);
+    instance.fileSelect.currentPath = path;
+
+    currentPosition := instance.fileSelect.mesh.nodes[0].transform.translation.y;
+    currentPosition += 20; // @fixme Should depend on font size.
 
     // @fixme Each of those below should be entities,
     // and children of a scrolling area.
@@ -45,7 +67,7 @@ file_select_show :: () {
         if info.is_directory then Basic.array_add(*entries.directories, Basic.copy_string(info.short_name));
         else Basic.array_add(*entries.files, Basic.copy_string(info.short_name));
     }
-    File_Utilities.visit_files(startingPath, false, *entries, visitor, visit_directories = true, follow_symlinks = false);
+    File_Utilities.visit_files(path, false, *entries, visitor, visit_directories = true, follow_symlinks = false);
 
     Sort.quick_sort(entries.directories, String.compare_nocase);
     Sort.quick_sort(entries.files, String.compare_nocase);
@@ -61,14 +83,14 @@ file_select_show :: () {
         Sill.transform_commit(*entryEntity.transform);
         currentPosition += 20; // @fixme Should depend on font size.
     }
-
-    Sill.mesh_commit_nodes(*fileSelectEntity.mesh, instantly = true);
 }
-
-#scope_file
 
 _make_entry :: (name : string, isDirectory : bool) -> *EntryEntity {
     entryEntity := SillMeta.create_entry_entity(instance.engine);
+    entryEntity.isDirectory = isDirectory;
+    entryEntity.fileOrDirectoryName = name;
+    entryEntity.name = name;
+    Basic.array_add(*instance.fileSelect.children, entryEntity);
 
     // Text mesh
     textMesh := create_text_mesh();
@@ -86,14 +108,21 @@ _make_entry :: (name : string, isDirectory : bool) -> *EntryEntity {
     squareMesh.vertices[2].position = .{450, 18, 5};
     squareMesh.vertices[3].position = .{450, 2, 5};
     squareMesh.material = Magma.create_material(instance.list.decorumShader); // @fixme Stealing the decorumShader.
-    Magma.material_set(squareMesh.material, "color", Chamber.vec3.{0.4, 0.2, 0.8});
+    squareMesh.disabled = true;
+    Magma.material_set(squareMesh.material, "color", Chamber.vec3.{0.3, 0.3, 0.4});
     Basic.array_add(*entryEntity.mesh.nodes[0].primitives, squareMesh);
 
-    Sill.ui_on_trigger(*entryEntity.ui, (flags : Sill.UiComponent.CallbackFlags, event : Crater.Event, stopPropagation : *bool, data : *void) {
-        Chamber.debug("HEY");
-    }, .Hover);
+    Sill.ui_on_trigger(*entryEntity.ui, xx (flags : Sill.UiComponent.CallbackFlags, event : Crater.Event, stopPropagation : *bool, entryEntity : *EntryEntity) {
+        entryEntity.mesh.nodes[0].primitives[1].disabled = cast(bool) (flags & .NoHover);
 
-    Sill.mesh_debug_print_nodes(*entryEntity.mesh);
+        if flags & .Hover {
+            <<stopPropagation = true;
+        } else if flags & .Click {
+            if entryEntity.isDirectory {
+                _go_into_directory(entryEntity.fileOrDirectoryName);
+            }
+        }
+    }, Sill.UiComponent.CallbackFlags.Hover | .NoHover | .Click, entryEntity);
 
     return entryEntity;
 }

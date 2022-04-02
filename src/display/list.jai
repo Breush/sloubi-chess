@@ -50,7 +50,7 @@ list_init :: () {
     ui.extent.height = 900 - 2 * VERTICAL_PADDING;
 
     decorumShader = Magma.create_shader(instance.engine.renderer, "./assets/materials/monochrome");
-    textShader = Magma.create_shader(instance.engine.renderer, "./assets/materials/text", .{ depthWriteEnabled = false, alphaBlendingEnabled = true });
+    textShader = Magma.create_shader(instance.engine.renderer, "./assets/materials/text", .{ /* depthWriteEnabled = false ,*/ alphaBlendingEnabled = true });
 
     cursorMesh = _make_square_mesh();
     cursorMesh.scaling = .{1, LINE_HEIGHT, 1};

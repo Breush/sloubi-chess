@@ -41,6 +41,7 @@ Instance :: struct {
     board : *BoardEntity;
     config : Config;
     controller : *ControllerEntity;
+    fileSelect : *FileSelectEntity;
     game : Game;
     list : List;
 }
