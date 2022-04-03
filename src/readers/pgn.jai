@@ -36,6 +36,9 @@ load_pgn :: (filename : string) -> bool {
 
     Chamber._CHECK(bytes.count == 0, Basic.tprint("Leftovers: %", bytes));
 
+    list_show(instance.game);
+    game_update_to(*instance.game, 0);
+
     return true;
 }
 
