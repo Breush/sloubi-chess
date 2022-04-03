@@ -35,8 +35,13 @@ file_select_show :: () {
     text_mesh_update(mesh, "Select a PGN file", *instance.fonts.bold, *instance.config.moves.mainColor); // @fixme moves.mainColor, really?
     Sill.mesh_commit_nodes(*fileSelect.mesh, instantly = true);
 
-    startingPath := _starting_path();
-    _show_path(startingPath);
+    path : string;
+    if instance.persistence.fileSelect.lastPath.count != 0 {
+        path = instance.persistence.fileSelect.lastPath;
+    } else {
+        path = _starting_path();
+    }
+    _show_path(path);
 }
 
 #scope_file

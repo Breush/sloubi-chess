@@ -594,8 +594,6 @@ _rebuild_decorums :: (variation : *Variation) {
     for node : variation.nodes {
         for subVariation : node.variations {
             subNode := subVariation.nodes[0];
-            Chamber.debug(<<subNode);
-
             _rebuild_decorums(subVariation);
         }
     }

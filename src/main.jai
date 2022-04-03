@@ -44,6 +44,7 @@ Instance :: struct {
     fileSelect : *FileSelectEntity;
     game : Game;
     list : List;
+    persistence : Persistence;
 }
 
 Arguments :: struct {
@@ -59,7 +60,8 @@ main :: () {
     success, args, setArgs := CommandLine.parse_arguments(Arguments);
     if !success then return;
 
-    config_init(*instance.config, args.config);
+    readJsonAs(*instance.config, args.config);
+    readJsonAs(*instance.persistence, "/home/alexis/.sloubi-chess.json"); // @fixme Hardcoded path...
 
     // @todo We're missing a notion in fonts, which would allow us to use a shared fallback.
     // Currently, we would need to duplicate the "dejaVu" fallback font for each family.
