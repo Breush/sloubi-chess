@@ -10,7 +10,7 @@ background_init :: () {
     mesh = Magma.create_mesh(instance.engine.scene);
     mesh.material = Magma.create_material(shader);
 
-    Magma.material_set(mesh.material, "color", instance.config.background.color);
+    Magma.material_set(mesh.material, "color", instance.config.env.backgroundColor);
 
     extent := Crater.window_get_extent(instance.engine.window);
 

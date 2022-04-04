@@ -14,7 +14,9 @@ File :: #import "File";
 #load "display/board.jai";
 #load "display/file-select.jai";
 #load "display/list.jai";
+#load "helpers/fork-awesome.jai";
 #load "helpers/text-mesh.jai";
+#load "helpers/ui-constants.jai";
 #load "structures/coord.jai";
 #load "structures/game.jai";
 #load "structures/piece.jai";
@@ -89,7 +91,9 @@ main :: () {
         load_pgn(args.pgn);
         // game_debug_dump(instance.game);
     } else {
-        file_select_show();
+        file_select_show(".pgn", (selectedFile : string) {
+            load_pgn(selectedFile);
+        });
     }
 
     Sill.engine_run(instance.engine);

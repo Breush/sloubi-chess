@@ -3,8 +3,10 @@
 
 Config :: struct {
     version : s64;
-    background : struct {
-        color : Chamber.vec3;
+    env : struct {
+        backgroundColor : Chamber.vec3;
+        textColor : Chamber.vec3;
+        selectionBackgroundColor : Chamber.vec3;
     }
     board : struct {
         pieces : string;

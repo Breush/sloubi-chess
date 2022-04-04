@@ -1,5 +1,5 @@
 List :: struct {
-    ui : struct {
+    ui : struct { // @todo Make that a UiComponent...
         position : Chamber.vec2;
         extent : Chamber.vec2;
     };
@@ -10,14 +10,6 @@ List :: struct {
     textShader : *Magma.Shader;
 
     cursorMesh : *Magma.Mesh;
-
-    LINE_HEIGHT :: 22.0;
-    HORIZONTAL_PADDING :: 50.0;
-    VERTICAL_PADDING :: 50.0;
-    SPLIT_PADDING :: 20.0;
-
-    VARIATION_PADDING :: 40.0;
-    VARIATION_DECORUM_WIDTH :: 3.0;
 }
 
 ListNodeData :: struct {
@@ -47,16 +39,16 @@ PlyEntity :: struct {
 list_init :: () {
     using *instance.list;
 
-    ui.position.x = 0 + HORIZONTAL_PADDING;
-    ui.position.y = -450 + VERTICAL_PADDING;
-    ui.extent.width = 800 - 2 * HORIZONTAL_PADDING; // @todo Un-hardcode that
-    ui.extent.height = 900 - 2 * VERTICAL_PADDING;
+    ui.position.x = 0 + UiConstants.PaddingHorizontal;
+    ui.position.y = -450 + UiConstants.PaddingVertical;
+    ui.extent.width = 800 - 2 * UiConstants.PaddingHorizontal; // @todo :HardcodedScreenSize Un-hardcode that
+    ui.extent.height = 900 - 2 * UiConstants.PaddingVertical;
 
     decorumShader = Magma.create_shader(instance.engine.renderer, "./assets/materials/monochrome");
     textShader = Magma.create_shader(instance.engine.renderer, "./assets/materials/text", .{ /* depthWriteEnabled = false ,*/ alphaBlendingEnabled = true });
 
     cursorMesh = _make_square_mesh();
-    cursorMesh.scaling = .{1, LINE_HEIGHT, 1};
+    cursorMesh.scaling = .{1, UiConstants.HeightLine, 1};
     cursorMesh.material = Magma.create_material(decorumShader);
     Magma.material_set(cursorMesh.material, "color", Chamber.vec3.{1, 1, 1});
 }
@@ -70,8 +62,8 @@ list_show :: (game : Game) {
 list_show_variation :: (variation : *Variation, width : float, depth : u8 = 0) {
     using *instance.list;
 
-    splitWidth := (width - SPLIT_PADDING) / 2;
-    offsetToBlack := (width + SPLIT_PADDING) / 2;
+    splitWidth := (width - UiConstants.PaddingHorizontalSplit) / 2;
+    offsetToBlack := (width + UiConstants.PaddingHorizontalSplit) / 2;
     fullStyleWidth := width * instance.config.moves.comments.fullStyleWidth;
     fullStyleOffsetToBlack := Math.floor(width - fullStyleWidth + 0.5);
 
@@ -87,7 +79,7 @@ list_show_variation :: (variation : *Variation, width : float, depth : u8 = 0) {
 
         // Other variations.
         for variation : node.variations {
-            list_show_variation(variation, width - VARIATION_PADDING, depth + 1);
+            list_show_variation(variation, width - UiConstants.PaddingHorizontalVariation, depth + 1);
         }
     }
 }
@@ -243,9 +235,9 @@ _init_ply_entity :: (node : *Variation.Node, width : float) {
         text_mesh_update(node.plyEntity.moveMeshNode.primitives[0], moveText, *instance.fonts.bold, node.moveColor);
     } else if (node.parentVariation.parentNode != null) {
         Basic.array_add(*node.plyEntity.mesh.nodes, .{});
-        Basic.array_add(*Basic.peek_pointer(node.plyEntity.mesh.nodes).primitives, _make_decorum_mesh(List.VARIATION_DECORUM_WIDTH));
+        Basic.array_add(*Basic.peek_pointer(node.plyEntity.mesh.nodes).primitives, _make_decorum_mesh(UiConstants.WidthDecorumVariation));
         node.plyEntity.decorumMeshNode = Basic.peek_pointer(node.plyEntity.mesh.nodes);
-        node.plyEntity.decorumMeshNode.transform.translation.x -= List.VARIATION_PADDING / 2.0;
+        node.plyEntity.decorumMeshNode.transform.translation.x -= UiConstants.PaddingHorizontalVariation / 2.0;
     }
 
     // ----- Comment
@@ -319,14 +311,14 @@ _justify_char_infos :: (charInfos : []CharInfo, maxWidth : float, startingOffset
             // Moving the whole word down to the next line.
             i := index;
             while i >= 0 && !charInfos[i].glyphBlank {
-                charInfos[i].effective.glyphOffset.y += List.LINE_HEIGHT;
-                charInfos[i].effective.y += List.LINE_HEIGHT;
+                charInfos[i].effective.glyphOffset.y += UiConstants.HeightLine;
+                charInfos[i].effective.y += UiConstants.HeightLine;
                 i -= 1;
             }
 
             // @fixme crash if not blank...
             if i == -1 {
-                return List.LINE_HEIGHT;
+                return UiConstants.HeightLine;
             }
 
             // Justify the whole line.
@@ -356,7 +348,7 @@ _justify_char_infos :: (charInfos : []CharInfo, maxWidth : float, startingOffset
             }
 
             offset.x = -charInfos[i].glyphOffset.x;
-            offset.y += List.LINE_HEIGHT;
+            offset.y += UiConstants.HeightLine;
 
             preOffset := -charInfos[i].effective.glyphOffset.x;
             while i <= index {
@@ -371,7 +363,7 @@ _justify_char_infos :: (charInfos : []CharInfo, maxWidth : float, startingOffset
         charInfo.effective.xEnd = charInfo.effective.glyphOffset.x + charInfo.glyphAdvance;
     }
 
-    return offset.y + List.LINE_HEIGHT;
+    return offset.y + UiConstants.HeightLine;
 }
 
 _place_comment_from_char_infos :: (node : *Variation.Node) {
@@ -408,7 +400,7 @@ _place_comment_from_char_infos :: (node : *Variation.Node) {
 _place_ply_entity :: (node : *Variation.Node, propagate := false) {
     maxWidth := node.plyEntity.ui.extent.width;
     variationOffset := (instance.list.ui.extent.width - maxWidth);
-    offsetToBlack := (maxWidth + List.SPLIT_PADDING) / 2;
+    offsetToBlack := (maxWidth + UiConstants.PaddingHorizontalSplit) / 2;
 
     // Detect the comment location, and re-structure it as needed.
     commentLocation := _detect_comment_location(node);
@@ -416,7 +408,7 @@ _place_ply_entity :: (node : *Variation.Node, propagate := false) {
 
     commentWidth := maxWidth;
     if commentLocation.style == .Half {
-        commentWidth = (maxWidth - List.SPLIT_PADDING) / 2;
+        commentWidth = (maxWidth - UiConstants.PaddingHorizontalSplit) / 2;
     } else if commentLocation.style == .SidedFull {
         commentWidth = maxWidth * instance.config.moves.comments.fullStyleWidth;
     }
@@ -428,12 +420,12 @@ _place_ply_entity :: (node : *Variation.Node, propagate := false) {
     node.plyEntity.commentMeshNode.transform.translation = .{};
     if node.index != 0 {
         if commentLocation.style != .Inline {
-            node.plyEntity.commentMeshNode.transform.translation.y = List.LINE_HEIGHT;
-            node.plyEntity.ui.extent.height = List.LINE_HEIGHT + commentHeight;
+            node.plyEntity.commentMeshNode.transform.translation.y = UiConstants.HeightLine;
+            node.plyEntity.ui.extent.height = UiConstants.HeightLine + commentHeight;
         } else {
             node.plyEntity.commentMeshNode.transform.translation.x += Math.floor(maxWidth / 8.0 + 0.5);
             node.plyEntity.commentMeshNode.transform.translation.y = 0.0;
-            node.plyEntity.ui.extent.height = List.LINE_HEIGHT;
+            node.plyEntity.ui.extent.height = UiConstants.HeightLine;
         }
 
         if commentLocation.color == .Black &&
@@ -544,7 +536,7 @@ _update_cursor :: (node : *Variation.Node) {
     if node.plyEntity.cursorPosition == 0 {
         if node.plyEntity.charInfos.count != 0 {
             instance.list.cursorMesh.translation.x += node.plyEntity.charInfos[0].effective.xStart;
-            instance.list.cursorMesh.translation.y += node.plyEntity.charInfos[0].effective.y + instance.list.LINE_HEIGHT / 2;
+            instance.list.cursorMesh.translation.y += node.plyEntity.charInfos[0].effective.y + UiConstants.HeightLine / 2;
         }
         Magma.mesh_commit_instance(instance.list.cursorMesh);
     } else {
@@ -554,7 +546,7 @@ _update_cursor :: (node : *Variation.Node) {
 
             if node.plyEntity.cursorPosition <= byteIndex {
                 instance.list.cursorMesh.translation.x += node.plyEntity.charInfos[i].effective.xEnd;
-                instance.list.cursorMesh.translation.y += node.plyEntity.charInfos[i].effective.y + instance.list.LINE_HEIGHT / 2;
+                instance.list.cursorMesh.translation.y += node.plyEntity.charInfos[i].effective.y + UiConstants.HeightLine / 2;
                 Magma.mesh_commit_instance(instance.list.cursorMesh);
                 break;
             }
