@@ -49,12 +49,15 @@ Persistence :: struct {
 }
 
 // @fixme Move to Chamber
-readJsonAs :: (data : *$T, filename : string) -> bool {
+readJsonAs :: (data : *$T, filename : string, silentOnError := false) -> bool {
     typeInfo := type_info(T);
     _CHECK(typeInfo.type == .STRUCT, "Type is not a struct.");
 
     json, ok := Chamber.json_parse_file(filename);
-    _CHECK(ok, Basic.tprint("Unable to read file '%'.", filename)); // @fixme Should be none-blocking.
+    if !ok {
+        if !silentOnError then Basic.log_error("Unable to read file '%'.", filename);
+        return false;
+    }
 
     readJsonStruct(cast(*u8) data, typeInfo, json);
     return true;

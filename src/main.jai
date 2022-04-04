@@ -60,8 +60,9 @@ main :: () {
     success, args, setArgs := CommandLine.parse_arguments(Arguments);
     if !success then return;
 
+    storagePath := Chamber.os_application_data_storage_path();
     readJsonAs(*instance.config, args.config);
-    readJsonAs(*instance.persistence, "/home/alexis/.sloubi-chess.json"); // @fixme Hardcoded path...
+    readJsonAs(*instance.persistence, Basic.tprint("%/%", storagePath, ".sloubi-chess.json"), silentOnError = true); // @fixme Hardcoded path...
 
     // @todo We're missing a notion in fonts, which would allow us to use a shared fallback.
     // Currently, we would need to duplicate the "dejaVu" fallback font for each family.
