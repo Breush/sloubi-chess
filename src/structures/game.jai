@@ -51,13 +51,6 @@ game_add_variation_node :: (game : *Game, parentVariation : *Variation) -> *Vari
     return node;
 }
 
-game_update_to :: (game : *Game, nodeIndex : u16) { // @fixme remove this overload
-    if !game.node {
-        game.node = game.mainVariation.nodes[0];
-    }
-    game_update_to(game, game.node.parentVariation.nodes[nodeIndex]);
-}
-
 game_update_to :: (game : *Game, node : *Variation.Node) {
     game.node = node;
 
@@ -90,12 +83,12 @@ game_go_to_previous_move :: (game : *Game) {
         return;
     }
 
-    game_update_to(game, game.node.index - 1);
+    game_update_to(game, game.node.parentVariation.nodes[game.node.index - 1]);
 }
 
 game_go_to_next_move :: (game : *Game) {
     if game.node.index == game.node.parentVariation.nodes.count - 1 then return;
-    game_update_to(game, game.node.index + 1);
+    game_update_to(game, game.node.parentVariation.nodes[game.node.index + 1]);
 }
 
 game_go_to_previous_variation :: (game : *Game) {

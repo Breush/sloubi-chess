@@ -504,7 +504,7 @@ _place_ply_entities :: (variation : *Variation, nodeIndex : u16, upstream := tru
     // Upstream
     if upstream && variation.parentNode != null {
         // Same-level variations.
-        for i : variation.index + 1 .. variation.parentNode.variations.count {
+        for i : variation.index + 1 .. variation.parentNode.variations.count - 1 {
             _place_ply_entities(variation.parentNode.variations[variation.index + 1], 0, false);
         }
 

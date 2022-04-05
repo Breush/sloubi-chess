@@ -39,13 +39,14 @@ file_select_show :: (extensionFilter : string, callback : FileSelectEntity.FileS
     Basic.array_add(*fileSelect.mesh.nodes, .{});
     Basic.array_add(*fileSelect.mesh.nodes[0].primitives, mesh);
 
-    fileSelect.mesh.nodes[0].transform.translation.x = 0 + UiConstants.PaddingHorizontal; // @todo :HardcodedScreenSize
-    fileSelect.mesh.nodes[0].transform.translation.y = -450 + UiConstants.PaddingVertical;
+    fileSelect.transform.translation.x = 0 + UiConstants.PaddingHorizontal; // @todo :HardcodedScreenSize
+    fileSelect.transform.translation.y = -450 + UiConstants.PaddingVertical;
     fileSelect.ui.extent.width = 800 - 2 * UiConstants.PaddingHorizontal;
     fileSelect.ui.extent.height = 900 - 2 * UiConstants.PaddingVertical;
+    fileSelect.ui.anchor = .TopLeft;
 
     text_mesh_update(mesh, Basic.tprint("Select a % file", extensionFilter), *instance.fonts.bold, *instance.config.env.textColor);
-    Sill.mesh_commit_nodes(*fileSelect.mesh, instantly = true);
+    Sill.transform_commit(*fileSelect.transform);
 
     Sill.ui_on_update(*fileSelect.ui, xx (flags : Sill.UiComponent.CallbackFlags, fileSelect : *FileSelectEntity) {
         _place_children(fileSelect);
@@ -62,8 +63,8 @@ file_select_show :: (extensionFilter : string, callback : FileSelectEntity.FileS
 
 #scope_file
 
-_go_into_directory :: (path : string) {
-    _show_path(Basic.sprint("%/%", instance.fileSelect.currentPath, path)); // @fixme Might be wrong on Windows...
+_go_into_directory :: (directoryName : string) {
+    _show_path(Basic.sprint("%/%", instance.fileSelect.currentPath, directoryName));
 }
 
 _show_path :: (path : string) {
@@ -146,7 +147,7 @@ _make_entry :: (name : string, isDirectory : bool) -> *EntryEntity {
 }
 
 _place_children :: (fileSelect : *FileSelectEntity) {
-    currentPosition := fileSelect.mesh.nodes[0].transform.translation.xy;
+    currentPosition : Chamber.vec2; // Relative to the fileSelect, therefore starting at (0,0).
     currentPosition.y += UiConstants.HeightLine;
     for child : fileSelect.children {
         entryEntity := cast(*EntryEntity) child;
