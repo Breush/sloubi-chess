@@ -42,6 +42,10 @@ load_pgn :: (filename : string) -> bool {
     return true;
 }
 
+save_pgn :: (filename : string) {
+    // @fixme ...s
+}
+
 #scope_file
 
 // Based on https://en.wikipedia.org/wiki/Numeric_Annotation_Glyphs

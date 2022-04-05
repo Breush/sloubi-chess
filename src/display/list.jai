@@ -36,6 +36,13 @@ PlyEntity :: struct {
     decorumMeshNode : *Sill.MeshNode; // Might be null.
 }
 
+ButtonEntity :: struct {
+    using entity : Sill.Entity;
+    transform : Sill.TransformComponent;
+    mesh : Sill.MeshComponent;
+    ui : Sill.UiComponent;
+}
+
 list_init :: () {
     using *instance.list;
 
@@ -57,6 +64,44 @@ list_show :: (game : Game) {
     using *instance.list;
     list_show_variation(*game.mainVariation, ui.extent.width);
     _rebuild_decorums(*game.mainVariation);
+
+    // Save button
+    saveButton := SillMeta.create_button_entity(instance.engine);
+    saveButton.ui.extent.width = 80; // @todo Completely arbitrary...
+    saveButton.ui.extent.height = UiConstants.HeightLine;
+
+    backgroundNode := Basic.array_add(*saveButton.mesh.nodes);
+    backgroundMesh := _make_square_mesh();
+    backgroundMesh.material = Magma.create_material(decorumShader);
+    Magma.material_set(backgroundMesh.material, "color", instance.config.env.secondaryBackgroundColor);
+    Magma.mesh_commit_vertices(backgroundMesh);
+    Basic.array_add(*backgroundNode.primitives, backgroundMesh);
+    backgroundNode.transform.scaling = .{80, UiConstants.HeightLine, 1};
+
+    textNode := Basic.array_add(*saveButton.mesh.nodes);
+    textMesh := create_text_mesh();
+    charInfos := text_mesh_update(textMesh, "Save PGN", *instance.fonts.light, instance.config.env.textColor);
+    _justify_char_infos(charInfos, 1024.0, 0.0); // To update the "effective values".
+    textNode.transform.translation.x = -Math.floor(Basic.peek_pointer(charInfos).effective.xEnd / 2 + 0.5);
+    textNode.transform.translation.y = -8; // @todo Hardcoded offset... We should know the max glyph height instead.
+    Basic.array_add(*textNode.primitives, textMesh);
+
+    saveButton.transform.translation.x = 800 - UiConstants.PaddingHorizontal; // :HardcodedScreenSize
+    saveButton.transform.translation.y = 450 - UiConstants.PaddingVertical;
+    saveButton.transform.translation.z = -0.1;
+    Sill.transform_commit(*saveButton.transform);
+
+    Sill.ui_on_trigger(*saveButton.ui, (trigger : Sill.UiTrigger, saveButton : *ButtonEntity) {
+        <<trigger.stopPropagation = true;
+
+        if trigger.flags & .Hover {
+            Magma.material_set(saveButton.mesh.nodes[0].primitives[0].material, "color", instance.config.env.selectionBackgroundColor);
+        } else if trigger.flags & .NoHover {
+            Magma.material_set(saveButton.mesh.nodes[0].primitives[0].material, "color", instance.config.env.secondaryBackgroundColor);
+        } else {
+            pgn_save();
+        }
+    }, Sill.UiCallbackFlags.Click | .Hover | .NoHover, saveButton);
 }
 
 list_show_variation :: (variation : *Variation, width : float, depth : u8 = 0) {
@@ -247,7 +292,7 @@ _init_ply_entity :: (node : *Variation.Node, width : float) {
     node.plyEntity.commentMeshNode = Basic.peek_pointer(node.plyEntity.mesh.nodes);
     node.plyEntity.charInfos = text_mesh_update(node.plyEntity.commentMeshNode.primitives[0], node.comment, *instance.fonts.light, instance.config.moves.mainColor);
 
-    Sill.ui_on_trigger(*node.plyEntity.ui, xx (flags : Sill.UiComponent.CallbackFlags, event : Crater.Event, stopPropagation : *bool, node : *Variation.Node) {
+    Sill.ui_on_trigger(*node.plyEntity.ui, (trigger : Sill.UiTrigger, node : *Variation.Node) {
         Sill.ui_set_focused(*node.plyEntity.ui);
         game_update_to(*instance.game, node);
         _update_cursor(node);
@@ -255,28 +300,28 @@ _init_ply_entity :: (node : *Variation.Node, width : float) {
         // @fixme On Unfocused, hide cursor.
     }, .Click, node);
 
-    Sill.ui_on_trigger(*node.plyEntity.ui, xx (flags : Sill.UiComponent.CallbackFlags, event : Crater.Event, stopPropagation : *bool, node : *Variation.Node) {
+    Sill.ui_on_trigger(*node.plyEntity.ui, (trigger : Sill.UiTrigger, node : *Variation.Node) {
         textChanged := false;
-        <<stopPropagation = true;
+        <<trigger.stopPropagation = true;
 
-        if event.kind == .TextEntered {
-            Chamber.insert_after_byte(*node.comment, node.plyEntity.cursorPosition, event.text.str);
-            node.plyEntity.cursorPosition += cast(u32) event.text.str.count;
+        if trigger.event.kind == .TextEntered {
+            Chamber.insert_after_byte(*node.comment, node.plyEntity.cursorPosition, trigger.event.text.str);
+            node.plyEntity.cursorPosition += cast(u32) trigger.event.text.str.count;
             textChanged = true;
-        } else if event.kind == .KeyPressed {
-            if event.key.which == .Delete {
+        } else if trigger.event.kind == .KeyPressed {
+            if trigger.event.key.which == .Delete {
                 deletedBytes := Chamber.delete_after_byte(*node.comment, node.plyEntity.cursorPosition);
                 if deletedBytes == 0 then return;
                 textChanged = true;
-            } else if event.key.which == .Backspace {
+            } else if trigger.event.key.which == .Backspace {
                 deletedBytes := Chamber.delete_before_byte(*node.comment, node.plyEntity.cursorPosition);
                 if deletedBytes == 0 then return;
                 node.plyEntity.cursorPosition -= deletedBytes;
                 textChanged = true;
-            } else if event.key.which == .Left {
+            } else if trigger.event.key.which == .Left {
                 if node.plyEntity.cursorPosition == 0 then return;
                 node.plyEntity.cursorPosition -= Chamber.utf8_word_length_before_byte(node.comment, node.plyEntity.cursorPosition);
-            } else if event.key.which == .Right {
+            } else if trigger.event.key.which == .Right {
                 if node.plyEntity.cursorPosition == node.comment.count then return;
                 node.plyEntity.cursorPosition += Chamber.utf8_word_length_after_byte(node.comment, node.plyEntity.cursorPosition);
             } else {
@@ -291,7 +336,7 @@ _init_ply_entity :: (node : *Variation.Node, width : float) {
         }
 
         _update_cursor(node);
-    }, Sill.UiComponent.CallbackFlags.Text | .Key, node);
+    }, Sill.UiCallbackFlags.Text | .Key, node);
 }
 
 // Will modify the effective positions of the charInfos to justify the text

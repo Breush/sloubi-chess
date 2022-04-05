@@ -48,7 +48,7 @@ file_select_show :: (extensionFilter : string, callback : FileSelectEntity.FileS
     text_mesh_update(mesh, Basic.tprint("Select a % file", extensionFilter), *instance.fonts.bold, *instance.config.env.textColor);
     Sill.transform_commit(*fileSelect.transform);
 
-    Sill.ui_on_update(*fileSelect.ui, xx (flags : Sill.UiComponent.CallbackFlags, fileSelect : *FileSelectEntity) {
+    Sill.ui_on_update(*fileSelect.ui, xx (flags : Sill.UiCallbackFlags, fileSelect : *FileSelectEntity) {
         _place_children(fileSelect);
     }, .Child, fileSelect);
 
@@ -126,13 +126,13 @@ _make_entry :: (name : string, isDirectory : bool) -> *EntryEntity {
     Magma.material_set(squareMesh.material, "color", instance.config.env.selectionBackgroundColor);
     Basic.array_add(*entryEntity.mesh.nodes[0].primitives, squareMesh);
 
-    Sill.ui_on_trigger(*entryEntity.ui, xx (flags : Sill.UiComponent.CallbackFlags, event : Crater.Event, stopPropagation : *bool, entryEntity : *EntryEntity) {
+    Sill.ui_on_trigger(*entryEntity.ui, (trigger : Sill.UiTrigger, entryEntity : *EntryEntity) {
         if !instance.fileSelect then return;
-        entryEntity.mesh.nodes[0].primitives[1].disabled = cast(bool) (flags & .NoHover);
+        entryEntity.mesh.nodes[0].primitives[1].disabled = cast(bool) (trigger.flags & .NoHover);
 
-        if flags & .Hover {
-            <<stopPropagation = true;
-        } else if flags & .Click {
+        if trigger.flags & .Hover {
+            <<trigger.stopPropagation = true;
+        } else if trigger.flags & .Click {
             if entryEntity.isDirectory {
                 _go_into_directory(entryEntity.fileOrDirectoryName);
             } else if String.ends_with(entryEntity.fileOrDirectoryName, ".pgn") {
@@ -141,7 +141,7 @@ _make_entry :: (name : string, isDirectory : bool) -> *EntryEntity {
                 instance.fileSelect = null;
             }
         }
-    }, Sill.UiComponent.CallbackFlags.Hover | .NoHover | .Click, entryEntity);
+    }, Sill.UiCallbackFlags.Hover | .NoHover | .Click, entryEntity);
 
     return entryEntity;
 }
