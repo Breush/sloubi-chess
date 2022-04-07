@@ -3,6 +3,8 @@ Game :: struct {
     mainVariation : Variation;
 
     boardOrientation : Color;
+    result : Result;
+    pgnFileName : string;
 
     node : *Variation.Node; // Current node.
 
@@ -10,6 +12,13 @@ Game :: struct {
     // have efficient memory layout, we use pools.
     nodePool : Bucket_Array(Variation.Node, 128);
     variationPool : Bucket_Array(Variation, 32);
+
+    Result :: enum {
+        Unknown :: 0;
+        WhiteWin;
+        BlackWin;
+        Draw;
+    }
 }
 
 Variation :: struct {
@@ -117,6 +126,15 @@ game_go_to_next_variation :: (game : *Game) {
                 game_update_to(game, variationParentNode.variations[variation.index + 1].nodes[1]);
             }
         }
+    }
+}
+
+game_result_to_string :: (result : Game.Result) -> string {
+    if #complete result == {
+        case .Unknown; return "*";
+        case .WhiteWin; return "1-0";
+        case .BlackWin; return "0-1";
+        case .Draw; return "1/2-1/2";
     }
 }
 

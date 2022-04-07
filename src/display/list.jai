@@ -86,8 +86,8 @@ list_show :: (game : Game) {
     textNode.transform.translation.y = -8; // @todo Hardcoded offset... We should know the max glyph height instead.
     Basic.array_add(*textNode.primitives, textMesh);
 
-    saveButton.transform.translation.x = 800 - UiConstants.PaddingHorizontal; // :HardcodedScreenSize
-    saveButton.transform.translation.y = 450 - UiConstants.PaddingVertical;
+    saveButton.transform.translation.x = 800 - saveButton.ui.extent.width / 2; // :HardcodedScreenSize
+    saveButton.transform.translation.y = 450 - saveButton.ui.extent.height / 2;
     saveButton.transform.translation.z = -0.1;
     Sill.transform_commit(*saveButton.transform);
 
@@ -99,7 +99,7 @@ list_show :: (game : Game) {
         } else if trigger.flags & .NoHover {
             Magma.material_set(saveButton.mesh.nodes[0].primitives[0].material, "color", instance.config.env.secondaryBackgroundColor);
         } else {
-            pgn_save();
+            save_pgn(instance.game.pgnFileName);
         }
     }, Sill.UiCallbackFlags.Click | .Hover | .NoHover, saveButton);
 }
