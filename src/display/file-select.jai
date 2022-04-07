@@ -48,7 +48,7 @@ file_select_show :: (extensionFilter : string, callback : FileSelectEntity.FileS
     text_mesh_update(mesh, Basic.tprint("Select a % file", extensionFilter), *instance.fonts.bold, *instance.config.env.textColor);
     Sill.transform_commit(*fileSelect.transform);
 
-    Sill.ui_on_update(*fileSelect.ui, xx (flags : Sill.UiCallbackFlags, fileSelect : *FileSelectEntity) {
+    Sill.ui_on_update(*fileSelect.ui, (update : Sill.UiUpdate, fileSelect : *FileSelectEntity) {
         _place_children(fileSelect);
     }, .Child, fileSelect);
 

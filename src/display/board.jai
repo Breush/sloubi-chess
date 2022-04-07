@@ -30,7 +30,7 @@ board_init :: () {
     transform.factor = size;
     Sill.transform_commit(*transform);
 
-    Sill.ui_on_update(*ui, xx _on_update, userData = instance.board);
+    Sill.ui_on_update(*ui, _on_update, userData = instance.board);
 
     _init_meshes();
 
@@ -179,7 +179,7 @@ _init_meshes :: () {
     board_orient(orientation);
 }
 
-_on_update :: (flags : Sill.UiCallbackFlags, using board : *BoardEntity) {
+_on_update :: (update : Sill.UiUpdate, using board : *BoardEntity) {
     normalizedCoord : Chamber.vec2;
     normalizedCoord.x = -8.0 * ui.relativeMousePointerPosition.y / ui.extent.width + 4.0;
     normalizedCoord.y =  8.0 * ui.relativeMousePointerPosition.x / ui.extent.width + 4.0;

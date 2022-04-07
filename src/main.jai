@@ -64,24 +64,9 @@ main :: () {
 
     storagePath := Chamber.os_application_data_storage_path();
     readJsonAs(*instance.config, args.config);
-    readJsonAs(*instance.persistence, Basic.tprint("%/%", storagePath, ".sloubi-chess.json"), silentOnError = true); // @fixme Hardcoded path...
+    readJsonAs(*instance.persistence, Basic.tprint("%/%", storagePath, ".sloubi-chess.json"), silentOnError = true);
 
-    // @todo We're missing a notion in fonts, which would allow us to use a shared fallback.
-    // Currently, we would need to duplicate the "dejaVu" fallback font for each family.
-    boldFontFiles : [2]string;
-    boldFontFiles[0] = Basic.tprint("./assets/fonts/%-Bold.ttf", instance.config.moves.fontFamily);
-    boldFontFiles[1] = "./assets/fonts/DejaVuSans.ttf";
-
-    lightFontFiles : [3]string;
-    lightFontFiles[0] = Basic.tprint("./assets/fonts/%-Light.ttf", instance.config.moves.fontFamily);
-    lightFontFiles[1] = "./assets/fonts/DejaVuSans.ttf";
-    lightFontFiles[2] = "./assets/fonts/ForkAwesome.ttf";
-
-    instance.engine = Sill.create_engine(SillMeta);
-    instance.fonts.light = Chamber.font_load(lightFontFiles, cast(float) instance.config.moves.fontSize);
-    instance.fonts.lightItalic = Chamber.font_load(Basic.tprint("./assets/fonts/%-LightItalic.ttf", instance.config.moves.fontFamily), cast(float) instance.config.moves.fontSize);
-    instance.fonts.bold = Chamber.font_load(boldFontFiles, cast(float) instance.config.moves.fontSize);
-
+    _fonts_init();
     controller_init();
     board_init();
     background_init();
@@ -107,6 +92,24 @@ main :: () {
 
 cleanup :: () {
     Sill.destroy_engine(instance.engine);
+}
+
+_fonts_init :: () {
+    // @todo We're missing a notion in fonts, which would allow us to use a shared fallback.
+    // Currently, we would need to duplicate the "dejaVu" fallback font for each family.
+    boldFontFiles : [2]string;
+    boldFontFiles[0] = Basic.tprint("./assets/fonts/%-Bold.ttf", instance.config.moves.fontFamily);
+    boldFontFiles[1] = "./assets/fonts/DejaVuSans.ttf";
+
+    lightFontFiles : [3]string;
+    lightFontFiles[0] = Basic.tprint("./assets/fonts/%-Light.ttf", instance.config.moves.fontFamily);
+    lightFontFiles[1] = "./assets/fonts/DejaVuSans.ttf";
+    lightFontFiles[2] = "./assets/fonts/ForkAwesome.ttf";
+
+    instance.engine = Sill.create_engine(SillMeta);
+    instance.fonts.light = Chamber.font_load(lightFontFiles, cast(float) instance.config.moves.fontSize);
+    instance.fonts.lightItalic = Chamber.font_load(Basic.tprint("./assets/fonts/%-LightItalic.ttf", instance.config.moves.fontFamily), cast(float) instance.config.moves.fontSize);
+    instance.fonts.bold = Chamber.font_load(boldFontFiles, cast(float) instance.config.moves.fontSize);
 }
 
 #import "Math";

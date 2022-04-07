@@ -91,6 +91,10 @@ list_show :: (game : Game) {
     saveButton.transform.translation.z = -0.1;
     Sill.transform_commit(*saveButton.transform);
 
+    Sill.ui_on_update(*saveButton.ui, (update : Sill.UiUpdate, userData : *void) {
+        <<update.stopPropagation = true;
+    }, .Hover);
+
     Sill.ui_on_trigger(*saveButton.ui, (trigger : Sill.UiTrigger, saveButton : *ButtonEntity) {
         <<trigger.stopPropagation = true;
 
@@ -159,16 +163,12 @@ list_update_to_current_move :: (game : *Game) {
     _scroll(ui.position.y - startY);
 }
 
-list_handle_input_event :: (event : Crater.Event) {
-    using instance.board;
-
-    // @fixme INTRODUCE PARENTED ENTITIES IN SILL!!!!
+list_scroll :: (scrollDelta : float) {
+    // @fixme Use the parented entities for the list.
     // This would make the whole thing a lot easier to update the positions,
     // and also allow to handle the input events in the correct order.
 
-    if event.kind == .MouseWheelScrolled {
-        _scroll(25.0 * event.mouseWheel.dy);
-    }
+    _scroll(25.0 * scrollDelta);
 }
 
 CommentStyle :: enum {
