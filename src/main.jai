@@ -64,7 +64,7 @@ main :: () {
 
     storagePath := Chamber.os_application_data_storage_path();
     readJsonAs(*instance.config, args.config);
-    readJsonAs(*instance.persistence, Basic.tprint("%/%", storagePath, ".sloubi-chess.json"), silentOnError = true);
+    readJsonAs(*instance.persistence, Basic.tprint("%1%2", storagePath, ".sloubi-chess.json"), silentOnError = false);
 
     _fonts_init();
     controller_init();

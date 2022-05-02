@@ -79,7 +79,8 @@ _show_path :: (path : string) {
     entries : Entries;
     Basic.array_add(*entries.directories, Basic.copy_string(".."));
     visitor :: (info: *File_Utilities.File_Visit_Info, entries: *Entries) {
-        if info.short_name[0] == #char "." then return;
+        if OS == .LINUX && info.short_name[0] == #char "." then return;
+        if OS == .WINDOWS && info.short_name[0] == #char "$" then return;
 
         if info.is_directory then Basic.array_add(*entries.directories, Basic.copy_string(info.short_name));
         else if String.ends_with(info.short_name, instance.fileSelect.extensionFilter) {

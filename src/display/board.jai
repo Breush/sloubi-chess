@@ -112,6 +112,7 @@ _init_resources :: () {
     squareShader = Magma.create_shader(instance.engine.renderer, "./assets/materials/square");
 
     init_piece_texture :: (pieceId : PieceId, filename : string) {
+        using instance.board;
         piecesTextures[pieceId] = Magma.create_texture(instance.engine.renderEngine);
         Magma.texture_load_from_file(piecesTextures[pieceId], filename);
     }

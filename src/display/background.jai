@@ -15,10 +15,10 @@ background_init :: () {
     extent := Crater.window_get_extent(instance.engine.window);
 
     positions := Chamber.vec3.[
-        .{-0.5, -0.5, 0. },
-        .{-0.5,  0.5, 0. },
-        .{ 0.5,  0.5, 0. },
-        .{ 0.5, -0.5, 0. },
+        .{-0.5, -0.5, 0.5 },
+        .{-0.5,  0.5, 0.5 },
+        .{ 0.5,  0.5, 0.5 },
+        .{ 0.5, -0.5, 0.5 },
     ];
 
     indices := u16.[0,  1,  2,  2,  3,  0];
