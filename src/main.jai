@@ -13,6 +13,7 @@ File :: #import "File";
 #load "display/background.jai";
 #load "display/board.jai";
 #load "display/list.jai";
+#load "helpers/fork-awesome.jai";
 #load "structures/coord.jai";
 #load "structures/game.jai";
 #load "structures/piece.jai";
