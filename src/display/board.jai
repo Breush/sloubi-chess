@@ -30,7 +30,7 @@ board_init :: () {
     transform.factor = size;
     Sill.transform_commit(*transform);
 
-    Sill.ui_on_update(*ui, xx _on_update, userData = instance.board);
+    Sill.ui_on_update(*ui, _on_update, userData = instance.board);
 
     _init_meshes();
 
@@ -69,41 +69,6 @@ board_update_to_position :: (position : Position) {
     }
 }
 
-// @fixme Move?
-_make_square_mesh :: () -> *Magma.Mesh {
-    mesh := Magma.create_mesh(instance.engine.scene);
-
-    positions := Chamber.vec3.[
-        .{-0.5, -0.5, 0. },
-        .{-0.5,  0.5, 0. },
-        .{ 0.5,  0.5, 0. },
-        .{ 0.5, -0.5, 0. },
-    ];
-
-    uvs := Chamber.vec2.[
-        .{ 0.,  0. },
-        .{ 0.,  1. },
-        .{ 1.,  1. },
-        .{ 1.,  0. },
-    ];
-
-    indices := u16.[0,  1,  2,  2,  3,  0];
-
-    Basic.array_resize(*mesh.vertices, positions.count);
-    for *vertex, i : mesh.vertices {
-        vertex.position = positions[i];
-        vertex.uv = uvs[i];
-    }
-
-    Basic.array_resize(*mesh.indices, indices.count);
-    memcpy(mesh.indices.data, indices.data, size_of(u16) * indices.count);
-
-    Magma.mesh_commit_vertices(mesh);
-    Magma.mesh_commit_indices(mesh);
-
-    return mesh;
-}
-
 #scope_file
 
 _init_resources :: () {
@@ -112,6 +77,7 @@ _init_resources :: () {
     squareShader = Magma.create_shader(instance.engine.renderer, "./assets/materials/square");
 
     init_piece_texture :: (pieceId : PieceId, filename : string) {
+        using instance.board;
         piecesTextures[pieceId] = Magma.create_texture(instance.engine.renderEngine);
         Magma.texture_load_from_file(piecesTextures[pieceId], filename);
     }
@@ -160,7 +126,7 @@ _init_meshes :: () {
     mesh.nodes[0].transform.scaling = .{1.0 / 8.0, 1.0 / 8.0, 1.0};
 
     for coord : 0..CoordCount-1 {
-        squareMesh := _make_square_mesh();
+        squareMesh := create_rect_mesh();
         squareMesh.material = Magma.create_material(squareShader);
 
         row, col := row_col(cast(u8) coord);
@@ -179,7 +145,7 @@ _init_meshes :: () {
     board_orient(orientation);
 }
 
-_on_update :: (flags : Sill.UiComponent.CallbackFlags, using board : *BoardEntity) {
+_on_update :: (update : Sill.UiUpdate, using board : *BoardEntity) {
     normalizedCoord : Chamber.vec2;
     normalizedCoord.x = -8.0 * ui.relativeMousePointerPosition.y / ui.extent.width + 4.0;
     normalizedCoord.y =  8.0 * ui.relativeMousePointerPosition.x / ui.extent.width + 4.0;

@@ -52,6 +52,50 @@ load_fen :: (fen : string) -> Position {
     return position;
 }
 
+position_to_fen :: (position : Position) -> string {
+    builder : Basic.String_Builder;
+
+    // The board
+    for oppositeRow : 0..7 {
+        emptyCount := 0;
+        for col : 0..7 {
+            squareCoord := coord(7 - cast(u8) oppositeRow, cast(u8) col);
+            if position.board[squareCoord].kind == .Empty {
+                emptyCount += 1;
+            } else {
+                if emptyCount != 0 {
+                    Basic.print_to_builder(*builder, "%", emptyCount);
+                    emptyCount = 0;
+                }
+                Basic.append(*builder, fen_piece_to_string(position.board[squareCoord]));
+            }
+        }
+
+        if emptyCount != 0 {
+            Basic.print_to_builder(*builder, "%", emptyCount);
+            emptyCount = 0;
+        }
+        if oppositeRow != 7 then Basic.append(*builder, "/");
+    }
+
+    // Color to play
+    Basic.append(*builder, ifx position.moveIndex % 2 == 0 then " w" else " b");
+
+    // @todo Castling rights
+    Basic.append(*builder, " KQkq");
+
+    // @todo En passant square
+    Basic.append(*builder, " -");
+
+    // @todo Halfmove clock for the 50 move rule
+    Basic.append(*builder, " 0");
+
+    // Fullmove number
+    Basic.print_to_builder(*builder, " %", (position.moveIndex + 2) / 2);
+
+    return Basic.builder_to_string(*builder);
+}
+
 fen_piece_to_string :: (piece : Piece) -> string {
     if piece.kind == .B && piece.color == .Black then return "b";
     if piece.kind == .K && piece.color == .Black then return "k";
@@ -65,7 +109,7 @@ fen_piece_to_string :: (piece : Piece) -> string {
     if piece.kind == .P && piece.color == .White then return "P";
     if piece.kind == .Q && piece.color == .White then return "Q";
     if piece.kind == .R && piece.color == .White then return "R";
-    return " ";
+    return "";
 }
 
 #scope_file

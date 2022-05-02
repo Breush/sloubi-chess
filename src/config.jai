@@ -1,7 +1,13 @@
+// Config is user-configurable data.
+// Persistence is application-dependent data, saved by user.
+
 Config :: struct {
     version : s64;
-    background : struct {
-        color : Chamber.vec3;
+    env : struct {
+        backgroundColor : Chamber.vec3;
+        secondaryBackgroundColor : Chamber.vec3;
+        selectionBackgroundColor : Chamber.vec3;
+        textColor : Chamber.vec3;
     }
     board : struct {
         pieces : string;
@@ -38,59 +44,76 @@ Config :: struct {
     }
 }
 
-config_init :: (config : *Config, filename : string) {
-    json, ok := Chamber.json_parse_file(filename);
-    if !ok then Basic.log("Unable to read config file '%'.", filename, flags = .ERROR);
+Persistence :: struct {
+    version : s64;
+    fileSelect : struct {
+        lastPath : string;
+    }
+}
 
-    // @todo Metaprog to fill the struct based on its content
-    config.version = cast(s64) json["version"].number;
-    config.background.color = _read_vec3(json["background"]["color"]);
-    config.board.pieces = json["board"]["pieces"].str;
-    config.board.lightSquareColor = _read_vec3(json["board"]["lightSquareColor"]);
-    config.board.darkSquareColor = _read_vec3(json["board"]["darkSquareColor"]);
-    config.controls.nextPly = _read_enum(json["controls"]["nextPly"], Crater.Key);
-    config.controls.previousPly = _read_enum(json["controls"]["previousPly"], Crater.Key);
-    config.controls.firstPly = _read_enum(json["controls"]["firstPly"], Crater.Key);
-    config.controls.lastPly = _read_enum(json["controls"]["lastPly"], Crater.Key);
-    config.controls.nextVariation = _read_enum(json["controls"]["nextVariation"], Crater.Key);
-    config.controls.previousVariation = _read_enum(json["controls"]["previousVariation"], Crater.Key);
-    config.moves.fontFamily = json["moves"]["fontFamily"].str;
-    config.moves.fontSize = cast(s64) json["moves"]["fontSize"].number;
-    config.moves.mainColor = _read_vec3(json["moves"]["mainColor"]);
-    config.moves.interestingColor = _read_vec3(json["moves"]["interestingColor"]);
-    config.moves.goodColor = _read_vec3(json["moves"]["goodColor"]);
-    config.moves.brillantColor = _read_vec3(json["moves"]["brillantColor"]);
-    config.moves.dubiousColor = _read_vec3(json["moves"]["dubiousColor"]);
-    config.moves.mistakeColor = _read_vec3(json["moves"]["mistakeColor"]);
-    config.moves.blunderColor = _read_vec3(json["moves"]["blunderColor"]);
-    config.moves.selectedColor = _read_vec3(json["moves"]["selectedColor"]);
-    config.moves.selectedCommentColor = _read_vec3(json["moves"]["selectedCommentColor"]);
-    config.moves.pieceAsSymbol = json["moves"]["pieceAsSymbol"].boolean;
-    config.moves.comments.shortStyle = _read_enum(json["moves"]["comments"]["shortStyle"], CommentStyle);
-    config.moves.comments.normalStyle = _read_enum(json["moves"]["comments"]["normalStyle"], CommentStyle);
-    config.moves.comments.longStyle = _read_enum(json["moves"]["comments"]["longStyle"], CommentStyle);
-    config.moves.comments.fullStyleWidth = cast(float) json["moves"]["comments"]["fullStyleWidth"].number;
+// @todo Move to Chamber
+readJsonAs :: (data : *$T, filename : string, silentOnError := false) -> bool {
+    typeInfo := type_info(T);
+    _CHECK(typeInfo.type == .STRUCT, "Type is not a struct.");
+
+    json, ok := Chamber.json_parse_file(filename);
+    if !ok {
+        if !silentOnError then Basic.log_error("Unable to read file '%'.", filename);
+        return false;
+    }
+
+    readJsonStruct(cast(*u8) data, typeInfo, json);
+    return true;
+}
+
+readJsonStruct :: (dataBytes : *u8, typeInfo : *Type_Info_Struct, json : Chamber.JsonValue) {
+    // Special handling of known types.
+    if typeInfo == type_info(Chamber.vec3) {
+        dataFloats := cast(*float) dataBytes;
+        dataFloats[0] = cast(float) json[0].number;
+        dataFloats[1] = cast(float) json[1].number;
+        dataFloats[2] = cast(float) json[2].number;
+        return;
+    }
+
+    for member : typeInfo.members {
+        memberDataBytes := dataBytes + member.offset_in_bytes;
+
+        if member.type.type == .INTEGER {
+            memberType := cast(*Type_Info_Integer) member.type;
+            Basic.assert(memberType.runtime_size == 8);
+            Basic.assert(memberType.signed);
+            << cast(*s64) memberDataBytes = cast(s64) json[member.name].number;
+        } else if member.type.type == .FLOAT {
+            memberType := cast(*Type_Info_Float) member.type;
+            Basic.assert(memberType.runtime_size == 4);
+            << cast(*float) memberDataBytes = cast(float) json[member.name].number;
+        } else if member.type.type == .BOOL {
+            << cast(*bool) memberDataBytes = json[member.name].boolean;
+        } else if member.type.type == .STRING {
+            << cast(*string) memberDataBytes = cast(string) json[member.name].str;
+        }  else if member.type.type == .ENUM {
+            readJsonEnum(memberDataBytes, cast(*Type_Info_Enum) member.type, *json[member.name]);
+        } else if member.type.type == .STRUCT {
+            readJsonStruct(memberDataBytes, cast(*Type_Info_Struct) member.type, *json[member.name]);
+        } else {
+            Basic.log_error("Unsupported type tag: %.", member.type.type);
+            Basic.assert(false);
+        }
+    }
+}
+
+readJsonEnum :: (dataBytes : *u8, typeInfo : *Type_Info_Enum, json : Chamber.JsonValue) {
+    Basic.assert(typeInfo.internal_type.runtime_size == 8);
+    for name, index : typeInfo.names {
+        if name == json.str {
+            << cast(*s64) (cast(*u8) dataBytes ) = typeInfo.values[index];
+            return;
+        }
+    }
+    Basic.log_error("Invalid value '%' for enum '%'.", json.str, typeInfo.name);
 }
 
 #scope_file
-
-_read_vec3 :: (json : Chamber.JsonValue) -> Chamber.vec3 {
-    value : Chamber.vec3;
-    value.x = cast(float) json[0].number;
-    value.y = cast(float) json[1].number;
-    value.z = cast(float) json[2].number;
-    return value;
-}
-
-_read_enum :: (json : Chamber.JsonValue, $T : Type) -> T {
-    typeInfo := type_info(T);
-    for name, index : typeInfo.names {
-        if name == json.str {
-            return cast(T) typeInfo.values[index];
-        }
-    }
-    Basic.log("Invalid value '%' for enum '%'.", json.str, T, flags = .ERROR);
-    return cast(T) 0;
-}
 
 #import "Chamber"; // For operator[] of JSON parser.

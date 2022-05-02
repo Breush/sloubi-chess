@@ -168,6 +168,11 @@ get_starting_position :: () -> Position {
     return position;
 }
 
+position_is_starting_one :: (position : Position) -> bool {
+    // Somewhat cheating, but maybe not that slow.
+    return position_to_fen(position) == "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+}
+
 peek_piece_pointer :: (position : *Position, coord : Coord) -> *Piece {
     return *position.board[coord];
 }

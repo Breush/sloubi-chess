@@ -36,7 +36,118 @@ load_pgn :: (filename : string) -> bool {
 
     Chamber._CHECK(bytes.count == 0, Basic.tprint("Leftovers: %", bytes));
 
+    instance.game.pgnFileName = Basic.copy_string(filename);
+    list_show(instance.game);
+    game_update_to(*instance.game, instance.game.mainVariation.nodes[0]);
+
     return true;
+}
+
+save_pgn :: (filename : string) {
+    Basic.log("Saving PGN file %.", filename);
+
+    builder : Basic.String_Builder;
+
+    // Standard tags
+    Basic.append(*builder, "[Event \"?\"]\n");
+    Basic.append(*builder, "[Site \"?\"]\n");
+    Basic.append(*builder, "[Date \"????.??.??\"]\n");
+    Basic.append(*builder, "[Round \"?\"]\n");
+    Basic.append(*builder, "[White \"?\"]\n");
+    Basic.append(*builder, "[Black \"?\"]\n");
+    Basic.print_to_builder(*builder, "[Result \"%\"]\n", game_result_to_string(instance.game.result));
+
+    // Custom tags
+    Basic.print_to_builder(*builder, "[BoardOrientation \"%\"]\n", instance.game.boardOrientation);
+    if !position_is_starting_one(instance.game.mainVariation.nodes[0].position) {
+        Basic.append(*builder, "[SetUp \"1\"]\n");
+        Basic.print_to_builder(*builder, "[FEN \"%\"]\n", position_to_fen(instance.game.mainVariation.nodes[0].position));
+    }
+    Basic.append(*builder, "\n");
+
+    // The game itself
+    gameBuilder : Basic.String_Builder;
+    _write_variation(*gameBuilder, *instance.game.mainVariation);
+    Basic.print_to_builder(*gameBuilder, " %", game_result_to_string(instance.game.result));
+
+    // There is officially a column limit of 80 for PGNs,
+    // so we can't write that as it is.
+    gameString := Basic.builder_to_string(*gameBuilder);
+    while gameString.count > 80 {
+        endOfLineIndex := 80;
+        while endOfLineIndex > 0 && gameString[endOfLineIndex] != #char " " {
+            endOfLineIndex -= 1;
+        }
+        if endOfLineIndex == 0 then break; // One stupid long word without blanks, just don't care.
+
+        lineString : string;
+        lineString.data = gameString.data;
+        lineString.count = endOfLineIndex;
+        Basic.print_to_builder(*builder, "%\n", lineString);
+        Basic.advance(*gameString, endOfLineIndex + 1);
+    }
+    Basic.print_to_builder(*builder, "%\n", gameString);
+
+    File.write_entire_file(filename, builder);
+}
+
+// @fixme Move...
+_write_variation :: (builder : *Basic.String_Builder, variation : *Variation) {
+    for node, index : variation.nodes {
+        if index == 0 && node.comment.count == 0 && node.variations.count == 0 then continue;
+
+        if index != 0 {
+            moveIndex := (node.position.moveIndex + 1) / 2;
+            Basic.print_to_builder(builder, "%.% %", moveIndex, ifx node.position.moveIndex % 2 then "" else "..", position_last_move_to_san(node.position, annotations = false));
+            _write_nags(builder, *node.position);
+        }
+
+        if node.comment.count != 0 {
+            if index != 0 {
+                Basic.append(builder, " ");
+            }
+            _write_escaped_comment(builder, node.comment);
+        }
+
+        if node.variations.count != 0 {
+            if index != 0 || node.comment.count != 0 {
+                Basic.append(builder, " ");
+            }
+            for subVariation, subVariationIndex : node.variations {
+                Basic.append(builder, "(");
+                _write_variation(builder, subVariation);
+                Basic.append(builder, ")");
+                if subVariationIndex != node.variations.count - 1 {
+                    Basic.append(builder, " ");
+                }
+            }
+        }
+
+        if index != variation.nodes.count - 1 {
+            Basic.append(builder, " ");
+        }
+    }
+}
+
+_write_nags :: (builder : *Basic.String_Builder, position : *Position) {
+    if position.lastMove.annotation != .None {
+        Basic.print_to_builder(builder, " $%", cast(u32) _annotation_to_nag(position.lastMove.annotation));
+    }
+    if position.annotation != .None {
+        Basic.print_to_builder(builder, " $%", cast(u32) _annotation_to_nag(position.annotation));
+    }
+    for observationAnnotation : position.observationAnnotations {
+        Basic.print_to_builder(builder, " $%", cast(u32) _annotation_to_nag(observationAnnotation));
+    }
+}
+
+_write_escaped_comment :: (builder : *Basic.String_Builder, comment : string) {
+    Basic.append(builder, "{");
+    for i : 0..comment.count - 1 {
+        if comment[i] == #char "}" then Basic.append(builder, "\\}");
+        else Basic.append(builder, comment[i]);
+    }
+    Basic.append(builder, "}");
 }
 
 #scope_file
@@ -188,6 +299,52 @@ _nag_to_observation_annotation :: (nag : Nag) -> ObservationAnnotation {
         case .BlackModerateTimeControlPressure; return .TimeControlPressure;
         case .WhiteSevereTimeControlPressure; return .TimeControlPressure;
         case .BlackSevereTimeControlPressure; return .TimeControlPressure;
+        case .WithIdea; return .WithIdea;
+        case .Novelty; return .Novelty;
+    }
+    return .None;
+}
+
+_annotation_to_nag :: (moveAnnotation : MoveAnnotation) -> Nag {
+    if #complete moveAnnotation == {
+        case .None; return .None;
+        case .Good; return .Good;
+        case .Mistake; return .Mistake;
+        case .Brillant; return .Brillant;
+        case .Blunder; return .Blunder;
+        case .Interesting; return .Interesting;
+        case .Dubious; return .Dubious;
+        case .Forced; return .Forced;
+        case .Zugzwang; return .WhiteZugzwang; // @todo :BlackOrWhiteUnclearAnnotation Do we care about white or black here?
+    }
+    return .None;
+}
+
+_annotation_to_nag :: (positionAnnotation : PositionAnnotation) -> Nag {
+    if #complete positionAnnotation == {
+        case .None; return .None;
+        case .Drawish; return .Drawish;
+        case .Unclear; return .Unclear;
+        case .WhiteSlightAdvantage; return .WhiteSlightAdvantage;
+        case .BlackSlightAdvantage; return .BlackSlightAdvantage;
+        case .WhiteModerateAdvantage; return .WhiteModerateAdvantage;
+        case .BlackModerateAdvantage; return .BlackModerateAdvantage;
+        case .WhiteDecisiveAdvantage; return .WhiteDecisiveAdvantage;
+        case .BlackDecisiveAdvantage; return .BlackDecisiveAdvantage;
+    }
+    return .None;
+}
+
+_annotation_to_nag :: (observationAnnotation : ObservationAnnotation) -> Nag {
+    if #complete observationAnnotation == {
+        case .None; return .None;
+        case .SpaceAdvantage; return .WhiteModerateSpaceAdvantage; // :BlackOrWhiteUnclearAnnotation
+        case .TimeAdvantage; return .WhiteModerateTimeAdvantage; // :BlackOrWhiteUnclearAnnotation
+        case .Initiative; return .WhiteInitiative; // :BlackOrWhiteUnclearAnnotation
+        case .Attack; return .WhiteAttack; // :BlackOrWhiteUnclearAnnotation
+        case .Compensation; return .WhiteSufficientCompensation; // :BlackOrWhiteUnclearAnnotation
+        case .Counterplay; return .WhiteModerateCounterplay; // :BlackOrWhiteUnclearAnnotation
+        case .TimeControlPressure; return .WhiteModerateTimeControlPressure; // :BlackOrWhiteUnclearAnnotation
         case .WithIdea; return .WithIdea;
         case .Novelty; return .Novelty;
     }
@@ -420,15 +577,14 @@ _parse_piece_kind :: (bytes : *string) -> PieceKind {
     return pieceKind;
 }
 
-// +1 White wins, -1 Black wins, 0 Draw
-_parse_potential_result :: (bytes : *string) -> (bool, s8) {
+_parse_potential_result :: (bytes : *string) -> (bool, Game.Result) {
     if (<<bytes)[0] == #char "1" {
         // Peeking
         if (<<bytes)[1] == #char "-" {
             _parse_expected(bytes, #char "1");
             _parse_expected(bytes, #char "-");
             _parse_expected(bytes, #char "0");
-            return true, 1;
+            return true, .WhiteWin;
         } else if (<<bytes)[1] == #char "/" {
             _parse_expected(bytes, #char "1");
             _parse_expected(bytes, #char "/");
@@ -437,22 +593,23 @@ _parse_potential_result :: (bytes : *string) -> (bool, s8) {
             _parse_expected(bytes, #char "1");
             _parse_expected(bytes, #char "/");
             _parse_expected(bytes, #char "2");
-            return true, 1;
+            return true, .Draw;
         }
     } else if (<<bytes)[0] == #char "0" {
         _parse_expected(bytes, #char "0");
         _parse_expected(bytes, #char "-");
         _parse_expected(bytes, #char "1");
-        return true, -1;
+        return true, .BlackWin;
     } else if (<<bytes)[0] == #char "*" {
         _parse_expected(bytes, #char "*");
-        return true, 0xFF; // Interrupted game
+        return true, .Unknown;
     }
 
-    return false, 0xFF;
+    return false, .Unknown;
 }
 
 _parse_potential_comment :: (bytes : *string) -> (string, bool) {
+    if bytes.count == 0 then return ("", false);
     if (<<bytes)[0] != #char "{" then return ("", false);
     Basic.advance(bytes);
     _skip_blanks(bytes);
@@ -497,8 +654,8 @@ _parse_potential_comments :: (bytes : *string, variation : *Variation) {
         comment, ok := _parse_potential_comment(bytes);
         if !ok then break;
 
-        if fullComment.count == 0 then fullComment = comment;
-        else fullComment = Basic.sprint("%\n%", fullComment, comment);
+        if fullComment.count == 0 then  fullComment = comment;
+        else if comment.count != 0 then fullComment = Basic.sprint("%\n%", fullComment, comment);
     }
 
     Basic.peek(variation.nodes).comment = fullComment;
@@ -514,6 +671,7 @@ _parse_potential_variation :: (bytes : *string, parentVariation : *Variation, co
     node := game_add_variation_node(*instance.game, variation);
     node.position = parentVariation.nodes[parentVariation.nodes.count - 2].position;
 
+    _skip_blanks(bytes);
     _parse_variation(bytes, variation, color);
 
     _skip_blanks(bytes);
@@ -541,6 +699,7 @@ _parse_variation :: (bytes : *string, variation : *Variation, firstColor := Colo
     }
 }
 
+// Returns false if this is the last move a variation.
 _parse_potential_annotated_move :: (bytes : *string, variation : *Variation, color : Color) -> bool {
     // position_debug_dump(Basic.peek(variation.nodes).position);
 
@@ -549,14 +708,22 @@ _parse_potential_annotated_move :: (bytes : *string, variation : *Variation, col
     while _parse_potential_annotation(bytes, variation) {}
     _parse_potential_comments(bytes, variation);
 
+    if bytes.count == 0 then return false;
     if (<<bytes)[0] == #char ")" then return false;
-    if _parse_potential_result(bytes) then return false;
+
+    foundResult, result := _parse_potential_result(bytes);
+    if foundResult then {
+        instance.game.result = result;
+        return false;
+    }
 
     return true;
 }
 
 // Ignoring NAG et al. for now
 _parse_potential_annotation :: (bytes : *string, variation : *Variation) -> bool {
+    if bytes.count == 0 then return false;
+
     nag : Nag;
 
     if (<<bytes)[0] == #char "$" {
@@ -570,12 +737,12 @@ _parse_potential_annotation :: (bytes : *string, variation : *Variation) -> bool
     if (<<bytes)[0] == #char "!" {
         Basic.advance(bytes);
         if (<<bytes)[0] == #char "!" { nag = .Brillant; Basic.advance(bytes); }
-        else if (<<bytes)[0] == #char "?" { nag == .Interesting; Basic.advance(bytes); }
+        else if (<<bytes)[0] == #char "?" { nag = .Interesting; Basic.advance(bytes); }
         else nag = .Good;
     } else if (<<bytes)[0] == #char "?" {
         Basic.advance(bytes);
         if (<<bytes)[0] == #char "?" { nag = .Blunder; Basic.advance(bytes); }
-        else if (<<bytes)[0] == #char "!" { nag == .Dubious; Basic.advance(bytes); }
+        else if (<<bytes)[0] == #char "!" { nag = .Dubious; Basic.advance(bytes); }
         else nag = .Mistake;
     }
 

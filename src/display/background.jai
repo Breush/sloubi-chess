@@ -1,24 +1,22 @@
 Background :: struct {
-    shader : *Magma.Shader;
     mesh : *Magma.Mesh;
 }
 
 background_init :: () {
     using *instance.background;
 
-    shader = Magma.create_shader(instance.engine.renderer, "./assets/materials/monochrome");
     mesh = Magma.create_mesh(instance.engine.scene);
-    mesh.material = Magma.create_material(shader);
+    mesh.material = Magma.create_material(instance.shaders.monochrome);
 
-    Magma.material_set(mesh.material, "color", instance.config.background.color);
+    Magma.material_set(mesh.material, "color", instance.config.env.backgroundColor);
 
     extent := Crater.window_get_extent(instance.engine.window);
 
     positions := Chamber.vec3.[
-        .{-0.5, -0.5, 0. },
-        .{-0.5,  0.5, 0. },
-        .{ 0.5,  0.5, 0. },
-        .{ 0.5, -0.5, 0. },
+        .{-0.5, -0.5, 0.5 },
+        .{-0.5,  0.5, 0.5 },
+        .{ 0.5,  0.5, 0.5 },
+        .{ 0.5, -0.5, 0.5 },
     ];
 
     indices := u16.[0,  1,  2,  2,  3,  0];
