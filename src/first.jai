@@ -29,15 +29,21 @@ String :: #import "String";
     Basic.array_add(*import_path, ..options.import_path);
     options.import_path = import_path;
 
-    if options.os_target == .LINUX {
+    if options.os_target == .WINDOWS {
+        // @note Remove the console, tell the linker it's a window application.
+        // And also remove the need for the WinMain...
+        // (From https://stackoverflow.com/a/5260237)
+        options.additional_linker_arguments = .["/subsystem:windows ", "/entry:mainCRTStartup"];
+    } else {
         arguments: [..] string;
         Basic.array_add(*arguments, "-rpath='$ORIGIN/lib'");
 
-        // @todo Should only be added in DEBUG mode, otherwise the paths will be useless.
-        Basic.array_add(*arguments, "-rpath='$ORIGIN/../lava/bindings/Shaderc'");
-        Basic.array_add(*arguments, "-rpath='$ORIGIN/../lava/bindings/StbTrueType'");
-        Basic.array_add(*arguments, "-rpath='$ORIGIN/../lava/bindings/Xcb'"); // For libxcbglue.so
-        Basic.array_add(*arguments, "-rpath='$ORIGIN/../lava/bindings/Vulkan'");
+        if options.optimization_level == .DEBUG {
+            Basic.array_add(*arguments, "-rpath='$ORIGIN/../lava/bindings/Shaderc'");
+            Basic.array_add(*arguments, "-rpath='$ORIGIN/../lava/bindings/StbTrueType'");
+            Basic.array_add(*arguments, "-rpath='$ORIGIN/../lava/bindings/Xcb'"); // For libxcbglue.so
+            Basic.array_add(*arguments, "-rpath='$ORIGIN/../lava/bindings/Vulkan'");
+        }
 
         options.additional_linker_arguments = arguments;
     }
