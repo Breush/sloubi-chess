@@ -9,6 +9,7 @@ Basic :: #import "Basic";
 Hash :: #import "Hash_Table";
 Math :: #import "Math";
 File :: #import "File";
+Bucket_Array :: #import "Bucket_Array";
 
 #load "display/background.jai";
 #load "display/board.jai";

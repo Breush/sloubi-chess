@@ -31,6 +31,20 @@
                     "owner": "jai"
                 },
                 {
+                    "severity": "warning",
+                    "fileLocation": "absolute",
+                    "pattern": [
+                        {
+                            "regexp": "^(.*):(\\d+),(\\d+).*Warning: (.*)$",
+                            "file": 1,
+                            "line": 2,
+                            "column": 3,
+                            "message": 4
+                        }
+                    ],
+                    "owner": "jai"
+                },
+                {
                     "severity": "info",
                     "fileLocation": "absolute",
                     "pattern": [

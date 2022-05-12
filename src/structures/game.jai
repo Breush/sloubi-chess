@@ -10,8 +10,8 @@ Game :: struct {
 
     // @note In order to never invalidate pointers but still
     // have efficient memory layout, we use pools.
-    nodePool : Bucket_Array(Variation.Node, 128);
-    variationPool : Bucket_Array(Variation, 32);
+    nodePool : Bucket_Array.Bucket_Array(Variation.Node, 128);
+    variationPool : Bucket_Array.Bucket_Array(Variation, 32);
 
     Result :: enum {
         Unknown :: 0;
@@ -43,7 +43,7 @@ Variation :: struct {
 }
 
 game_add_variation :: (game : *Game, parentNode : *Variation.Node) -> *Variation {
-    variation := find_and_occupy_empty_slot(*game.variationPool);
+    variation := Bucket_Array.find_and_occupy_empty_slot(*game.variationPool);
     Basic.array_add(*parentNode.variations, variation);
 
     variation.parentNode = parentNode;
@@ -52,7 +52,7 @@ game_add_variation :: (game : *Game, parentNode : *Variation.Node) -> *Variation
 }
 
 game_add_variation_node :: (game : *Game, parentVariation : *Variation) -> *Variation.Node {
-    node := find_and_occupy_empty_slot(*game.nodePool);
+    node := Bucket_Array.find_and_occupy_empty_slot(*game.nodePool);
     Basic.array_add(*parentVariation.nodes, node);
 
     node.parentVariation = parentVariation;
