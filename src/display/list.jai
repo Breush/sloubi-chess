@@ -182,6 +182,7 @@ CommentLocation :: struct {
     color : Color;
     style : CommentStyle;
     preflushed : bool;
+    spaced : bool; // The preflushed comment should be spaced from the previous one.
 }
 
 _detect_comment_location :: (node : *Variation.Node) -> CommentLocation {
@@ -195,6 +196,7 @@ _detect_comment_location :: (node : *Variation.Node) -> CommentLocation {
         // as if small enough, the following should not be preflushed.
         commentLocation.style = .Full;
         commentLocation.preflushed = true;
+        commentLocation.spaced = (node.parentVariation.depth == 1);
         return commentLocation;
     }
 
@@ -221,13 +223,24 @@ _detect_comment_location :: (node : *Variation.Node) -> CommentLocation {
     // Always preflush if after a variation list or if at the start of a variation.
     if node.index != 0 && variation.nodes[node.index - 1].variations.count > 0 {
         commentLocation.preflushed = true;
+        commentLocation.spaced = (node.parentVariation.depth == 0);
     } else if commentLocation.color == .White || commentLocation.style == .Full || commentLocation.style == .SidedFull ||
               previousCommentStyle == .Full || previousCommentStyle == .SidedFull {
         commentLocation.preflushed = true;
+
         // Don't preflush a black comment when the white before was None or Inline.
         if commentLocation.color == .Black && commentLocation.style != .Full &&
            (previousCommentStyle == .None || previousCommentStyle == .Inline) {
             commentLocation.preflushed = false;
+        }
+
+        if commentLocation.preflushed && node.parentVariation.depth == 0  {
+            if _is_style_spaced_after(previousCommentStyle) {
+                commentLocation.spaced = true;
+            } else if commentLocation.color == .White && node.index >= 2 && variation.nodes[node.index - 2].variations.count == 0 {
+                previousPreviousCommentStyle := _detect_comment_style(variation.nodes[node.index - 2].comment);
+                commentLocation.spaced = _is_style_spaced_after(previousPreviousCommentStyle);
+            }
         }
     }
 
@@ -240,6 +253,10 @@ _detect_comment_style :: (comment : string) -> CommentStyle {
     if comment.count <= 30 then return instance.config.moves.comments.shortStyle;
     if comment.count <= 150 then return instance.config.moves.comments.normalStyle;
     return instance.config.moves.comments.longStyle;
+}
+
+_is_style_spaced_after :: (commentStyle : CommentStyle) -> bool {
+    return commentStyle == .Half || commentStyle == .SidedFull || commentStyle == .Full;
 }
 
 _scroll :: (delta : float) {
@@ -291,6 +308,10 @@ _init_ply_entity :: (node : *Variation.Node, width : float) {
     node.plyEntity.charInfos = text_mesh_update(node.plyEntity.commentMeshNode.primitives[0], node.comment, *instance.fonts.light, instance.config.moves.mainColor);
 
     Sill.ui_on_trigger(*node.plyEntity.ui, (trigger : Sill.UiTrigger, node : *Variation.Node) {
+        // @fixme It "works" because the black comment is always created after the white one.
+        // But we should check the charInfos I guess. (And have better BB.)
+        <<trigger.stopPropagation = true;
+
         Sill.ui_set_focused(*node.plyEntity.ui);
         game_update_to(*instance.game, node);
         _update_cursor(node);
@@ -481,7 +502,6 @@ _place_ply_entity :: (node : *Variation.Node, propagate := false) {
     }
 
     // Position the entity based on the above comment and the comment location.
-    // position := instance.list.ui.position;
     position : Chamber.vec2;
     position.x = 50; // @fixme
     position.x += variationOffset;
@@ -507,10 +527,9 @@ _place_ply_entity :: (node : *Variation.Node, propagate := false) {
         }
     }
 
-
     if aboveNode != null {
         abovePlyEntity := aboveNode.plyEntity;
-        position.y = abovePlyEntity.transform.translation.y;
+        position.y += abovePlyEntity.transform.translation.y;
         if commentLocation.preflushed {
             // We want to preflush but if the previous one is a half black,
             // we need to take the max between this one and the corresponding half white.
@@ -521,6 +540,10 @@ _place_ply_entity :: (node : *Variation.Node, propagate := false) {
             }
             position.y += height;
         }
+    }
+
+    if commentLocation.spaced {
+        position.y += 20;
     }
 
     node.plyEntity.transform.translation.xy = position;
@@ -561,6 +584,10 @@ _rebuild_decorums :: (variation : *Variation) {
         for subVariation : node.variations {
             firstNode := subVariation.nodes[0];
             lastNode := Basic.peek(subVariation.nodes);
+
+            while lastNode.variations.count != 0 {
+                lastNode = Basic.peek(Basic.peek(lastNode.variations).nodes);
+            }
 
             position := firstNode.plyEntity.transform.translation;
             height := lastNode.plyEntity.transform.translation.y + lastNode.plyEntity.ui.extent.height - position.y;
@@ -630,7 +657,7 @@ _make_decorum_mesh :: (width : float) -> *Magma.Mesh {
 }
 
 _update_decorum_mesh :: (mesh : *Magma.Mesh, height : float) {
-    DECORUM_VERTICAL_PADDING := 3.0;
+    DECORUM_VERTICAL_PADDING := 2.0;
 
     mesh.vertices[0].position.y = DECORUM_VERTICAL_PADDING;
     mesh.vertices[1].position.y = height - DECORUM_VERTICAL_PADDING;

@@ -29,6 +29,8 @@ Variation :: struct {
     parentNode : *Node; // Can be null for the main variation.
     index : u16; // Index of the variation in the parent node.
 
+    depth : u16;
+
     // @todo Rename ply?
     Node :: struct {
         position : Position;
@@ -73,6 +75,7 @@ game_add_variation :: (game : *Game, parentNode : *Variation.Node) -> *Variation
 
     variation.parentNode = parentNode;
     variation.index = cast(u16) (parentNode.variations.count - 1);
+    variation.depth = parentNode.parentVariation.depth + 1;
     return variation;
 }
 
