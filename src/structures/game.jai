@@ -42,6 +42,31 @@ Variation :: struct {
     }
 }
 
+game_cleanup :: (game : *Game) {
+    Bucket_Array.bucket_array_reset(*game.nodePool);
+    Bucket_Array.bucket_array_reset(*game.variationPool);
+
+    variation_cleanup(*game.mainVariation);
+    Basic.free(game.pgnFileName);
+
+    (<<game) = .{};
+}
+
+variation_cleanup :: (variation : *Variation) {
+    for node : variation.nodes {
+        node_cleanup(node);
+    }
+    Basic.array_free(variation.nodes);
+}
+
+node_cleanup :: (node : *Variation.Node) {
+    Basic.free(node.comment);
+    for variation : node.variations {
+        variation_cleanup(variation);
+    }
+    Basic.array_free(node.variations);
+}
+
 game_add_variation :: (game : *Game, parentNode : *Variation.Node) -> *Variation {
     variation := Bucket_Array.find_and_occupy_empty_slot(*game.variationPool);
     Basic.array_add(*parentNode.variations, variation);

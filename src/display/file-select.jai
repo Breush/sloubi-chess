@@ -11,6 +11,10 @@ FileSelectEntity :: struct {
     callback : FileSelectedCallback;
 
     FileSelectedCallback :: #type (selectedFile : string) -> ();
+
+    on_cleanup :: (using this : *FileSelectEntity) {
+        Basic.free(currentPath);
+    }
 }
 
 Entries :: struct {
@@ -27,6 +31,10 @@ EntryEntity :: struct {
 
     isDirectory : bool;
     fileOrDirectoryName : string;
+
+    on_cleanup :: (using this : *EntryEntity) {
+        Basic.free(fileOrDirectoryName);
+    }
 }
 
 file_select_show :: (extensionFilter : string, callback : FileSelectEntity.FileSelectedCallback) {
@@ -45,7 +53,8 @@ file_select_show :: (extensionFilter : string, callback : FileSelectEntity.FileS
     fileSelect.ui.extent.height = 900 - 2 * UiConstants.PaddingVertical;
     fileSelect.ui.anchor = .TopLeft;
 
-    text_mesh_update(mesh, Basic.tprint("Select a % file", extensionFilter), *instance.fonts.bold, *instance.config.env.textColor);
+    charInfos := text_mesh_update(mesh, Basic.tprint("Select a % file", extensionFilter), *instance.fonts.bold, *instance.config.env.textColor);
+    Basic.array_free(charInfos);
     Sill.transform_commit(*fileSelect.transform);
 
     Sill.ui_on_update(*fileSelect.ui, (update : Sill.UiUpdate, fileSelect : *FileSelectEntity) {
@@ -54,7 +63,7 @@ file_select_show :: (extensionFilter : string, callback : FileSelectEntity.FileS
 
     path : string;
     if instance.persistence.fileSelect.lastPath.count != 0 {
-        path = instance.persistence.fileSelect.lastPath;
+        path = Basic.copy_string(instance.persistence.fileSelect.lastPath);
     } else {
         path = Chamber.os_user_path();
     }
@@ -74,9 +83,11 @@ _show_path :: (path : string) {
     }
     instance.fileSelect.children.count = 0;
 
+    Basic.free(instance.fileSelect.currentPath);
     instance.fileSelect.currentPath = path;
 
     entries : Entries;
+    defer { Basic.array_free(entries.files); Basic.array_free(entries.directories); }
     Basic.array_add(*entries.directories, Basic.copy_string(".."));
     visitor :: (info: *File_Utilities.File_Visit_Info, entries: *Entries) {
         if OS == .LINUX && info.short_name[0] == #char "." then return;
@@ -111,8 +122,9 @@ _make_entry :: (name : string, isDirectory : bool) -> *EntryEntity {
     textMesh := create_text_mesh();
     Basic.array_add(*entryEntity.mesh.nodes, .{});
     Basic.array_add(*entryEntity.mesh.nodes[0].primitives, textMesh);
-    text_mesh_update(textMesh, Basic.tprint("% %", (ifx isDirectory then ForkAwesome.Folder else ForkAwesome.FileO), name),
-                     *instance.fonts.light, *instance.config.env.textColor);
+    charInfos := text_mesh_update(textMesh, Basic.tprint("% %", (ifx isDirectory then ForkAwesome.Folder else ForkAwesome.FileO), name),
+                                  *instance.fonts.light, *instance.config.env.textColor);
+    Basic.array_free(charInfos);
     entryEntity.ui.extent.width = instance.fileSelect.ui.extent.width;
     entryEntity.ui.extent.height = UiConstants.HeightLine;
 

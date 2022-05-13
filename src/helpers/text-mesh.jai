@@ -20,7 +20,7 @@ create_text_mesh :: () -> *Magma.Mesh {
     return mesh;
 }
 
-text_mesh_update :: (mesh : *Magma.Mesh, text : string, font : *Chamber.Font, color : Chamber.vec3) -> []CharInfo {
+text_mesh_update :: (mesh : *Magma.Mesh, text : string, font : *Chamber.Font, color : Chamber.vec3) -> []CharInfo #must {
     using *instance.list;
 
     mesh.disabled = (text.count == 0);
@@ -29,6 +29,7 @@ text_mesh_update :: (mesh : *Magma.Mesh, text : string, font : *Chamber.Font, co
     // @todo Have a clever way to keep the texture up-to-date.
     // And not recreate it each time...
     glyphInfos := Chamber.font_glyph_infos(font, text); // @todo Get them without the blanks characters.
+    defer Basic.array_free(glyphInfos);
     fontTexture := Magma.create_texture(instance.engine.renderEngine);
     Magma.texture_load_from_memory(fontTexture, font.pixels, font.extent);
 

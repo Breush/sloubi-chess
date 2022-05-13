@@ -53,20 +53,27 @@ MetaprogramPlugins :: #import "Metaprogram_Plugins";
     plugins : [..]*Compiler.Metaprogram_Plugin;
     MetaprogramPlugins.init_plugins(.["Sill/plugin"], *plugins, workspace);
 
+    for plugin : plugins if plugin.before_intercept then plugin.before_intercept(plugin);
+
     Compiler.compiler_begin_intercept(workspace);
     Compiler.add_build_file("./src/main.jai", workspace);
+
+    for plugin : plugins if plugin.add_source then plugin.add_source(plugin);
 
     while true {
         message := Compiler.compiler_wait_for_message();
         if !message then break;
         if message.workspace != workspace then continue;
 
-        for plugin : plugins if plugin.message plugin.message(plugin, message);
+        for plugin : plugins if plugin.message then plugin.message(plugin, message);
 
         if message.kind == .COMPLETE then break;
     }
 
     Compiler.compiler_end_intercept(workspace);
+
+    for plugin : plugins if plugin.finish then plugin.finish(plugin);
+    for plugin : plugins if plugin.shutdown then plugin.shutdown(plugin);
 
     // Do not generate executable for this build program
     Compiler.set_build_options_dc(.{ do_output = false });

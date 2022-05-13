@@ -31,6 +31,10 @@ PlyEntity :: struct {
     moveMeshNode : *Sill.MeshNode;
     commentMeshNode : *Sill.MeshNode;
     decorumMeshNode : *Sill.MeshNode; // Might be null.
+
+    on_cleanup :: (using this : *PlyEntity) {
+        Basic.array_free(charInfos);
+    }
 }
 
 ButtonEntity :: struct {
@@ -73,6 +77,7 @@ list_show :: (game : Game) {
     textNode := Basic.array_add(*saveButton.mesh.nodes);
     textMesh := create_text_mesh();
     charInfos := text_mesh_update(textMesh, "Save PGN", *instance.fonts.light, instance.config.env.textColor);
+    defer Basic.array_free(charInfos);
     _justify_char_infos(charInfos, 1024.0, 0.0); // To update the "effective values".
     textNode.transform.translation.x = -Math.floor(Basic.peek_pointer(charInfos).effective.xEnd / 2 + 0.5);
     textNode.transform.translation.y = -8; // @todo Hardcoded offset... We should know the max glyph height instead.
@@ -269,7 +274,8 @@ _init_ply_entity :: (node : *Variation.Node, width : float) {
         // @fixme Used to be font bold/light based on variation depth.
         moveIndex := (node.position.moveIndex + 1) / 2;
         moveText := Basic.tprint("%.% %", moveIndex, ifx node.position.moveIndex % 2 then "" else ".. ", position_last_move_to_san(node.position, annotations = true));
-        text_mesh_update(node.plyEntity.moveMeshNode.primitives[0], moveText, *instance.fonts.bold, node.moveColor);
+        charInfos := text_mesh_update(node.plyEntity.moveMeshNode.primitives[0], moveText, *instance.fonts.bold, node.moveColor);
+        Basic.array_free(charInfos);
     } else if (node.parentVariation.parentNode != null) {
         Basic.array_add(*node.plyEntity.mesh.nodes, .{});
         Basic.array_add(*Basic.peek_pointer(node.plyEntity.mesh.nodes).primitives, _make_decorum_mesh(UiConstants.WidthDecorumVariation));
@@ -323,6 +329,7 @@ _init_ply_entity :: (node : *Variation.Node, width : float) {
 
         // @todo Do a clever diff instead of regenerating everything?
         if textChanged then {
+            Basic.array_free(node.plyEntity.charInfos);
             node.plyEntity.charInfos = text_mesh_update(node.plyEntity.commentMeshNode.primitives[0], node.comment, *instance.fonts.light, instance.config.moves.mainColor);
             _place_ply_entity(node, propagate = true);
         }

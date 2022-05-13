@@ -265,6 +265,7 @@ position_find_piece_sources :: (position : Position, piece : Piece, sourceHintCo
 // SAN: Standard Algebraic Notation
 position_last_move_to_san :: (position : Position, annotations := false) -> string {
     if position.lastMove.sourceCoord == position.lastMove.targetCoord then return "??";
+    Basic.push_allocator(Basic.temp);
 
     piece := position.board[position.lastMove.targetCoord];
     targetRow, targetCol := row_col(position.lastMove.targetCoord);

@@ -44,6 +44,9 @@ load_pgn :: (filename : string) -> bool {
 }
 
 save_pgn :: (filename : string) {
+    Basic.push_allocator(Basic.temp);
+    Basic.auto_release_temp();
+
     Basic.log("Saving PGN file %.", filename);
 
     builder : Basic.String_Builder;
@@ -624,7 +627,6 @@ _parse_potential_comment :: (bytes : *string) -> (string, bool) {
         if (<<bytes)[0] == #char " " then whitespacesToTrim += 1;
         else whitespacesToTrim = 0;
 
-
         if (<<bytes)[0] == #char "\n" then Basic.append(*sb, #char " ");
         else if !previousIsBackslash {
             // Special command. @todo Detect arrows and circles!
@@ -650,15 +652,22 @@ _parse_potential_comment :: (bytes : *string) -> (string, bool) {
 _parse_potential_comments :: (bytes : *string, variation : *Variation) {
     fullComment : string;
 
-    while true {
-        comment, ok := _parse_potential_comment(bytes);
-        if !ok then break;
+    Basic.auto_release_temp();
+    {
+        Basic.push_allocator(Basic.temp);
 
-        if fullComment.count == 0 then  fullComment = comment;
-        else if comment.count != 0 then fullComment = Basic.sprint("%\n%", fullComment, comment);
+        while true {
+            comment, ok := _parse_potential_comment(bytes);
+            if !ok then break;
+
+            if fullComment.count == 0 then  fullComment = comment;
+            else if comment.count != 0 {
+                fullComment = Basic.sprint("%\n%", fullComment, comment);
+            }
+        }
     }
 
-    Basic.peek(variation.nodes).comment = fullComment;
+    Basic.peek(variation.nodes).comment = Basic.copy_string(fullComment);
 }
 
 _parse_potential_variation :: (bytes : *string, parentVariation : *Variation, color : Color) -> bool {

@@ -6,6 +6,7 @@ Crater :: #import "Crater";
 Chamber :: #import "Chamber";
 
 Basic :: #import "Basic";
+Debug :: #import "Debug";
 Hash :: #import "Hash_Table";
 Math :: #import "Math";
 File :: #import "File";
@@ -62,6 +63,7 @@ Arguments :: struct {
 }
 
 main :: () {
+    Debug.init(); // For signal handlers
     Chamber.init_logger();
     context.log_level = .VERBOSE;
 
@@ -72,6 +74,7 @@ main :: () {
     storagePath := Chamber.os_application_data_storage_path();
     readJsonAs(*instance.config, args.config);
     readJsonAs(*instance.persistence, Basic.tprint("%1%2", storagePath, ".sloubi-chess.json"), silentOnError = true);
+    Basic.free(storagePath);
 
     instance.engine = Sill.create_engine(SillMeta);
 
@@ -102,6 +105,13 @@ main :: () {
 
 cleanup :: () {
     Sill.destroy_engine(instance.engine);
+
+    Basic.free(instance.config.board.pieces);
+    Basic.free(instance.config.moves.fontFamily);
+    Basic.free(instance.persistence.fileSelect.lastPath);
+
+    game_cleanup(*instance.game);
+    _fonts_cleanup();
 }
 
 _fonts_init :: () {
@@ -119,6 +129,12 @@ _fonts_init :: () {
     instance.fonts.light = Chamber.font_load(lightFontFiles, cast(float) instance.config.moves.fontSize);
     instance.fonts.lightItalic = Chamber.font_load(Basic.tprint("./assets/fonts/%-LightItalic.ttf", instance.config.moves.fontFamily), cast(float) instance.config.moves.fontSize);
     instance.fonts.bold = Chamber.font_load(boldFontFiles, cast(float) instance.config.moves.fontSize);
+}
+
+_fonts_cleanup :: () {
+    Chamber.font_free(*instance.fonts.light);
+    Chamber.font_free(*instance.fonts.lightItalic);
+    Chamber.font_free(*instance.fonts.bold);
 }
 
 _shaders_init :: () {

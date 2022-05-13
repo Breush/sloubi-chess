@@ -62,6 +62,7 @@ readJsonAs :: (data : *$T, filename : string, silentOnError := false) -> bool {
         return false;
     }
 
+    defer Chamber.json_free(json);
     readJsonStruct(cast(*u8) data, typeInfo, json);
     return true;
 }
@@ -91,7 +92,7 @@ readJsonStruct :: (dataBytes : *u8, typeInfo : *Type_Info_Struct, json : Chamber
         } else if member.type.type == .BOOL {
             << cast(*bool) memberDataBytes = json[member.name].boolean;
         } else if member.type.type == .STRING {
-            << cast(*string) memberDataBytes = cast(string) json[member.name].str;
+            << cast(*string) memberDataBytes = Basic.copy_string(json[member.name].str);
         }  else if member.type.type == .ENUM {
             readJsonEnum(memberDataBytes, cast(*Type_Info_Enum) member.type, *json[member.name]);
         } else if member.type.type == .STRUCT {
