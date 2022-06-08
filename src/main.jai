@@ -11,6 +11,8 @@ Hash :: #import "Hash_Table";
 Math :: #import "Math";
 File :: #import "File";
 Bucket_Array :: #import "Bucket_Array";
+CommandLine :: #import "Command_Line";
+for_expansion :: Hash.for_expansion;
 
 #load "display/background.jai";
 #load "display/board.jai";
@@ -28,8 +30,6 @@ Bucket_Array :: #import "Bucket_Array";
 #load "readers/pgn.jai";
 #load "config.jai";
 #load "controller.jai";
-
-CommandLine :: #import "Command_Line";
 
 instance : Instance;
 
@@ -107,7 +107,7 @@ cleanup :: () {
     Sill.destroy_engine(instance.engine);
 
     Basic.free(instance.config.board.pieces);
-    Basic.free(instance.config.moves.fontFamily);
+    Basic.free(instance.config.env.fontFamily);
     Basic.free(instance.persistence.fileSelect.lastPath);
 
     game_cleanup(*instance.game);
@@ -118,17 +118,17 @@ _fonts_init :: () {
     // @todo We're missing a notion in fonts, which would allow us to use a shared fallback.
     // Currently, we would need to duplicate the "dejaVu" fallback font for each family.
     boldFontFiles : [2]string;
-    boldFontFiles[0] = Basic.tprint("./assets/fonts/%-Bold.ttf", instance.config.moves.fontFamily);
+    boldFontFiles[0] = Basic.tprint("./assets/fonts/%-Bold.ttf", instance.config.env.fontFamily);
     boldFontFiles[1] = "./assets/fonts/DejaVuSans.ttf";
 
     lightFontFiles : [3]string;
-    lightFontFiles[0] = Basic.tprint("./assets/fonts/%-Light.ttf", instance.config.moves.fontFamily);
+    lightFontFiles[0] = Basic.tprint("./assets/fonts/%-Light.ttf", instance.config.env.fontFamily);
     lightFontFiles[1] = "./assets/fonts/DejaVuSans.ttf";
     lightFontFiles[2] = "./assets/fonts/ForkAwesome.ttf";
 
-    instance.fonts.light = Chamber.font_load(lightFontFiles, cast(float) instance.config.moves.fontSize);
-    instance.fonts.lightItalic = Chamber.font_load(Basic.tprint("./assets/fonts/%-LightItalic.ttf", instance.config.moves.fontFamily), cast(float) instance.config.moves.fontSize);
-    instance.fonts.bold = Chamber.font_load(boldFontFiles, cast(float) instance.config.moves.fontSize);
+    instance.fonts.light = Chamber.font_load(lightFontFiles, cast(float) instance.config.env.fontSize);
+    instance.fonts.lightItalic = Chamber.font_load(Basic.tprint("./assets/fonts/%-LightItalic.ttf", instance.config.env.fontFamily), cast(float) instance.config.env.fontSize);
+    instance.fonts.bold = Chamber.font_load(boldFontFiles, cast(float) instance.config.env.fontSize);
 }
 
 _fonts_cleanup :: () {
@@ -139,7 +139,7 @@ _fonts_cleanup :: () {
 
 _shaders_init :: () {
     instance.shaders.monochrome = Magma.create_shader(instance.engine.renderer, "./assets/materials/monochrome");
-    instance.shaders.text = Magma.create_shader(instance.engine.renderer, "./assets/materials/text", .{ /* depthWriteEnabled = false ,*/ alphaBlendingEnabled = true });
+    instance.shaders.text = Magma.create_shader(instance.engine.renderer, "./assets/materials/text", .{ depthWriteEnabled = false, alphaBlendingEnabled = true });
 }
 
 #import "Math";

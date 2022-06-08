@@ -1,4 +1,5 @@
 {
     "the-language.projectFile": "${workspaceFolder}/src/first.jai",
+    "jai-lsp.buildFile": "${workspaceFolder}/src/first.jai",
     "files.trimTrailingWhitespace": true
 }

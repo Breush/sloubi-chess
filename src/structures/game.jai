@@ -5,6 +5,21 @@ Game :: struct {
     boardOrientation : Color;
     result : Result;
     pgnFileName : string;
+    tags : struct {
+        // PGN standard tags, except Result.
+        event : string;
+        site : string;
+        date : string;
+        round : string;
+        white : string; // @todo At the end, map to one player in a database.
+        black : string;
+        // PGN non-standard tags.
+        whiteElo : u16;
+        blackElo : u16;
+
+        // Other tags, not used internally. @note Not a hash-table to keep order.
+        extra : [..]struct { name : string; value : string; };
+    }
 
     node : *Variation.Node; // Current node.
 

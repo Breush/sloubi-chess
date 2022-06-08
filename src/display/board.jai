@@ -9,9 +9,24 @@ BoardEntity :: struct {
     squareShader : *Magma.Shader;
     piecesTextures : [PieceIdCount]*Magma.Texture;
 
+    info : struct {
+        whitePlayerName : *PlayerNameEntity;
+        blackPlayerName : *PlayerNameEntity;
+    };
+
+    PLAYER_NAME_PADDING :: 2;
+
     orientation : Color;
 
     hoveredCoord : Coord = 0xFF;
+}
+
+PlayerNameEntity :: struct {
+    using entity : Sill.Entity;
+
+    transform : Sill.TransformComponent;
+    mesh : Sill.MeshComponent;
+    ui : Sill.UiComponent;
 }
 
 board_init :: () {
@@ -57,6 +72,45 @@ board_orient :: (_orientation : Color) {
     }
 
     Sill.mesh_commit_nodes(*mesh);
+}
+
+board_info_show :: (game : Game) {
+    using instance.board;
+
+    info.whitePlayerName.mesh.nodes[0].primitives[0].disabled = true;
+    info.blackPlayerName.mesh.nodes[0].primitives[0].disabled = true;
+
+    _set_name :: (playerNameEntity : *PlayerNameEntity, name : string) {
+        playerNameEntity.mesh.nodes[0].primitives[0].disabled = false;
+        charInfos := text_mesh_update(playerNameEntity.mesh.nodes[0].primitives[0], name, *instance.fonts.bold, instance.config.env.textColor);
+        Basic.array_free(charInfos);
+
+    }
+
+    if game.tags.white != "" {
+        name := ifx game.tags.whiteElo == 0 then game.tags.white
+                                            else Basic.tprint("% (%)", game.tags.white, game.tags.whiteElo);
+        _set_name(info.whitePlayerName, name);
+    }
+
+    if game.tags.black != "" {
+        name := ifx game.tags.blackElo == 0 then game.tags.black
+                                            else Basic.tprint("% (%)", game.tags.black, game.tags.blackElo);
+        _set_name(info.blackPlayerName, name);
+    }
+
+    info.whitePlayerName.transform.translation.x = -ui.extent.width;
+    info.whitePlayerName.transform.translation.y = ui.extent.height / 2 + instance.config.env.fontSize / 2 + BoardEntity.PLAYER_NAME_PADDING;
+    info.blackPlayerName.transform.translation.x = -ui.extent.width;
+    info.blackPlayerName.transform.translation.y = -ui.extent.height / 2 - instance.config.env.fontSize / 2 - BoardEntity.PLAYER_NAME_PADDING;
+
+    if orientation == .Black {
+        info.whitePlayerName.transform.translation.y *= -1;
+        info.blackPlayerName.transform.translation.y *= -1;
+    }
+
+    Sill.transform_commit(*info.whitePlayerName.transform);
+    Sill.transform_commit(*info.blackPlayerName.transform);
 }
 
 board_update_to_position :: (position : Position) {
@@ -143,6 +197,19 @@ _init_meshes :: () {
 
     // Will update the position of the squares
     board_orient(orientation);
+
+    // @todo Make on_create functions (like on_destroy) that act like constructors?
+    info.whitePlayerName = SillMeta.create_player_name_entity(instance.engine);
+    Basic.array_add(*info.whitePlayerName.mesh.nodes, .{});
+    Basic.array_add(*info.whitePlayerName.mesh.nodes[0].primitives, create_text_mesh());
+    info.whitePlayerName.mesh.nodes[0].transform.translation.y -= instance.config.env.fontSize / 2;
+    info.whitePlayerName.mesh.nodes[0].transform.translation.z = -0.2;
+
+    info.blackPlayerName = SillMeta.create_player_name_entity(instance.engine);
+    Basic.array_add(*info.blackPlayerName.mesh.nodes, .{});
+    Basic.array_add(*info.blackPlayerName.mesh.nodes[0].primitives, create_text_mesh());
+    info.blackPlayerName.mesh.nodes[0].transform.translation.y -= instance.config.env.fontSize / 2;
+    info.blackPlayerName.mesh.nodes[0].transform.translation.z = 0.2;
 }
 
 _on_update :: (update : Sill.UiUpdate, using board : *BoardEntity) {

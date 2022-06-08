@@ -12,6 +12,12 @@ load_pgn :: (filename : string) -> bool {
     bytes := fileBytes;
     _skip_blanks(*bytes);
 
+    read_tag :: inline (bytes : *string) -> string {
+        tag := _parse_to_end_of_string(bytes);
+        if tag == "" || tag == "?" then return "";
+        return Basic.copy_string(tag);
+    }
+
     while bytes[0] == #char "[" {
         Basic.advance(*bytes);
         tagName := _parse_word(*bytes);
@@ -22,8 +28,19 @@ load_pgn :: (filename : string) -> bool {
             rootNode.position = load_fen(bytes);
         } else if tagName == "BoardOrientation" {
             game.boardOrientation = ifx bytes[0] == #char "W" then Color.White else Color.Black;
+        } else if tagName == "Event" { game.tags.event = read_tag(*bytes);
+        } else if tagName == "Site"  { game.tags.site  = read_tag(*bytes);
+        } else if tagName == "Date"  { game.tags.date  = read_tag(*bytes);
+        } else if tagName == "Round" { game.tags.round = read_tag(*bytes);
+        } else if tagName == "White" { game.tags.white = read_tag(*bytes);
+        } else if tagName == "Black" { game.tags.black = read_tag(*bytes);
+        } else if tagName == "WhiteElo" { game.tags.whiteElo = cast(u16) Basic.to_integer(_parse_to_end_of_string(*bytes));
+        } else if tagName == "BlackElo" { game.tags.blackElo = cast(u16) Basic.to_integer(_parse_to_end_of_string(*bytes));
+        } else if tagName == "Result" { // Ignored, but silently.
         } else {
-            Basic.log("Ignored tag '%'...", tagName, flags = .WARNING);
+            tag := Basic.array_add(*game.tags.extra);
+            tag.name = Basic.copy_string(tagName);
+            tag.value = read_tag(*bytes);
         }
 
         _skip_to_end_of_tag(*bytes);
@@ -37,6 +54,7 @@ load_pgn :: (filename : string) -> bool {
     Chamber._CHECK(bytes.count == 0, Basic.tprint("Leftovers: %", bytes));
 
     instance.game.pgnFileName = Basic.copy_string(filename);
+    board_info_show(instance.game);
     list_show(instance.game);
     game_update_to(*instance.game, instance.game.mainVariation.nodes[0]);
 
@@ -51,20 +69,37 @@ save_pgn :: (filename : string) {
 
     builder : Basic.String_Builder;
 
+    tag_or_qmark :: inline (tag : string) -> string {
+        return ifx tag == "" then "?" else tag;
+    }
+
     // Standard tags
-    Basic.append(*builder, "[Event \"?\"]\n");
-    Basic.append(*builder, "[Site \"?\"]\n");
-    Basic.append(*builder, "[Date \"????.??.??\"]\n");
-    Basic.append(*builder, "[Round \"?\"]\n");
-    Basic.append(*builder, "[White \"?\"]\n");
-    Basic.append(*builder, "[Black \"?\"]\n");
+    Basic.print_to_builder(*builder, "[Event \"%\"]\n", tag_or_qmark(instance.game.tags.event));
+    Basic.print_to_builder(*builder, "[Site \"%\"]\n", tag_or_qmark(instance.game.tags.site));
+    Basic.print_to_builder(*builder, "[Date \"%\"]\n", tag_or_qmark(instance.game.tags.date)); // @todo Not valid by spec, should be "????.??.??"
+    Basic.print_to_builder(*builder, "[Round \"%\"]\n", tag_or_qmark(instance.game.tags.round));
+    Basic.print_to_builder(*builder, "[White \"%\"]\n", tag_or_qmark(instance.game.tags.white));
+    Basic.print_to_builder(*builder, "[Black \"%\"]\n", tag_or_qmark(instance.game.tags.black));
     Basic.print_to_builder(*builder, "[Result \"%\"]\n", game_result_to_string(instance.game.result));
 
     // Custom tags
-    Basic.print_to_builder(*builder, "[BoardOrientation \"%\"]\n", instance.game.boardOrientation);
+    if instance.game.tags.whiteElo != 0 {
+        Basic.print_to_builder(*builder, "[WhiteElo \"%\"]\n", instance.game.tags.whiteElo);
+    }
+    if instance.game.tags.blackElo != 0 {
+        Basic.print_to_builder(*builder, "[BlackElo \"%\"]\n", instance.game.tags.blackElo);
+    }
+    if instance.game.boardOrientation != .White {
+        Basic.print_to_builder(*builder, "[BoardOrientation \"%\"]\n", instance.game.boardOrientation);
+    }
     if !position_is_starting_one(instance.game.mainVariation.nodes[0].position) {
         Basic.append(*builder, "[SetUp \"1\"]\n");
         Basic.print_to_builder(*builder, "[FEN \"%\"]\n", position_to_fen(instance.game.mainVariation.nodes[0].position));
+    }
+
+    // Extra tags
+    for tag : instance.game.tags.extra {
+        Basic.print_to_builder(*builder, "[% \"%\"]\n", tag.name, tag.value);
     }
     Basic.append(*builder, "\n");
 
@@ -91,10 +126,9 @@ save_pgn :: (filename : string) {
     }
     Basic.print_to_builder(*builder, "%\n", gameString);
 
-    File.write_entire_file(filename, builder);
+    File.write_entire_file(filename, *builder);
 }
 
-// @fixme Move...
 _write_variation :: (builder : *Basic.String_Builder, variation : *Variation) {
     for node, index : variation.nodes {
         if index == 0 && node.comment.count == 0 && node.variations.count == 0 then continue;
@@ -369,6 +403,19 @@ _skip_to_end_of_tag :: (bytes : *string) {
         c = (<<bytes)[0];
     }
     Basic.advance(bytes);
+}
+
+_parse_to_end_of_string :: (bytes : *string) -> string {
+    result := <<bytes;
+    result.count = 0;
+    c := (<<bytes)[0];
+    while c != #char "\"" {
+        Basic.advance(bytes);
+        result.count += 1;
+        c = (<<bytes)[0];
+    }
+    Basic.advance(bytes);
+    return result;
 }
 
 _parse_move_number :: (bytes : *string) {

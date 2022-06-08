@@ -8,6 +8,8 @@ Config :: struct {
         secondaryBackgroundColor : Chamber.vec3;
         selectionBackgroundColor : Chamber.vec3;
         textColor : Chamber.vec3;
+        fontFamily : string;
+        fontSize : s64;
     }
     board : struct {
         pieces : string;
@@ -23,8 +25,6 @@ Config :: struct {
         previousVariation : Crater.Key;
     }
     moves : struct {
-        fontFamily : string;
-        fontSize : s64;
         mainColor : Chamber.vec3;
         interestingColor : Chamber.vec3;
         goodColor : Chamber.vec3;

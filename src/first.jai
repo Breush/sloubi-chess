@@ -17,6 +17,15 @@ String :: #import "String";
     options.import_path = import_path;
 
     Compiler.set_build_options(options, workspace);
+    Compiler.compiler_begin_intercept(workspace);
     Compiler.add_build_file("./src/second.jai", workspace);
+
+    while true {
+        message := Compiler.compiler_wait_for_message();
+        if !message then break;
+        if message.kind == .COMPLETE then break;
+    }
+
+    Compiler.compiler_end_intercept(workspace);
     Compiler.set_build_options_dc(.{ do_output = false });
 }();

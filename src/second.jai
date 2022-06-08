@@ -4,6 +4,9 @@ File :: #import "File";
 String :: #import "String";
 MetaprogramPlugins :: #import "Metaprogram_Plugins";
 
+dummy_ide_check_message :: (message : *Compiler.Message) {
+}
+
 #run () {
     Basic.set_working_directory(String.join(#filepath, "/.."));
     File.make_directory_if_it_does_not_exist("./bin");
@@ -15,16 +18,17 @@ MetaprogramPlugins :: #import "Metaprogram_Plugins";
     options.output_path             = String.join(#filepath, "/../bin/");
     options.optimization_level      = .DEBUG;
     options.text_output_flags       = .OUTPUT_TIMING_INFO; // @note And not the linker lines.
+    options.backend = .LLVM;
 
     arguments := options.compile_time_command_line;
     if arguments.count > 0 && arguments[0] == "release" {
         Basic.log("Building RELEASE.");
         options.optimization_level = .RELEASE;
+        options.backend = .X64;
     }
 
     import_path: [..] string;
     Basic.array_add(*import_path, "./lava/bindings");
-    Basic.array_add(*import_path, "./lava/modules");
     Basic.array_add(*import_path, ..options.import_path);
     options.import_path = import_path;
 
@@ -60,11 +64,18 @@ MetaprogramPlugins :: #import "Metaprogram_Plugins";
 
     for plugin : plugins if plugin.add_source then plugin.add_source(plugin);
 
+    ide_check_message := dummy_ide_check_message;
+    if options.user_data_u64 {
+        ide_check_message = << cast(*type_of(dummy_ide_check_message)) options.user_data_u64;
+        options.output_type = .NO_OUTPUT;
+    }
+
     while true {
         message := Compiler.compiler_wait_for_message();
         if !message then break;
         if message.workspace != workspace then continue;
 
+        ide_check_message(message);
         for plugin : plugins if plugin.message then plugin.message(plugin, message);
 
         if message.kind == .COMPLETE then break;

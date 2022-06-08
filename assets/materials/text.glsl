@@ -31,7 +31,7 @@ vec3 toLinear(vec3 sRGB)
 
 void main() {
     float opacity = texture(fontTexture, uv).r;
-    if (opacity < 0.1) discard;
+    if (opacity < 0.01) discard;
     outColor = vec4(toLinear(material.color), opacity);
 }
 
