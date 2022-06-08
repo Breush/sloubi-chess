@@ -5,7 +5,6 @@ BoardEntity :: struct {
     mesh : Sill.MeshComponent;
     transform : Sill.TransformComponent;
 
-    eye : *Magma.Eye;
     squareShader : *Magma.Shader;
     piecesTextures : [PieceIdCount]*Magma.Texture;
 
@@ -35,9 +34,9 @@ board_init :: () {
     instance.board = SillMeta.create_board_entity(instance.engine);
 
     _init_resources();
-    _init_camera(); // @todo :UiInSill Could be part of Sill.
 
     // We want to fit the board in the left part of the screen nicely à 95% of the available space.
+    eye := Magma.renderer_get_eye(engine.renderer, 0);
     size := 0.95 * Basic.min(eye.extent.width / 2.0, cast(float) eye.extent.height);
     ui.extent.width, ui.extent.height = size, size;
 
@@ -154,21 +153,6 @@ _init_resources :: () {
     emptyPieceId := piece_id(.{ kind = .Empty });
     piecesTextures[emptyPieceId] = Magma.create_texture(instance.engine.renderEngine);
     Magma.texture_load_from_memory(piecesTextures[emptyPieceId], .[0, 0, 0, 0], .{1, 1});
-}
-
-_init_camera :: () {
-    using instance.board;
-
-    eye = Magma.renderer_get_eye(instance.engine.renderer, 0);
-
-    extent : Chamber.vec2;
-    extent.width = cast(float) eye.extent.width;
-    extent.height = cast(float) eye.extent.height;
-
-    eye.extent = Magma.renderer_get_extent(instance.engine.renderer, 0);
-    eye.viewMatrix = Chamber.look_at_matrix(.{0, 0, -1}, .{0, 0, 0}, .{0, -1, 0});
-    Chamber.unnear_orthographic_projection(*eye.projectionMatrix, extent, 100.0); // Orthographic camera with 1 pixel = 1 unit
-    Magma.eye_commit(eye);
 }
 
 _init_meshes :: () {
