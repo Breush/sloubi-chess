@@ -63,46 +63,17 @@ list_show :: (game : Game) {
     _rebuild_decorums(*game.mainVariation);
 
     // Save button
-    saveButton := SillMeta.create_button_entity(instance.engine);
-    saveButton.ui.extent.width = 80; // @todo Completely arbitrary...
-    saveButton.ui.extent.height = UiConstants.HeightLine;
-
-    backgroundNode := Basic.array_add(*saveButton.mesh.nodes);
-    backgroundMesh := create_rect_mesh(saveButton.ui.extent.width, saveButton.ui.extent.height, 1);
-    backgroundMesh.material = Magma.create_material(instance.shaders.monochrome);
-    Magma.material_set(backgroundMesh.material, "color", instance.config.env.secondaryBackgroundColor);
-    Magma.mesh_commit_vertices(backgroundMesh);
-    Basic.array_add(*backgroundNode.primitives, backgroundMesh);
-
-    textNode := Basic.array_add(*saveButton.mesh.nodes);
-    textMesh := create_text_mesh();
-    charInfos := text_mesh_update(textMesh, "Save PGN", *instance.fonts.light, instance.config.env.textColor);
-    defer Basic.array_free(charInfos);
-    _justify_char_infos(charInfos, 1024.0, 0.0); // To update the "effective values".
-    textNode.transform.translation.x = -Math.floor(Basic.peek_pointer(charInfos).effective.xEnd / 2 + 0.5);
-    textNode.transform.translation.y = -8; // @todo Hardcoded offset... We should know the max glyph height instead.
-    Basic.array_add(*textNode.primitives, textMesh);
+    // @fixme Have user feedback that we saved.
+    saveButton := _make_button(ForkAwesome.FloppyO);
 
     saveButton.transform.translation.x = 800 - saveButton.ui.extent.width / 2; // :HardcodedScreenSize
     saveButton.transform.translation.y = 450 - saveButton.ui.extent.height / 2;
     saveButton.transform.translation.z = -0.1;
     Sill.transform_commit(*saveButton.transform);
 
-    Sill.ui_on_update(*saveButton.ui, (update : Sill.UiUpdate, userData : *void) {
-        <<update.stopPropagation = true;
-    }, .Hover);
-
     Sill.ui_on_trigger(*saveButton.ui, (trigger : Sill.UiTrigger, saveButton : *ButtonEntity) {
-        <<trigger.stopPropagation = true;
-
-        if trigger.flags & .Hover {
-            Magma.material_set(saveButton.mesh.nodes[0].primitives[0].material, "color", instance.config.env.selectionBackgroundColor);
-        } else if trigger.flags & .NoHover {
-            Magma.material_set(saveButton.mesh.nodes[0].primitives[0].material, "color", instance.config.env.secondaryBackgroundColor);
-        } else {
-            save_pgn(instance.game.pgnFileName);
-        }
-    }, Sill.UiCallbackFlags.Click | .Hover | .NoHover, saveButton);
+        save_pgn(instance.game.pgnFileName);
+    }, .Click, saveButton);
 }
 
 list_show_variation :: (variation : *Variation, width : float, depth : u8 = 0) {
@@ -665,4 +636,44 @@ _update_decorum_mesh :: (mesh : *Magma.Mesh, height : float) {
     mesh.vertices[3].position.y = DECORUM_VERTICAL_PADDING;
 
     Magma.mesh_commit_vertices(mesh);
+}
+
+_make_button :: (text : string) -> *ButtonEntity {
+    button := SillMeta.create_button_entity(instance.engine);
+    button.ui.extent.width = 30; // @todo Completely arbitrary...
+    button.ui.extent.height = UiConstants.HeightLine;
+
+    backgroundNode := Basic.array_add(*button.mesh.nodes);
+    backgroundMesh := create_rect_mesh(button.ui.extent.width, button.ui.extent.height, 1);
+    backgroundMesh.material = Magma.create_material(instance.shaders.monochrome);
+    Magma.material_set(backgroundMesh.material, "color", instance.config.env.secondaryBackgroundColor);
+    Magma.mesh_commit_vertices(backgroundMesh);
+    Basic.array_add(*backgroundNode.primitives, backgroundMesh);
+
+    textNode := Basic.array_add(*button.mesh.nodes);
+    textMesh := create_text_mesh();
+    charInfos := text_mesh_update(textMesh, text, *instance.fonts.light, instance.config.env.textColor);
+    defer Basic.array_free(charInfos);
+    _justify_char_infos(charInfos, 1024.0, 0.0); // To update the "effective values".
+    textNode.transform.translation.x = -Math.floor(Basic.peek_pointer(charInfos).effective.xEnd / 2 + 0.5);
+    textNode.transform.translation.y = -8; // @todo Hardcoded offset... We should know the max glyph height instead.
+    Basic.array_add(*textNode.primitives, textMesh);
+
+    Sill.ui_on_update(*button.ui, (update : Sill.UiUpdate, userData : *void) {
+        <<update.stopPropagation = true;
+    }, .Hover);
+
+    Sill.ui_on_trigger(*button.ui, (trigger : Sill.UiTrigger, button : *ButtonEntity) {
+        <<trigger.stopPropagation = true;
+
+        if trigger.flags & .Hover {
+            Magma.material_set(button.mesh.nodes[0].primitives[0].material, "color", instance.config.env.selectionBackgroundColor);
+            Crater.window_pointer_style(instance.engine.window, .HandPointer);
+        } else if trigger.flags & .NoHover {
+            Magma.material_set(button.mesh.nodes[0].primitives[0].material, "color", instance.config.env.secondaryBackgroundColor);
+            Crater.window_pointer_style(instance.engine.window, .Default);
+        }
+    }, Sill.UiCallbackFlags.Click | .Hover | .NoHover, button);
+
+    return button;
 }
