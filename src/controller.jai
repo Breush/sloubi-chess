@@ -95,5 +95,5 @@ _setup_orthographic_camera :: () {
 
     eye.viewMatrix = Chamber.look_at_matrix(.{0, 0, -1}, .{0, 0, 0}, .{0, -1, 0});
     Chamber.unnear_orthographic_projection(*eye.projectionMatrix, extent, 100.0); // Orthographic camera with 1 pixel = 1 unit
-    Sill.transform_origin_target(*controller.debug.transform, .{0, 0, -1}, .{0, 0, 0}, referenceUp=.{0, -1, 0});
+    Sill.transform_origin_target(*controller.debug.transform, .{0, 0, -40}, .{0, 0, 0}, referenceUp=.{0, -1, 0});
 }

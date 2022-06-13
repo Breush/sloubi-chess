@@ -11,6 +11,9 @@ Config :: struct {
         fontFamily : string;
         fontSize : s64;
     }
+    analysis : struct {
+        externalSite : string;
+    }
     board : struct {
         pieces : string;
         lightSquareColor : Chamber.vec3;

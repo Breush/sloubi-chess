@@ -59,27 +59,33 @@ Variation :: struct {
     }
 }
 
-game_cleanup :: (game : *Game) {
+game_cleanup :: (game : *Game, resetUi := false) {
+    game.node = null;
+    variation_cleanup(*game.mainVariation, resetUi);
+
     Bucket_Array.bucket_array_reset(*game.nodePool);
     Bucket_Array.bucket_array_reset(*game.variationPool);
 
-    variation_cleanup(*game.mainVariation);
     Basic.free(game.pgnFileName);
 
     (<<game) = .{};
 }
 
-variation_cleanup :: (variation : *Variation) {
+variation_cleanup :: (variation : *Variation, resetUi := false) {
     for node : variation.nodes {
-        node_cleanup(node);
+        node_cleanup(node, resetUi);
     }
     Basic.array_free(variation.nodes);
 }
 
-node_cleanup :: (node : *Variation.Node) {
+node_cleanup :: (node : *Variation.Node, resetUi := false) {
+    if resetUi {
+        list_reset_ui(node);
+    }
+
     Basic.free(node.comment);
     for variation : node.variations {
-        variation_cleanup(variation);
+        variation_cleanup(variation, resetUi);
     }
     Basic.array_free(node.variations);
 }
@@ -104,12 +110,13 @@ game_add_variation_node :: (game : *Game, parentVariation : *Variation) -> *Vari
 }
 
 game_update_to :: (game : *Game, node : *Variation.Node) {
+    oldNode := game.node;
     game.node = node;
 
     variation := game_current_variation(game);
     board_orient(game.boardOrientation);
     board_update_to_position(node.position);
-    list_update_to_current_move(game);
+    list_update_to_current_move(game, oldNode);
 }
 
 game_current_variation :: (game : *Game) -> *Variation {

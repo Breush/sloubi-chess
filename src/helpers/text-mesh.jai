@@ -20,7 +20,7 @@ create_text_mesh :: () -> *Magma.Mesh {
     return mesh;
 }
 
-text_mesh_update :: (mesh : *Magma.Mesh, text : string, font : *Chamber.Font, color : Chamber.vec3) -> []CharInfo #must {
+text_mesh_update :: (mesh : *Magma.Mesh, text : string, font : *Chamber.Font, color : Chamber.vec3, depth := 0.0) -> []CharInfo #must {
     using *instance.list;
 
     mesh.disabled = (text.count == 0);
@@ -59,12 +59,16 @@ text_mesh_update :: (mesh : *Magma.Mesh, text : string, font : *Chamber.Font, co
 
         mesh.vertices[4 * index + 0].position.x = glyphInfo.offset.x;
         mesh.vertices[4 * index + 0].position.y = glyphInfo.offset.y;
+        mesh.vertices[4 * index + 0].position.z = depth;
         mesh.vertices[4 * index + 1].position.x = glyphInfo.offset.x;
         mesh.vertices[4 * index + 1].position.y = glyphInfo.offset.y + glyphInfo.extent.height;
+        mesh.vertices[4 * index + 1].position.z = depth;
         mesh.vertices[4 * index + 2].position.x = glyphInfo.offset.x + glyphInfo.extent.width;
         mesh.vertices[4 * index + 2].position.y = glyphInfo.offset.y + glyphInfo.extent.height;
+        mesh.vertices[4 * index + 2].position.z = depth;
         mesh.vertices[4 * index + 3].position.x = glyphInfo.offset.x + glyphInfo.extent.width;
         mesh.vertices[4 * index + 3].position.y = glyphInfo.offset.y;
+        mesh.vertices[4 * index + 3].position.z = depth;
         mesh.vertices[4 * index + 0].uv.x = glyphInfo.minUv.x;
         mesh.vertices[4 * index + 0].uv.y = glyphInfo.minUv.y;
         mesh.vertices[4 * index + 1].uv.x = glyphInfo.minUv.x;
@@ -89,4 +93,77 @@ text_mesh_update :: (mesh : *Magma.Mesh, text : string, font : *Chamber.Font, co
     Magma.mesh_commit_instance(mesh);
 
     return charInfos;
+}
+
+
+// Will modify the effective positions of the charInfos to justify the text
+// according to the provided maxWidth.
+justify_char_infos :: (charInfos : []CharInfo, maxWidth : float, startingOffsetX : float) -> float {
+    if charInfos.count == 0 then return 0.0;
+
+    offset : Chamber.vec2;
+    offset.x = startingOffsetX;
+
+    for *charInfo, index : charInfos {
+        charInfo.effective.glyphOffset.std = charInfo.glyphOffset + offset;
+        charInfo.effective.y = offset.y;
+        currentWidth := charInfo.effective.glyphOffset.x + charInfo.glyphExtent.width;
+
+        if currentWidth > maxWidth {
+            // Moving the whole word down to the next line.
+            i := index;
+            while i >= 0 && !charInfos[i].glyphBlank {
+                charInfos[i].effective.glyphOffset.y += UiConstants.HeightLine;
+                charInfos[i].effective.y += UiConstants.HeightLine;
+                i -= 1;
+            }
+
+            // @fixme crash if not blank...
+            if i == -1 {
+                return UiConstants.HeightLine;
+            }
+
+            // Justify the whole line.
+            j := i;
+            blankCount := 0;
+            while j >= 0 && charInfos[j].glyphBlank { j -= 1; } // Ignore ending blanks.
+            while j >= 0 && charInfos[j].effective.y == charInfos[j + 1].effective.y {
+                if charInfos[j].glyphBlank then blankCount += 1;
+                j -= 1;
+            }
+
+            j = i;
+            extraSpacePerBlank := (maxWidth - (offset.x + charInfos[j].glyphOffset.x + charInfos[j].glyphExtent.width)) / blankCount;
+            while j >= 0 && charInfos[j].glyphBlank {
+                charInfos[j].effective.glyphOffset.x += Math.floor(blankCount * extraSpacePerBlank + 0.5);
+                j -= 1;
+            }
+            while j >= 0 && charInfos[j].effective.y == charInfos[j + 1].effective.y {
+                charInfos[j].effective.glyphOffset.x += Math.floor(blankCount * extraSpacePerBlank + 0.5);
+                if charInfos[j].glyphBlank then blankCount -= 1;
+                j -= 1;
+            }
+
+            // Leave the ending blank character to the line above.
+            if charInfos[i].glyphBlank {
+                i += 1;
+            }
+
+            offset.x = -charInfos[i].glyphOffset.x;
+            offset.y += UiConstants.HeightLine;
+
+            preOffset := -charInfos[i].effective.glyphOffset.x;
+            while i <= index {
+                charInfos[i].effective.glyphOffset.x += preOffset;
+                i += 1;
+            }
+        }
+    }
+
+    for *charInfo : charInfos {
+        charInfo.effective.xStart = charInfo.effective.glyphOffset.x;
+        charInfo.effective.xEnd = charInfo.effective.glyphOffset.x + charInfo.glyphAdvance;
+    }
+
+    return offset.y + UiConstants.HeightLine;
 }

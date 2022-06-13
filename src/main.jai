@@ -15,6 +15,7 @@ CommandLine :: #import "Command_Line";
 for_expansion :: Hash.for_expansion;
 
 #load "display/background.jai";
+#load "display/button-bar.jai";
 #load "display/board.jai";
 #load "display/file-select.jai";
 #load "display/list.jai";
@@ -54,6 +55,7 @@ Instance :: struct {
     fileSelect : *FileSelectEntity;
     game : Game;
     list : List;
+    buttonBar : ButtonBar;
     persistence : Persistence;
 }
 
@@ -84,6 +86,7 @@ main :: () {
     board_init();
     background_init();
     list_init();
+    button_bar_init();
 
     if setArgs.pgn {
         load_pgn(args.pgn);

@@ -29,7 +29,7 @@ background_init :: () {
     Basic.array_resize(*mesh.indices, indices.count);
     memcpy(mesh.indices.data, indices.data, size_of(u16) * indices.count);
 
-    mesh.translation.z = 90; // Far, far away.
+    mesh.translation.z = 40; // Far, far away.
     mesh.scaling.x = cast(float) extent.width;
     mesh.scaling.y = cast(float) extent.height;
 

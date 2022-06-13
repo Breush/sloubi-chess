@@ -13,6 +13,12 @@
         "lightSquareColor": [0.905, 0.911, 0.822],  // RGB color, 0 to 1 values
         "darkSquareColor": [0.703, 0.573, 0.335]    // RGB color, 0 to 1 values
     },
+    "analysis": {
+        // The analysis site used to open the current position, the FEN will be added at the end of the URL.
+        //  - lichess.org "https://lichess.org/analysis/"
+        //  - chess.com "https://www.chess.com/analysis?fen="
+        "externalSite": "https://lichess.org/analysis/"
+    },
     "controls": {
         // A ply is a so-called "half-move".
         // The following mean within the current variation.

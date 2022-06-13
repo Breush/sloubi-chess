@@ -125,7 +125,7 @@ _make_entry :: (name : string, isDirectory : bool) -> *EntryEntity {
     charInfos := text_mesh_update(textMesh, Basic.tprint("% %", (ifx isDirectory then ForkAwesome.Folder else ForkAwesome.FileO), name),
                                   *instance.fonts.light, *instance.config.env.textColor);
     Basic.array_free(charInfos);
-    entryEntity.ui.extent.width = instance.fileSelect.ui.extent.width;
+    entryEntity.ui.extent.width = 450;
     entryEntity.ui.extent.height = UiConstants.HeightLine;
 
     // Selection rectangle
@@ -133,19 +133,22 @@ _make_entry :: (name : string, isDirectory : bool) -> *EntryEntity {
     squareMesh.vertices[0].position = .{0, 0, 5};
     squareMesh.vertices[1].position = .{0, UiConstants.HeightLine - 4, 5}; // @todo Complete heuristic about the rendering...
     squareMesh.vertices[2].position = .{450, UiConstants.HeightLine - 4, 5};
-    squareMesh.vertices[3].position = .{450, 1, 5};
+    squareMesh.vertices[3].position = .{450, 0, 5};
     squareMesh.material = Magma.create_material(instance.shaders.monochrome);
     squareMesh.disabled = true;
     Magma.material_set(squareMesh.material, "color", instance.config.env.selectionBackgroundColor);
     Basic.array_add(*entryEntity.mesh.nodes[0].primitives, squareMesh);
 
     Sill.ui_on_trigger(*entryEntity.ui, (trigger : Sill.UiTrigger, entryEntity : *EntryEntity) {
-        if !instance.fileSelect then return;
-        entryEntity.mesh.nodes[0].primitives[1].disabled = cast(bool) (trigger.flags & .NoHover);
-
         if trigger.flags & .Hover {
-            <<trigger.stopPropagation = true;
+            <<trigger.stopPropagation = true; // @fixme Does that make sense?
+            entryEntity.mesh.nodes[0].primitives[1].disabled = false;
+            Crater.window_pointer_style(instance.engine.window, .HandPointer);
+        } else if trigger.flags & .NoHover {
+            entryEntity.mesh.nodes[0].primitives[1].disabled = true;
+            Crater.window_pointer_style(instance.engine.window, .Default);
         } else if trigger.flags & .Click {
+            if !instance.fileSelect then return;
             if entryEntity.isDirectory {
                 _go_into_directory(entryEntity.fileOrDirectoryName);
             } else if String.ends_with(entryEntity.fileOrDirectoryName, ".pgn") {

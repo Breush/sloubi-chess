@@ -4,8 +4,6 @@ List :: struct {
         extent : Chamber.vec2;
     };
 
-    selectedNode : *Variation.Node;
-
     cursorMesh : *Magma.Mesh;
 }
 
@@ -37,13 +35,6 @@ PlyEntity :: struct {
     }
 }
 
-ButtonEntity :: struct {
-    using entity : Sill.Entity;
-    transform : Sill.TransformComponent;
-    mesh : Sill.MeshComponent;
-    ui : Sill.UiComponent;
-}
-
 list_init :: () {
     using *instance.list;
 
@@ -57,23 +48,16 @@ list_init :: () {
     Magma.material_set(cursorMesh.material, "color", Chamber.vec3.{1, 1, 1});
 }
 
+list_reset_ui :: (node : *Variation.Node) {
+    Sill.destroy_entity(node.plyEntity);
+}
+
 list_show :: (game : Game) {
     using *instance.list;
     list_show_variation(*game.mainVariation, ui.extent.width);
     _rebuild_decorums(*game.mainVariation);
 
-    // Save button
-    // @fixme Have user feedback that we saved.
-    saveButton := _make_button(ForkAwesome.FloppyO);
-
-    saveButton.transform.translation.x = 800 - saveButton.ui.extent.width / 2; // :HardcodedScreenSize
-    saveButton.transform.translation.y = 450 - saveButton.ui.extent.height / 2;
-    saveButton.transform.translation.z = -0.1;
-    Sill.transform_commit(*saveButton.transform);
-
-    Sill.ui_on_trigger(*saveButton.ui, (trigger : Sill.UiTrigger, saveButton : *ButtonEntity) {
-        save_pgn(instance.game.pgnFileName);
-    }, .Click, saveButton);
+    button_bar_show();
 }
 
 list_show_variation :: (variation : *Variation, width : float, depth : u8 = 0) {
@@ -101,23 +85,21 @@ list_show_variation :: (variation : *Variation, width : float, depth : u8 = 0) {
     }
 }
 
-list_update_to_current_move :: (game : *Game) {
+list_update_to_current_move :: (game : *Game, oldNode : *Variation.Node) {
     using *instance.list;
 
-    if selectedNode != null {
-        for *meshNode : selectedNode.plyEntity.mesh.nodes {
-            Magma.material_set(meshNode.primitives[0].material, "color", selectedNode.moveColor);
+    if oldNode != null {
+        for *meshNode : oldNode.plyEntity.mesh.nodes {
+            Magma.material_set(meshNode.primitives[0].material, "color", oldNode.moveColor);
         }
     }
 
-    selectedNode = game.node;
-
     startY := -1.0;
-    if selectedNode != null {
-        for *meshNode : selectedNode.plyEntity.mesh.nodes {
+    if game.node != null {
+        for *meshNode : game.node.plyEntity.mesh.nodes {
             if startY == -1.0 || startY > meshNode.primitives[0].translation.y then startY = meshNode.primitives[0].translation.y;
 
-            color := ifx meshNode == selectedNode.plyEntity.commentMeshNode then instance.config.moves.selectedCommentColor else instance.config.moves.selectedColor;
+            color := ifx meshNode == game.node.plyEntity.commentMeshNode then instance.config.moves.selectedCommentColor else instance.config.moves.selectedColor;
             Magma.material_set(meshNode.primitives[0].material, "color", color);
         }
     }
@@ -330,78 +312,6 @@ _init_ply_entity :: (node : *Variation.Node, width : float) {
     }, Sill.UiCallbackFlags.Text | .Key, node);
 }
 
-// Will modify the effective positions of the charInfos to justify the text
-// according to the provided maxWidth.
-_justify_char_infos :: (charInfos : []CharInfo, maxWidth : float, startingOffsetX : float) -> float {
-    if charInfos.count == 0 then return 0.0;
-
-    offset : Chamber.vec2;
-    offset.x = startingOffsetX;
-
-    for *charInfo, index : charInfos {
-        charInfo.effective.glyphOffset.std = charInfo.glyphOffset + offset;
-        charInfo.effective.y = offset.y;
-        currentWidth := charInfo.effective.glyphOffset.x + charInfo.glyphExtent.width;
-
-        if currentWidth > maxWidth {
-            // Moving the whole word down to the next line.
-            i := index;
-            while i >= 0 && !charInfos[i].glyphBlank {
-                charInfos[i].effective.glyphOffset.y += UiConstants.HeightLine;
-                charInfos[i].effective.y += UiConstants.HeightLine;
-                i -= 1;
-            }
-
-            // @fixme crash if not blank...
-            if i == -1 {
-                return UiConstants.HeightLine;
-            }
-
-            // Justify the whole line.
-            j := i;
-            blankCount := 0;
-            while j >= 0 && charInfos[j].glyphBlank { j -= 1; } // Ignore ending blanks.
-            while j >= 0 && charInfos[j].effective.y == charInfos[j + 1].effective.y {
-                if charInfos[j].glyphBlank then blankCount += 1;
-                j -= 1;
-            }
-
-            j = i;
-            extraSpacePerBlank := (maxWidth - (offset.x + charInfos[j].glyphOffset.x + charInfos[j].glyphExtent.width)) / blankCount;
-            while j >= 0 && charInfos[j].glyphBlank {
-                charInfos[j].effective.glyphOffset.x += Math.floor(blankCount * extraSpacePerBlank + 0.5);
-                j -= 1;
-            }
-            while j >= 0 && charInfos[j].effective.y == charInfos[j + 1].effective.y {
-                charInfos[j].effective.glyphOffset.x += Math.floor(blankCount * extraSpacePerBlank + 0.5);
-                if charInfos[j].glyphBlank then blankCount -= 1;
-                j -= 1;
-            }
-
-            // Leave the ending blank character to the line above.
-            if charInfos[i].glyphBlank {
-                i += 1;
-            }
-
-            offset.x = -charInfos[i].glyphOffset.x;
-            offset.y += UiConstants.HeightLine;
-
-            preOffset := -charInfos[i].effective.glyphOffset.x;
-            while i <= index {
-                charInfos[i].effective.glyphOffset.x += preOffset;
-                i += 1;
-            }
-        }
-    }
-
-    for *charInfo : charInfos {
-        charInfo.effective.xStart = charInfo.effective.glyphOffset.x;
-        charInfo.effective.xEnd = charInfo.effective.glyphOffset.x + charInfo.glyphAdvance;
-    }
-
-    return offset.y + UiConstants.HeightLine;
-}
-
 _place_comment_from_char_infos :: (node : *Variation.Node) {
     mesh := node.plyEntity.commentMeshNode.primitives[0];
 
@@ -450,7 +360,7 @@ _place_ply_entity :: (node : *Variation.Node, propagate := false) {
     }
 
     // Make the text fit the specified size
-    commentHeight := _justify_char_infos(node.plyEntity.charInfos, commentWidth, 0.0);
+    commentHeight := justify_char_infos(node.plyEntity.charInfos, commentWidth, 0.0);
     _place_comment_from_char_infos(node);
 
     node.plyEntity.commentMeshNode.transform.translation = .{};
@@ -636,44 +546,4 @@ _update_decorum_mesh :: (mesh : *Magma.Mesh, height : float) {
     mesh.vertices[3].position.y = DECORUM_VERTICAL_PADDING;
 
     Magma.mesh_commit_vertices(mesh);
-}
-
-_make_button :: (text : string) -> *ButtonEntity {
-    button := SillMeta.create_button_entity(instance.engine);
-    button.ui.extent.width = 30; // @todo Completely arbitrary...
-    button.ui.extent.height = UiConstants.HeightLine;
-
-    backgroundNode := Basic.array_add(*button.mesh.nodes);
-    backgroundMesh := create_rect_mesh(button.ui.extent.width, button.ui.extent.height, 1);
-    backgroundMesh.material = Magma.create_material(instance.shaders.monochrome);
-    Magma.material_set(backgroundMesh.material, "color", instance.config.env.secondaryBackgroundColor);
-    Magma.mesh_commit_vertices(backgroundMesh);
-    Basic.array_add(*backgroundNode.primitives, backgroundMesh);
-
-    textNode := Basic.array_add(*button.mesh.nodes);
-    textMesh := create_text_mesh();
-    charInfos := text_mesh_update(textMesh, text, *instance.fonts.light, instance.config.env.textColor);
-    defer Basic.array_free(charInfos);
-    _justify_char_infos(charInfos, 1024.0, 0.0); // To update the "effective values".
-    textNode.transform.translation.x = -Math.floor(Basic.peek_pointer(charInfos).effective.xEnd / 2 + 0.5);
-    textNode.transform.translation.y = -8; // @todo Hardcoded offset... We should know the max glyph height instead.
-    Basic.array_add(*textNode.primitives, textMesh);
-
-    Sill.ui_on_update(*button.ui, (update : Sill.UiUpdate, userData : *void) {
-        <<update.stopPropagation = true;
-    }, .Hover);
-
-    Sill.ui_on_trigger(*button.ui, (trigger : Sill.UiTrigger, button : *ButtonEntity) {
-        <<trigger.stopPropagation = true;
-
-        if trigger.flags & .Hover {
-            Magma.material_set(button.mesh.nodes[0].primitives[0].material, "color", instance.config.env.selectionBackgroundColor);
-            Crater.window_pointer_style(instance.engine.window, .HandPointer);
-        } else if trigger.flags & .NoHover {
-            Magma.material_set(button.mesh.nodes[0].primitives[0].material, "color", instance.config.env.secondaryBackgroundColor);
-            Crater.window_pointer_style(instance.engine.window, .Default);
-        }
-    }, Sill.UiCallbackFlags.Click | .Hover | .NoHover, button);
-
-    return button;
 }
