@@ -59,6 +59,14 @@ Variation :: struct {
     }
 }
 
+game_show :: (game : *Game) {
+    board_info_show(game);
+    list_show(game);
+    button_bar_show();
+
+    game_update_to(game, game.mainVariation.nodes[0]);
+}
+
 game_cleanup :: (game : *Game, resetUi := false) {
     game.node = null;
     variation_cleanup(*game.mainVariation, resetUi);

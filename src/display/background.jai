@@ -10,8 +10,6 @@ background_init :: () {
 
     Magma.material_set(mesh.material, "color", instance.config.env.backgroundColor);
 
-    extent := Crater.window_get_extent(instance.engine.window);
-
     positions := Chamber.vec3.[
         .{-0.5, -0.5, 0.5 },
         .{-0.5,  0.5, 0.5 },
@@ -30,10 +28,18 @@ background_init :: () {
     memcpy(mesh.indices.data, indices.data, size_of(u16) * indices.count);
 
     mesh.translation.z = 40; // Far, far away.
-    mesh.scaling.x = cast(float) extent.width;
-    mesh.scaling.y = cast(float) extent.height;
 
     Magma.mesh_commit_vertices(mesh);
     Magma.mesh_commit_indices(mesh);
+
+    background_reflow();
+}
+
+background_reflow :: () {
+    using *instance.background;
+
+    extent := Crater.window_get_extent(instance.engine.window);
+    mesh.scaling.x = cast(float) extent.width;
+    mesh.scaling.y = cast(float) extent.height;
     Magma.mesh_commit_instance(mesh);
 }

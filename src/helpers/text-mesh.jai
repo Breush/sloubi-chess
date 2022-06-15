@@ -21,8 +21,6 @@ create_text_mesh :: () -> *Magma.Mesh {
 }
 
 text_mesh_update :: (mesh : *Magma.Mesh, text : string, font : *Chamber.Font, color : Chamber.vec3, depth := 0.0) -> []CharInfo #must {
-    using *instance.list;
-
     mesh.disabled = (text.count == 0);
     if mesh.disabled then return .[];
 
@@ -86,6 +84,12 @@ text_mesh_update :: (mesh : *Magma.Mesh, text : string, font : *Chamber.Font, co
         mesh.indices[6 * index + 5] = cast(u16) (4 * index + 0);
 
         index += 1;
+    }
+
+    for *charInfo : charInfos {
+        charInfo.effective.glyphOffset.std = charInfo.glyphOffset;
+        charInfo.effective.xStart = charInfo.effective.glyphOffset.x;
+        charInfo.effective.xEnd = charInfo.effective.glyphOffset.x + charInfo.glyphAdvance;
     }
 
     Magma.mesh_commit_vertices(mesh);

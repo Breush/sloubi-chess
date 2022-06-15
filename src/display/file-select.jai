@@ -47,15 +47,8 @@ file_select_show :: (extensionFilter : string, callback : FileSelectEntity.FileS
     Basic.array_add(*fileSelect.mesh.nodes, .{});
     Basic.array_add(*fileSelect.mesh.nodes[0].primitives, mesh);
 
-    fileSelect.transform.translation.x = 0 + UiConstants.PaddingHorizontal; // @todo :HardcodedScreenSize
-    fileSelect.transform.translation.y = -450 + UiConstants.PaddingVertical;
-    fileSelect.ui.extent.width = 800 - 2 * UiConstants.PaddingHorizontal;
-    fileSelect.ui.extent.height = 900 - 2 * UiConstants.PaddingVertical;
-    fileSelect.ui.anchor = .TopLeft;
-
     charInfos := text_mesh_update(mesh, Basic.tprint("Select a % file", extensionFilter), *instance.fonts.bold, *instance.config.env.textColor);
     Basic.array_free(charInfos);
-    Sill.transform_commit(*fileSelect.transform);
 
     Sill.ui_on_update(*fileSelect.ui, (update : Sill.UiUpdate, fileSelect : *FileSelectEntity) {
         _place_children(fileSelect);
@@ -68,6 +61,23 @@ file_select_show :: (extensionFilter : string, callback : FileSelectEntity.FileS
         path = Chamber.os_user_path();
     }
     _show_path(path);
+
+    file_select_reflow();
+}
+
+file_select_reflow :: () {
+    fileSelect := instance.fileSelect;
+    if fileSelect == null then return;
+
+    extent := Crater.window_get_extent(instance.engine.window);
+
+    fileSelect.transform.translation.x = UiConstants.PaddingHorizontal;
+    fileSelect.transform.translation.y = - cast(s32) extent.height / 2 + UiConstants.PaddingVertical;
+    fileSelect.ui.extent.width = extent.width - 2 * UiConstants.PaddingHorizontal;
+    fileSelect.ui.extent.height = extent.height - 2 * UiConstants.PaddingVertical;
+    fileSelect.ui.anchor = .TopLeft;
+
+    Sill.transform_commit(*fileSelect.transform);
 }
 
 #scope_file
@@ -125,15 +135,15 @@ _make_entry :: (name : string, isDirectory : bool) -> *EntryEntity {
     charInfos := text_mesh_update(textMesh, Basic.tprint("% %", (ifx isDirectory then ForkAwesome.Folder else ForkAwesome.FileO), name),
                                   *instance.fonts.light, *instance.config.env.textColor);
     Basic.array_free(charInfos);
-    entryEntity.ui.extent.width = 450;
+    entryEntity.ui.extent.width = 400;
     entryEntity.ui.extent.height = UiConstants.HeightLine;
 
     // Selection rectangle
     squareMesh := create_rect_mesh(); // @todo Anchor in create_rect_mesh?
     squareMesh.vertices[0].position = .{0, 0, 5};
     squareMesh.vertices[1].position = .{0, UiConstants.HeightLine - 4, 5}; // @todo Complete heuristic about the rendering...
-    squareMesh.vertices[2].position = .{450, UiConstants.HeightLine - 4, 5};
-    squareMesh.vertices[3].position = .{450, 0, 5};
+    squareMesh.vertices[2].position = .{400, UiConstants.HeightLine - 4, 5};
+    squareMesh.vertices[3].position = .{400, 0, 5};
     squareMesh.material = Magma.create_material(instance.shaders.monochrome);
     squareMesh.disabled = true;
     Magma.material_set(squareMesh.material, "color", instance.config.env.selectionBackgroundColor);

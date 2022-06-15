@@ -50,12 +50,12 @@ Instance :: struct {
 
     background : Background;
     board : *BoardEntity;
+    buttonBar : ButtonBar;
     config : Config;
     controller : *ControllerEntity;
     fileSelect : *FileSelectEntity;
     game : Game;
-    list : List;
-    buttonBar : ButtonBar;
+    list : *ListEntity;
     persistence : Persistence;
 }
 
@@ -78,7 +78,7 @@ main :: () {
     readJsonAs(*instance.persistence, Basic.tprint("%1%2", storagePath, ".sloubi-chess.json"), silentOnError = true);
     Basic.free(storagePath);
 
-    instance.engine = Sill.create_engine(SillMeta);
+    instance.engine = Sill.create_engine(SillMeta, .{ eventHandler = _event_handler });
 
     _shaders_init();
     _fonts_init();
@@ -99,14 +99,22 @@ main :: () {
 
     Sill.engine_run(instance.engine);
 
-    // cleanup();
+    // _cleanup();
     // Chamber.cleanup_logger();
     // Basic.report_memory_leaks();
 }
 
+reflow :: () {
+    background_reflow();
+    board_reflow();
+    file_select_reflow();
+    list_reflow();
+    button_bar_reflow();
+}
+
 #scope_file
 
-cleanup :: () {
+_cleanup :: () {
     Sill.destroy_engine(instance.engine);
 
     Basic.free(instance.config.board.pieces);
@@ -115,6 +123,18 @@ cleanup :: () {
 
     game_cleanup(*instance.game);
     _fonts_cleanup();
+}
+
+_event_handler :: (event : Crater.Event) {
+    if event.kind == Crater.Event.Kind.WindowSizeChanged {
+        Magma.forward_renderer_extent(cast(*Magma.ForwardRenderer) instance.engine.renderer, instance.engine.options.windowExtent);
+        setup_orthographic_camera();
+        reflow();
+    }
+    else if event.kind == Crater.Event.Kind.KeyPressed &&
+            event.key.which == Crater.Key.Escape {
+        instance.engine.closingMainWindow = true;
+    }
 }
 
 _fonts_init :: () {

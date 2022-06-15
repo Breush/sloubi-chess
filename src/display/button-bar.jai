@@ -16,9 +16,6 @@ button_bar_init :: () {
 
     // Back to home button.
     backButton = _make_button(ForkAwesome.Reply);
-    backButton.transform.translation.x = 800 - 5 * backButton.ui.extent.width / 2 - 5;
-    backButton.transform.translation.y = 450 - backButton.ui.extent.height / 2;
-    Sill.transform_commit(*backButton.transform);
 
     Sill.ui_on_trigger(*backButton.ui, (trigger : Sill.UiTrigger, backButton : *ButtonEntity) {
         // @fixme Have a "not-saved changes" dialog.
@@ -30,12 +27,7 @@ button_bar_init :: () {
     }, .Click, backButton);
 
     // Open lichess analysis button
-    // @fixme Should UI widgets become components?
-    // @fixme Missing hlayout?
     analysisButton = _make_button(ForkAwesome.Laptop);
-    analysisButton.transform.translation.x = 800 - 3 * analysisButton.ui.extent.width / 2; // :HardcodedScreenSize
-    analysisButton.transform.translation.y = 450 - analysisButton.ui.extent.height / 2;
-    Sill.transform_commit(*analysisButton.transform);
 
     Sill.ui_on_trigger(*analysisButton.ui, (trigger : Sill.UiTrigger, analysisButton : *ButtonEntity) {
         Basic.log("Opening analysis.");
@@ -45,13 +37,32 @@ button_bar_init :: () {
     // Save button
     // @fixme Have user feedback that we saved.
     saveButton = _make_button(ForkAwesome.FloppyO);
-    saveButton.transform.translation.x = 800 - saveButton.ui.extent.width / 2; // :HardcodedScreenSize
-    saveButton.transform.translation.y = 450 - saveButton.ui.extent.height / 2;
-    Sill.transform_commit(*saveButton.transform);
 
     Sill.ui_on_trigger(*saveButton.ui, (trigger : Sill.UiTrigger, saveButton : *ButtonEntity) {
         save_pgn(instance.game.pgnFileName);
     }, .Click, saveButton);
+
+    button_bar_reflow();
+}
+
+button_bar_reflow :: () {
+    using *instance.buttonBar;
+
+    extent := Crater.window_get_extent(instance.engine.window);
+
+    // @fixme Should UI widgets become components?
+    // @fixme Missing hlayout?
+    backButton.transform.translation.x = extent.width / 2 - 5 * backButton.ui.extent.width / 2 - 5;
+    backButton.transform.translation.y = extent.height / 2 - backButton.ui.extent.height / 2;
+    Sill.transform_commit(*backButton.transform);
+
+    analysisButton.transform.translation.x = extent.width / 2 - 3 * analysisButton.ui.extent.width / 2;
+    analysisButton.transform.translation.y = extent.height / 2 - analysisButton.ui.extent.height / 2;
+    Sill.transform_commit(*analysisButton.transform);
+
+    saveButton.transform.translation.x = extent.width / 2 - saveButton.ui.extent.width / 2;
+    saveButton.transform.translation.y = extent.height / 2 - saveButton.ui.extent.height / 2;
+    Sill.transform_commit(*saveButton.transform);
 }
 
 button_bar_show :: (visible := true) {
@@ -80,7 +91,6 @@ _make_button :: (text : string) -> *ButtonEntity {
     textMesh := create_text_mesh();
     charInfos := text_mesh_update(textMesh, text, *instance.fonts.light, instance.config.env.textColor);
     defer Basic.array_free(charInfos);
-    justify_char_infos(charInfos, 1024.0, 0.0); // To update the "effective values".
     textNode.transform.translation.x = -Math.floor(Basic.peek_pointer(charInfos).effective.xEnd / 2 + 0.5);
     textNode.transform.translation.y = -8; // @todo Hardcoded offset... We should know the max glyph height instead.
     Basic.array_add(*textNode.primitives, textMesh);

@@ -43,7 +43,7 @@ controller_init :: () {
 
         // @todo This should be UI job, somehow.
         if Sill.input_axis_changed(engine, "list.scroll") {
-            list_scroll(Sill.input_axis_value(engine, "list.scroll"));
+            list_scroll(25.0 * Sill.input_axis_value(engine, "list.scroll"));
         }
     }, *instance);
 
@@ -51,7 +51,7 @@ controller_init :: () {
     Sill.input_action_bind(engine, "debug.3d", .F12);
 
     controller.debug = SillMeta.create_controller_debug_entity(engine);
-    _setup_orthographic_camera();
+    setup_orthographic_camera();
 
     Sill.behavior_on_update(*controller.debug.behavior, xx (dt : float64, using instance : *Instance) {
         if Sill.input_action_just_activated(engine, "debug.3d", true) {
@@ -59,14 +59,15 @@ controller_init :: () {
 
             if controller.debug.enabled {
                 eye := Magma.renderer_get_eye(instance.engine.renderer, 0);
-                controller.debug.origin = .{0, 0, -1600};
+                controller.debug.origin = .{0, 0, 0};
+                controller.debug.origin.z = - cast(float) instance.engine.options.windowExtent.x;
                 Chamber.infinite_perspective_projection(*eye.projectionMatrix, 70.0, (cast(float) eye.extent.width) / eye.extent.height, 0.1);
                 Sill.transform_origin_target(*controller.debug.transform, controller.debug.origin, controller.debug.target, referenceUp=.{0, -1, 0});
 
                 Sill.input_axis_bind(engine, "debug.3d.look-x", .MousePointerX);
                 Sill.input_axis_bind(engine, "debug.3d.look-y", .MousePointerY);
             } else {
-                _setup_orthographic_camera();
+                setup_orthographic_camera();
 
                 Sill.input_axis_unbind(engine, "debug.3d.look-x");
                 Sill.input_axis_unbind(engine, "debug.3d.look-y");
@@ -82,9 +83,7 @@ controller_init :: () {
     }, *instance);
 }
 
-#scope_file
-
-_setup_orthographic_camera :: () {
+setup_orthographic_camera :: () {
     using *instance;
 
     eye := Magma.renderer_get_eye(engine.renderer, 0);

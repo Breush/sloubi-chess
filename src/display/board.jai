@@ -34,6 +34,18 @@ board_init :: () {
     instance.board = SillMeta.create_board_entity(instance.engine);
 
     _init_resources();
+    _init_meshes();
+    board_reflow();
+
+    Sill.ui_on_update(*ui, _on_update, userData = instance.board);
+
+    // Drawing a position
+    position := get_starting_position();
+    board_update_to_position(position);
+}
+
+board_reflow :: () {
+    using instance.board;
 
     // We want to fit the board in the left part of the screen nicely à 95% of the available space.
     eye := Magma.renderer_get_eye(engine.renderer, 0);
@@ -44,13 +56,7 @@ board_init :: () {
     transform.factor = size;
     Sill.transform_commit(*transform);
 
-    Sill.ui_on_update(*ui, _on_update, userData = instance.board);
-
-    _init_meshes();
-
-    // Drawing a position
-    position := get_starting_position();
-    board_update_to_position(position);
+    _reflow_board_info();
 }
 
 board_orient :: (_orientation : Color) {
@@ -98,18 +104,7 @@ board_info_show :: (game : Game) {
         _set_name(info.blackPlayerName, name);
     }
 
-    info.whitePlayerName.transform.translation.x = -ui.extent.width;
-    info.whitePlayerName.transform.translation.y = ui.extent.height / 2 + instance.config.env.fontSize / 2 + BoardEntity.PLAYER_NAME_PADDING;
-    info.blackPlayerName.transform.translation.x = -ui.extent.width;
-    info.blackPlayerName.transform.translation.y = -ui.extent.height / 2 - instance.config.env.fontSize / 2 - BoardEntity.PLAYER_NAME_PADDING;
-
-    if orientation == .Black {
-        info.whitePlayerName.transform.translation.y *= -1;
-        info.blackPlayerName.transform.translation.y *= -1;
-    }
-
-    Sill.transform_commit(*info.whitePlayerName.transform);
-    Sill.transform_commit(*info.blackPlayerName.transform);
+    _reflow_board_info();
 }
 
 board_update_to_position :: (position : Position) {
@@ -194,6 +189,23 @@ _init_meshes :: () {
     Basic.array_add(*info.blackPlayerName.mesh.nodes[0].primitives, create_text_mesh());
     info.blackPlayerName.mesh.nodes[0].transform.translation.y -= instance.config.env.fontSize / 2;
     info.blackPlayerName.mesh.nodes[0].transform.translation.z = 0.2;
+}
+
+_reflow_board_info :: () {
+    using instance.board;
+
+    info.whitePlayerName.transform.translation.x = -ui.extent.width;
+    info.whitePlayerName.transform.translation.y = ui.extent.height / 2 + instance.config.env.fontSize / 2 + BoardEntity.PLAYER_NAME_PADDING;
+    info.blackPlayerName.transform.translation.x = -ui.extent.width;
+    info.blackPlayerName.transform.translation.y = -ui.extent.height / 2 - instance.config.env.fontSize / 2 - BoardEntity.PLAYER_NAME_PADDING;
+
+    if orientation == .Black {
+        info.whitePlayerName.transform.translation.y *= -1;
+        info.blackPlayerName.transform.translation.y *= -1;
+    }
+
+    Sill.transform_commit(*info.whitePlayerName.transform);
+    Sill.transform_commit(*info.blackPlayerName.transform);
 }
 
 _on_update :: (update : Sill.UiUpdate, using board : *BoardEntity) {

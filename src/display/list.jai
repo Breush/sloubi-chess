@@ -1,16 +1,19 @@
-List :: struct {
-    ui : struct { // @todo Make that a UiComponent...
-        position : Chamber.vec2;
-        extent : Chamber.vec2;
-    };
+ListNodeData :: struct {
+    plyEntity : *PlyEntity;
+}
 
+ListEntity :: struct {
+    using entity : Sill.Entity;
+    transform : Sill.TransformComponent;
+    ui : Sill.UiComponent;
+
+    scroll : ScrollEntity; // @note Not a pointer, no need to allocate it on the heap.
     cursorMesh : *Magma.Mesh;
 }
 
-ListNodeData :: struct {
-    moveColor : Chamber.vec3;
-
-    plyEntity : *PlyEntity;
+ScrollEntity :: struct {
+    using entity : Sill.Entity;
+    transform : Sill.TransformComponent;
 }
 
 PlyEntity :: struct {
@@ -23,6 +26,7 @@ PlyEntity :: struct {
     cursorPosition : u32; // Stored in bytes, not codepoints.
     startingOffsetX : float;
     commentLocation : CommentLocation;
+    depth : u8;
 
     // Below are just references to the corresponding primitive mesh within the component,
     // for easier use.
@@ -30,22 +34,54 @@ PlyEntity :: struct {
     commentMeshNode : *Sill.MeshNode;
     decorumMeshNode : *Sill.MeshNode; // Might be null.
 
+    moveColor : Chamber.vec3;
+    moveTextWidth : float;
+
     on_cleanup :: (using this : *PlyEntity) {
         Basic.array_free(charInfos);
     }
 }
 
 list_init :: () {
-    using *instance.list;
+    instance.list = SillMeta.create_list_entity(instance.engine);
+    list := instance.list;
 
-    ui.position.x = 0 + UiConstants.PaddingHorizontal;
-    ui.position.y = -450 + UiConstants.PaddingVertical;
-    ui.extent.width = 800 - 2 * UiConstants.PaddingHorizontal; // @todo :HardcodedScreenSize Un-hardcode that
-    ui.extent.height = 900 - 2 * UiConstants.PaddingVertical;
+    SillMeta.entity_init(*list.scroll, instance.engine);
+    Sill.entity_add_child(list, *list.scroll);
 
-    cursorMesh = create_rect_mesh(1, UiConstants.HeightLine);
-    cursorMesh.material = Magma.create_material(instance.shaders.monochrome);
-    Magma.material_set(cursorMesh.material, "color", Chamber.vec3.{1, 1, 1});
+    list.cursorMesh = create_rect_mesh(1, UiConstants.HeightLine);
+    list.cursorMesh.material = Magma.create_material(instance.shaders.monochrome);
+    list.cursorMesh.disabled = true;
+    Magma.material_set(list.cursorMesh.material, "color", Chamber.vec3.{1, 1, 1});
+
+    list_reflow();
+}
+
+list_reflow :: () {
+    list := instance.list;
+
+    extent := Crater.window_get_extent(instance.engine.window);
+
+    list.transform.translation.x = UiConstants.PaddingHorizontal;
+    list.transform.translation.y = - cast(s32) extent.height / 2 + UiConstants.PaddingVertical;
+
+    // @fixme What this sums up is that having the center at (0,0) is a bad idea because it can be half a pixel.
+    if (extent.width / 2) % 2 == 1 {
+        list.transform.translation.x += 0.5;
+    }
+    if (extent.height / 2) % 2 == 1 {
+        list.transform.translation.y += 0.5;
+    }
+
+    list.ui.extent.width = extent.width / 2 - 2 * UiConstants.PaddingHorizontal;
+    list.ui.extent.height = extent.height - 2 * UiConstants.PaddingVertical;
+    list.ui.anchor = .TopLeft;
+
+    Sill.transform_commit(*list.transform);
+
+    if instance.game.mainVariation.nodes.count > 0 {
+        _place_ply_entity(instance.game.mainVariation.nodes[0], propagate = true);
+    }
 }
 
 list_reset_ui :: (node : *Variation.Node) {
@@ -53,72 +89,59 @@ list_reset_ui :: (node : *Variation.Node) {
 }
 
 list_show :: (game : Game) {
-    using *instance.list;
-    list_show_variation(*game.mainVariation, ui.extent.width);
+    list_show_variation(*game.mainVariation);
     _rebuild_decorums(*game.mainVariation);
-
-    button_bar_show();
 }
 
-list_show_variation :: (variation : *Variation, width : float, depth : u8 = 0) {
-    using *instance.list;
-
-    splitWidth := (width - UiConstants.PaddingHorizontalSplit) / 2;
-    offsetToBlack := (width + UiConstants.PaddingHorizontalSplit) / 2;
-    fullStyleWidth := width * instance.config.moves.comments.fullStyleWidth;
-    fullStyleOffsetToBlack := Math.floor(width - fullStyleWidth + 0.5);
-
-    lastSplitHeight : float;
+list_show_variation :: (variation : *Variation, depth : u8 = 0) {
+    list := instance.list;
 
     for nodeIndex : 0..variation.nodes.count-1 {
         node := variation.nodes[nodeIndex];
-        node.moveColor = annotation_color(node.position.lastMove.annotation);
 
+        if node.plyEntity != null then Sill.destroy_entity(node.plyEntity);
         node.plyEntity = SillMeta.create_ply_entity(instance.engine);
-        _init_ply_entity(node, width);
-        _place_ply_entity(node);
+        node.plyEntity.moveColor = annotation_color(node.position.lastMove.annotation);
+        node.plyEntity.depth = depth;
 
-        // Other variations.
+        Sill.entity_set_parent(node.plyEntity, *list.scroll);
+        _init_ply_entity(node);
+        _place_ply_entity(node, propagate = false);
+
         for variation : node.variations {
-            list_show_variation(variation, width - UiConstants.PaddingHorizontalVariation, depth + 1);
+            list_show_variation(variation, depth + 1);
         }
     }
 }
 
 list_update_to_current_move :: (game : *Game, oldNode : *Variation.Node) {
-    using *instance.list;
+    list := instance.list;
 
     if oldNode != null {
         for *meshNode : oldNode.plyEntity.mesh.nodes {
-            Magma.material_set(meshNode.primitives[0].material, "color", oldNode.moveColor);
+            Magma.material_set(meshNode.primitives[0].material, "color", oldNode.plyEntity.moveColor);
         }
     }
 
-    startY := -1.0;
+    startY := 0.0;
     if game.node != null {
-        for *meshNode : game.node.plyEntity.mesh.nodes {
-            if startY == -1.0 || startY > meshNode.primitives[0].translation.y then startY = meshNode.primitives[0].translation.y;
+        startY = game.node.plyEntity.transform.translation.y;
 
-            color := ifx meshNode == game.node.plyEntity.commentMeshNode then instance.config.moves.selectedCommentColor else instance.config.moves.selectedColor;
+        for *meshNode : game.node.plyEntity.mesh.nodes {
+            color := ifx meshNode == game.node.plyEntity.commentMeshNode then instance.config.moves.selectedCommentColor
+                                                                         else instance.config.moves.selectedColor;
             Magma.material_set(meshNode.primitives[0].material, "color", color);
         }
     }
 
-    // No mesh? It's the root node (others have a decorum or a full move mesh).
-    if startY == -1.0 {
-        startY = ui.position.y;
-    }
-
-    // Scroll to be sure that the selected node is visible.
-    _scroll(ui.position.y - startY);
+    // @fixme Clever scrolling (i.e. don't if it's visible).
+    list_scroll(-list.scroll.transform.translation.y - startY);
 }
 
 list_scroll :: (scrollDelta : float) {
-    // @fixme Use the parented entities for the list.
-    // This would make the whole thing a lot easier to update the positions,
-    // and also allow to handle the input events in the correct order.
-
-    _scroll(25.0 * scrollDelta);
+    list := instance.list;
+    list.scroll.transform.translation.y += Math.floor(scrollDelta);
+    Sill.transform_commit(*list.scroll.transform);
 }
 
 CommentStyle :: enum {
@@ -212,26 +235,7 @@ _is_style_spaced_after :: (commentStyle : CommentStyle) -> bool {
     return commentStyle == .Half || commentStyle == .SidedFull || commentStyle == .Full;
 }
 
-_scroll :: (delta : float) {
-    _scroll(delta, *instance.game.mainVariation);
-}
-
-_scroll :: (delta : float, variation : *Variation) {
-    // Translate all meshes by the delta amount.
-    for node : variation.nodes {
-        node.plyEntity.transform.translation.y += delta;
-        Sill.transform_commit(*node.plyEntity.transform);
-        Sill.mesh_commit_nodes(*node.plyEntity.mesh, instantly = true);
-
-        for variation : node.variations {
-            _scroll(delta, variation);
-        }
-    }
-}
-
-_init_ply_entity :: (node : *Variation.Node, width : float) {
-    node.plyEntity.ui.anchor = .TopLeft;
-    node.plyEntity.ui.extent.width = width; // @fixme Also depends on other things, right?
+_init_ply_entity :: (node : *Variation.Node) {
     height : float;
 
     // ----- Move
@@ -244,7 +248,8 @@ _init_ply_entity :: (node : *Variation.Node, width : float) {
         // @fixme Used to be font bold/light based on variation depth.
         moveIndex := (node.position.moveIndex + 1) / 2;
         moveText := Basic.tprint("%.% %", moveIndex, ifx node.position.moveIndex % 2 then "" else ".. ", position_last_move_to_san(node.position, annotations = true));
-        charInfos := text_mesh_update(node.plyEntity.moveMeshNode.primitives[0], moveText, *instance.fonts.bold, node.moveColor);
+        charInfos := text_mesh_update(node.plyEntity.moveMeshNode.primitives[0], moveText, *instance.fonts.bold, node.plyEntity.moveColor);
+        node.plyEntity.moveTextWidth = Basic.peek(charInfos).effective.xEnd;
         Basic.array_free(charInfos);
     } else if (node.parentVariation.parentNode != null) {
         Basic.array_add(*node.plyEntity.mesh.nodes, .{});
@@ -264,13 +269,14 @@ _init_ply_entity :: (node : *Variation.Node, width : float) {
         // @fixme It "works" because the black comment is always created after the white one.
         // But we should check the charInfos I guess. (And have better BB.)
         <<trigger.stopPropagation = true;
+        instance.list.cursorMesh.disabled = cast(bool) (trigger.flags & .NoFocus);
 
-        Sill.ui_set_focused(*node.plyEntity.ui);
-        game_update_to(*instance.game, node);
-        _update_cursor(node);
-
-        // @fixme On Unfocused, hide cursor.
-    }, .Click, node);
+        if trigger.flags & .Click {
+            Sill.ui_set_focused(*node.plyEntity.ui);
+            game_update_to(*instance.game, node);
+            _update_cursor(node);
+        }
+    }, Sill.UiCallbackFlags.Click | .NoFocus, node);
 
     Sill.ui_on_trigger(*node.plyEntity.ui, (trigger : Sill.UiTrigger, node : *Variation.Node) {
         textChanged := false;
@@ -344,9 +350,13 @@ _place_comment_from_char_infos :: (node : *Variation.Node) {
 // Which means that the comment mesh node might be offseted to the left
 // for black moves.
 _place_ply_entity :: (node : *Variation.Node, propagate := false) {
-    maxWidth := node.plyEntity.ui.extent.width;
-    variationOffset := (instance.list.ui.extent.width - maxWidth);
+
+    variationOffset := node.plyEntity.depth * UiConstants.PaddingHorizontalVariation;
+    maxWidth := instance.list.ui.extent.width - variationOffset;
     offsetToBlack := (maxWidth + UiConstants.PaddingHorizontalSplit) / 2;
+
+    node.plyEntity.ui.anchor = .TopLeft;
+    node.plyEntity.ui.extent.width = maxWidth;
 
     // Detect the comment location, and re-structure it as needed.
     commentLocation := _detect_comment_location(node);
@@ -357,6 +367,8 @@ _place_ply_entity :: (node : *Variation.Node, propagate := false) {
         commentWidth = (maxWidth - UiConstants.PaddingHorizontalSplit) / 2;
     } else if commentLocation.style == .SidedFull {
         commentWidth = maxWidth * instance.config.moves.comments.fullStyleWidth;
+    } else if commentLocation.style == .Inline {
+        commentWidth = maxWidth / 2.0 - node.plyEntity.moveTextWidth - UiConstants.PaddingCommentInline;
     }
 
     // Make the text fit the specified size
@@ -369,9 +381,9 @@ _place_ply_entity :: (node : *Variation.Node, propagate := false) {
             node.plyEntity.commentMeshNode.transform.translation.y = UiConstants.HeightLine;
             node.plyEntity.ui.extent.height = UiConstants.HeightLine + commentHeight;
         } else {
-            node.plyEntity.commentMeshNode.transform.translation.x += Math.floor(maxWidth / 8.0 + 0.5);
+            node.plyEntity.commentMeshNode.transform.translation.x += node.plyEntity.moveTextWidth + UiConstants.PaddingCommentInline;
             node.plyEntity.commentMeshNode.transform.translation.y = 0.0;
-            node.plyEntity.ui.extent.height = UiConstants.HeightLine;
+            node.plyEntity.ui.extent.height = Basic.max(UiConstants.HeightLine, commentHeight);
         }
 
         if commentLocation.color == .Black &&
@@ -384,8 +396,7 @@ _place_ply_entity :: (node : *Variation.Node, propagate := false) {
 
     // Position the entity based on the above comment and the comment location.
     position : Chamber.vec2;
-    position.x = 50; // @fixme
-    position.x += variationOffset;
+    position.x = variationOffset;
 
     aboveNode : *Variation.Node;
     if node.index > 0 {

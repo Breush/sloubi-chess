@@ -5,4 +5,5 @@ UiConstants :: struct #type_info_none {
     PaddingHorizontalSplit :: 20.0;
     PaddingHorizontalVariation :: 40.0;
     WidthDecorumVariation :: 3.0;
+    PaddingCommentInline :: 5.0;
 }

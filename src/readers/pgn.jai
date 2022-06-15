@@ -54,9 +54,7 @@ load_pgn :: (filename : string) -> bool {
     Chamber._CHECK(bytes.count == 0, Basic.tprint("Leftovers: %", bytes));
 
     instance.game.pgnFileName = Basic.copy_string(filename);
-    board_info_show(instance.game);
-    list_show(instance.game);
-    game_update_to(*instance.game, instance.game.mainVariation.nodes[0]);
+    game_show(*instance.game);
 
     return true;
 }
