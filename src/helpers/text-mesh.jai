@@ -108,27 +108,27 @@ justify_char_infos :: (charInfos : []CharInfo, maxWidth : float, startingOffsetX
     offset : Chamber.vec2;
     offset.x = startingOffsetX;
 
+    lastKnownBlankIndex := -1;
     for *charInfo, index : charInfos {
+        if charInfo.glyphBlank then lastKnownBlankIndex = index;
         charInfo.effective.glyphOffset.std = charInfo.glyphOffset + offset;
         charInfo.effective.y = offset.y;
         currentWidth := charInfo.effective.glyphOffset.x + charInfo.glyphExtent.width;
 
         if currentWidth > maxWidth {
+            // When it does not fit and we don't have a previous blank, accept it.
+            //      |      |
+            //      aaaaaaaaaaa
+            if lastKnownBlankIndex == -1 then continue;
+
             // Moving the whole word down to the next line.
-            i := index;
-            while i >= 0 && !charInfos[i].glyphBlank {
+            for i : lastKnownBlankIndex + 1 .. index {
                 charInfos[i].effective.glyphOffset.y += UiConstants.HeightLine;
                 charInfos[i].effective.y += UiConstants.HeightLine;
-                i -= 1;
             }
 
-            // @fixme crash if not blank...
-            if i == -1 {
-                return UiConstants.HeightLine;
-            }
-
-            // Justify the whole line.
-            j := i;
+            // Justify the whole previous line.
+            j := lastKnownBlankIndex;
             blankCount := 0;
             while j >= 0 && charInfos[j].glyphBlank { j -= 1; } // Ignore ending blanks.
             while j >= 0 && charInfos[j].effective.y == charInfos[j + 1].effective.y {
@@ -136,22 +136,26 @@ justify_char_infos :: (charInfos : []CharInfo, maxWidth : float, startingOffsetX
                 j -= 1;
             }
 
-            j = i;
-            extraSpacePerBlank := (maxWidth - (offset.x + charInfos[j].glyphOffset.x + charInfos[j].glyphExtent.width)) / blankCount;
-            while j >= 0 && charInfos[j].glyphBlank {
-                charInfos[j].effective.glyphOffset.x += Math.floor(blankCount * extraSpacePerBlank + 0.5);
-                j -= 1;
-            }
-            while j >= 0 && charInfos[j].effective.y == charInfos[j + 1].effective.y {
-                charInfos[j].effective.glyphOffset.x += Math.floor(blankCount * extraSpacePerBlank + 0.5);
-                if charInfos[j].glyphBlank then blankCount -= 1;
-                j -= 1;
+            // Justify only when the whole previous line has more than one word.
+            //      |      |
+            //      aaaaa bbbb
+            if blankCount > 0 {
+                j = lastKnownBlankIndex;
+                extraSpacePerBlank := (maxWidth - (offset.x + charInfos[j].glyphOffset.x + charInfos[j].glyphExtent.width)) / blankCount;
+                while j >= 0 && charInfos[j].glyphBlank {
+                    charInfos[j].effective.glyphOffset.x += Math.floor(blankCount * extraSpacePerBlank + 0.5);
+                    j -= 1;
+                }
+                while j >= 0 && charInfos[j].effective.y == charInfos[j + 1].effective.y {
+                    charInfos[j].effective.glyphOffset.x += Math.floor(blankCount * extraSpacePerBlank + 0.5);
+                    if charInfos[j].glyphBlank then blankCount -= 1;
+                    j -= 1;
+                }
             }
 
             // Leave the ending blank character to the line above.
-            if charInfos[i].glyphBlank {
-                i += 1;
-            }
+            i := lastKnownBlankIndex + 1;
+            if i >= charInfos.count then break; // Last character is a blank, just stop here.
 
             offset.x = -charInfos[i].glyphOffset.x;
             offset.y += UiConstants.HeightLine;
@@ -161,6 +165,8 @@ justify_char_infos :: (charInfos : []CharInfo, maxWidth : float, startingOffsetX
                 charInfos[i].effective.glyphOffset.x += preOffset;
                 i += 1;
             }
+
+            lastKnownBlankIndex = -1;
         }
     }
 
