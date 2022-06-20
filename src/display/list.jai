@@ -14,6 +14,7 @@ ScrollEntity :: struct {
 
 PlyEntity :: struct {
     using entity : Sill.Entity;
+    collider : Sill.ColliderComponent;
     transform : Sill.TransformComponent;
     mesh : Sill.MeshComponent;
     ui : Sill.UiComponent;
@@ -268,6 +269,7 @@ _init_ply_entity :: (node : *Variation.Node) {
     Basic.array_add(*Basic.peek_pointer(node.plyEntity.mesh.nodes).primitives, create_text_mesh());
     node.plyEntity.commentMeshNode = Basic.peek_pointer(node.plyEntity.mesh.nodes);
     node.plyEntity.charInfos = text_mesh_update(node.plyEntity.commentMeshNode.primitives[0], node.comment, *instance.fonts.light, instance.config.moves.mainColor);
+    Basic.array_add(*node.plyEntity.collider.boxShapes, .{});
 
     Sill.ui_on_trigger(*node.plyEntity.ui, (trigger : Sill.UiTrigger, node : *Variation.Node) {
         if node.plyEntity.moveHovered {
@@ -327,18 +329,18 @@ _init_ply_entity :: (node : *Variation.Node) {
         _update_text_cursor(node);
     }, Sill.UiCallbackFlags.Text | .Key | .NoHover, node);
 
-    Sill.ui_check_hovered_handler(*node.plyEntity.ui, (plyEntity : *PlyEntity) -> bool {
+    Sill.ui_check_hovered_handler(*node.plyEntity.ui, (hovered : bool, plyEntity : *PlyEntity) -> bool {
         ray : Ray = ---;
-        ray.origin.x = cast(float) instance.engine.window.mousePosition.x - 800; // @fixme...
-        ray.origin.y = cast(float) instance.engine.window.mousePosition.y - 450;
+        ray.origin.x = cast(float) instance.engine.window.mousePosition.x - instance.engine.options.windowExtent.width / 2.0;
+        ray.origin.y = cast(float) instance.engine.window.mousePosition.y - instance.engine.options.windowExtent.height / 2.0;
         ray.origin.z = -40;
         ray.direction = .{0, 0, 1};
 
         plyEntity.moveHovered = false;
 
-        if plyEntity.moveMeshNode {
+        if hovered && plyEntity.moveMeshNode {
             mesh := plyEntity.moveMeshNode.primitives[0];
-            distance := Magma.mesh_distance_from(mesh, ray, .MeshClosestHit);
+            distance := Magma.mesh_distance_from(mesh, ray, .MeshFirstHit);
             if distance > 0.0 {
                 plyEntity.moveHovered = true;
                 Crater.window_pointer_style(instance.engine.window, .HandPointer);
@@ -347,11 +349,7 @@ _init_ply_entity :: (node : *Variation.Node) {
         }
 
         if plyEntity.commentMeshNode {
-            // @fixme As we don't have spaces in the geometry, the cursor is changing from Text to Default
-            // regularly. We'd do better with a collider component.
-            mesh := plyEntity.commentMeshNode.primitives[0];
-            distance := Magma.mesh_distance_from(mesh, ray, .MeshClosestHit);
-
+            distance := Sill.collider_distance_from(*plyEntity.collider, ray);
             if distance > 0.0 {
                 Crater.window_pointer_style(instance.engine.window, .Text);
                 return true;
@@ -370,10 +368,18 @@ _place_comment_from_char_infos :: (node : *Variation.Node) {
         return;
     }
 
+    minBounds := Chamber.vec2.{50000.0, 50000.0};
+    maxBounds := Chamber.vec2.{-50000.0, -50000.0};
+
     mesh.disabled = false;
     index := 0;
     for *charInfo : node.plyEntity.charInfos {
         if charInfo.glyphBlank then continue;
+
+        if charInfo.effective.xStart < minBounds.x then minBounds.x = charInfo.effective.xStart;
+        if charInfo.effective.yStart < minBounds.y then minBounds.y = charInfo.effective.yStart;
+        if charInfo.effective.xEnd > maxBounds.x then maxBounds.x = charInfo.effective.xEnd;
+        if charInfo.effective.yEnd > maxBounds.y then maxBounds.y = charInfo.effective.yEnd;
 
         mesh.vertices[4 * index + 0].position.x = charInfo.effective.glyphOffset.x;
         mesh.vertices[4 * index + 0].position.y = charInfo.effective.glyphOffset.y;
@@ -388,13 +394,20 @@ _place_comment_from_char_infos :: (node : *Variation.Node) {
     }
 
     Magma.mesh_commit_vertices(mesh);
+
+    node.plyEntity.collider.boxShapes[0].transform.translation = node.plyEntity.commentMeshNode.transform.translation;
+    node.plyEntity.collider.boxShapes[0].transform.rotation = node.plyEntity.commentMeshNode.transform.rotation;
+    node.plyEntity.collider.boxShapes[0].transform.translation.xy.std += (maxBounds + minBounds) / 2.0;
+    node.plyEntity.collider.boxShapes[0].extent.xy.std = maxBounds - minBounds;
+    node.plyEntity.collider.boxShapes[0].extent.z = 1.0;
+
+    Sill.collider_commit_shapes(*node.plyEntity.collider);
 }
 
 // The ply entity mesh position (0,0) means the top left of the move text.
 // Which means that the comment mesh node might be offseted to the left
 // for black moves.
 _place_ply_entity :: (node : *Variation.Node, propagate := false) {
-
     variationOffset := node.plyEntity.depth * UiConstants.PaddingHorizontalVariation;
     maxWidth := instance.list.ui.extent.width - variationOffset;
     offsetToBlack := (maxWidth + UiConstants.PaddingHorizontalSplit) / 2;
@@ -415,19 +428,19 @@ _place_ply_entity :: (node : *Variation.Node, propagate := false) {
         commentWidth = maxWidth / 2.0 - node.plyEntity.moveTextWidth - UiConstants.PaddingCommentInline;
     }
 
-    // Make the text fit the specified size
+    // Position the comment mesh based on its location.
+    // Make the text fit the specified size.
     commentHeight := justify_char_infos(node.plyEntity.charInfos, commentWidth, 0.0);
-    _place_comment_from_char_infos(node);
 
     node.plyEntity.commentMeshNode.transform.translation = .{};
     if node.index != 0 {
-        if commentLocation.style != .Inline {
-            node.plyEntity.commentMeshNode.transform.translation.y = UiConstants.HeightLine;
-            node.plyEntity.ui.extent.height = UiConstants.HeightLine + commentHeight;
-        } else {
+        if commentLocation.style == .Inline || node.comment.count == 0 {
             node.plyEntity.commentMeshNode.transform.translation.x += node.plyEntity.moveTextWidth + UiConstants.PaddingCommentInline;
             node.plyEntity.commentMeshNode.transform.translation.y = 0.0;
             node.plyEntity.ui.extent.height = Basic.max(UiConstants.HeightLine, commentHeight);
+        } else {
+            node.plyEntity.commentMeshNode.transform.translation.y = UiConstants.HeightLine;
+            node.plyEntity.ui.extent.height = UiConstants.HeightLine + commentHeight;
         }
 
         if commentLocation.color == .Black &&
@@ -437,6 +450,9 @@ _place_ply_entity :: (node : *Variation.Node, propagate := false) {
     } else {
         node.plyEntity.ui.extent.height = commentHeight;
     }
+
+    // @note Waiting for the comment mesh node to be positioned so that we can place the collider accordingly.
+    _place_comment_from_char_infos(node);
 
     // Position the entity based on the above comment and the comment location.
     position : Chamber.vec2;
@@ -551,10 +567,8 @@ _set_text_cursor_position_from_mouse :: (node : *Variation.Node) {
 
         if xStart <= relativePosition.x && charInfo.effective.xEnd > relativePosition.x &&
            charInfo.effective.yStart <= relativePosition.y && charInfo.effective.yEnd > relativePosition.y {
-            plyEntity.textCursorPosition = byteIndex;
-            // Next character if we are closer to the end.
             if relativePosition.x - xStart > charInfo.effective.xEnd - relativePosition.x {
-                plyEntity.textCursorPosition += Chamber.utf8_word_length_after_byte(node.comment, byteIndex);
+                byteIndex += Chamber.utf8_word_length_after_byte(node.comment, byteIndex);
             }
             break;
         }
@@ -563,6 +577,8 @@ _set_text_cursor_position_from_mouse :: (node : *Variation.Node) {
         xStart = charInfo.effective.xEnd;
         lastYStart = charInfo.effective.yStart;
     }
+
+    plyEntity.textCursorPosition = byteIndex;
 }
 
 _update_text_cursor :: (node : *Variation.Node) {
@@ -575,10 +591,11 @@ _update_text_cursor :: (node : *Variation.Node) {
     // @note We always update the cursor, because when the text changed and not the cursor position,
     // the justification of the line might slightly move the cursor itself.
     textCursor.transform.translation = plyEntity.commentMeshNode.transform.translation;
+    textCursor.transform.translation.y += UiConstants.HeightLine / 2;
     if plyEntity.textCursorPosition == 0 {
         if plyEntity.charInfos.count != 0 {
             textCursor.transform.translation.x += plyEntity.charInfos[0].effective.xStart;
-            textCursor.transform.translation.y += plyEntity.charInfos[0].effective.yStart + UiConstants.HeightLine / 2;
+            textCursor.transform.translation.y += plyEntity.charInfos[0].effective.yStart;
         }
     } else {
         byteIndex : u32;
@@ -587,7 +604,7 @@ _update_text_cursor :: (node : *Variation.Node) {
 
             if plyEntity.textCursorPosition <= byteIndex {
                 textCursor.transform.translation.x += Math.floor(plyEntity.charInfos[i].effective.xEndWithAdvance + 0.5);
-                textCursor.transform.translation.y += plyEntity.charInfos[i].effective.yStart + UiConstants.HeightLine / 2;
+                textCursor.transform.translation.y += plyEntity.charInfos[i].effective.yStart;
                 break;
             }
         }
