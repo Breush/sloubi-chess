@@ -55,7 +55,7 @@ Variation :: struct {
         parentVariation : *Variation;
         index : u16; // Index of the node in the parent variation.
 
-        using listData : ListNodeData;
+        plyEntity : *PlyEntity; // Managed by list.
     }
 }
 

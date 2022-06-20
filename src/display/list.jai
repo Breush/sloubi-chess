@@ -1,14 +1,10 @@
-ListNodeData :: struct {
-    plyEntity : *PlyEntity;
-}
-
 ListEntity :: struct {
     using entity : Sill.Entity;
     transform : Sill.TransformComponent;
     ui : Sill.UiComponent;
 
     scroll : ScrollEntity; // @note Not a pointer, no need to allocate it on the heap.
-    cursorMesh : *Magma.Mesh;
+    textCursor : TextCursorEntity;
 }
 
 ScrollEntity :: struct {
@@ -23,7 +19,7 @@ PlyEntity :: struct {
     ui : Sill.UiComponent;
 
     charInfos : []CharInfo;
-    cursorPosition : u32; // Stored in bytes, not codepoints.
+    textCursorPosition : u32; // Stored in bytes, not codepoints.
     startingOffsetX : float;
     commentLocation : CommentLocation;
     depth : u8;
@@ -34,6 +30,8 @@ PlyEntity :: struct {
     commentMeshNode : *Sill.MeshNode;
     decorumMeshNode : *Sill.MeshNode; // Might be null.
 
+    moveHovered : bool;
+
     moveColor : Chamber.vec3;
     moveTextWidth : float;
 
@@ -42,17 +40,23 @@ PlyEntity :: struct {
     }
 }
 
+TextCursorEntity :: struct {
+    using entity : Sill.Entity;
+    transform : Sill.TransformComponent;
+    mesh : Sill.MeshComponent;
+}
+
 list_init :: () {
     instance.list = SillMeta.create_list_entity(instance.engine);
     list := instance.list;
 
-    SillMeta.entity_init(*list.scroll, instance.engine);
     Sill.entity_add_child(list, *list.scroll);
 
-    list.cursorMesh = create_rect_mesh(1, UiConstants.HeightLine);
-    list.cursorMesh.material = Magma.create_material(instance.shaders.monochrome);
-    list.cursorMesh.disabled = true;
-    Magma.material_set(list.cursorMesh.material, "color", Chamber.vec3.{1, 1, 1});
+    textCursorMesh := Sill.mesh_make_primitive(*list.textCursor.mesh);
+    create_rect_mesh(1, UiConstants.HeightLine, existingMesh = textCursorMesh);
+    textCursorMesh.material = Magma.create_material(instance.shaders.monochrome);
+    textCursorMesh.disabled = true;
+    Magma.material_set(textCursorMesh.material, "color", Chamber.vec3.{1, 1, 1});
 
     list_reflow();
 }
@@ -245,10 +249,10 @@ _init_ply_entity :: (node : *Variation.Node) {
         Basic.array_add(*Basic.peek_pointer(node.plyEntity.mesh.nodes).primitives, create_text_mesh());
         node.plyEntity.moveMeshNode = Basic.peek_pointer(node.plyEntity.mesh.nodes);
 
-        // @fixme Used to be font bold/light based on variation depth.
         moveIndex := (node.position.moveIndex + 1) / 2;
         moveText := Basic.tprint("%.% %", moveIndex, ifx node.position.moveIndex % 2 then "" else ".. ", position_last_move_to_san(node.position, annotations = true));
-        charInfos := text_mesh_update(node.plyEntity.moveMeshNode.primitives[0], moveText, *instance.fonts.bold, node.plyEntity.moveColor);
+        font := ifx node.plyEntity.depth == 0 then *instance.fonts.bold else *instance.fonts.light;
+        charInfos := text_mesh_update(node.plyEntity.moveMeshNode.primitives[0], moveText, font, node.plyEntity.moveColor);
         node.plyEntity.moveTextWidth = Basic.peek(charInfos).effective.xEnd;
         Basic.array_free(charInfos);
     } else if (node.parentVariation.parentNode != null) {
@@ -266,45 +270,51 @@ _init_ply_entity :: (node : *Variation.Node) {
     node.plyEntity.charInfos = text_mesh_update(node.plyEntity.commentMeshNode.primitives[0], node.comment, *instance.fonts.light, instance.config.moves.mainColor);
 
     Sill.ui_on_trigger(*node.plyEntity.ui, (trigger : Sill.UiTrigger, node : *Variation.Node) {
-        // @fixme It "works" because the black comment is always created after the white one.
-        // But we should check the charInfos I guess. (And have better BB.)
-        <<trigger.stopPropagation = true;
-        instance.list.cursorMesh.disabled = cast(bool) (trigger.flags & .NoFocus);
-
-        if trigger.flags & .Click {
-            Sill.ui_set_focused(*node.plyEntity.ui);
+        if node.plyEntity.moveHovered {
             game_update_to(*instance.game, node);
-            _update_cursor(node);
         }
-    }, Sill.UiCallbackFlags.Click | .NoFocus, node);
+
+        Sill.ui_set_focused(*node.plyEntity.ui);
+        _set_text_cursor_position_from_mouse(node);
+        _update_text_cursor(node);
+    }, Sill.UiCallbackFlags.Click, node);
+
+    Sill.ui_on_trigger(*node.plyEntity.ui, (trigger : Sill.UiTrigger, node : *Variation.Node) {
+        _show_text_cursor(!(trigger.flags & .NoFocus));
+    }, Sill.UiCallbackFlags.Focus | .NoFocus, node);
 
     Sill.ui_on_trigger(*node.plyEntity.ui, (trigger : Sill.UiTrigger, node : *Variation.Node) {
         textChanged := false;
         <<trigger.stopPropagation = true;
 
         if trigger.event.kind == .TextEntered {
-            Chamber.insert_after_byte(*node.comment, node.plyEntity.cursorPosition, trigger.event.text.str);
-            node.plyEntity.cursorPosition += cast(u32) trigger.event.text.str.count;
+            Chamber.insert_after_byte(*node.comment, node.plyEntity.textCursorPosition, trigger.event.text.str);
+            node.plyEntity.textCursorPosition += cast(u32) trigger.event.text.str.count;
             textChanged = true;
         } else if trigger.event.kind == .KeyPressed {
-            if trigger.event.key.which == .Delete {
-                deletedBytes := Chamber.delete_after_byte(*node.comment, node.plyEntity.cursorPosition);
+            if trigger.event.key.which == .Escape {
+                Sill.ui_set_focused(*node.plyEntity.ui, false);
+            } else if trigger.event.key.which == .Delete {
+                deletedBytes := Chamber.delete_after_byte(*node.comment, node.plyEntity.textCursorPosition);
                 if deletedBytes == 0 then return;
                 textChanged = true;
             } else if trigger.event.key.which == .Backspace {
-                deletedBytes := Chamber.delete_before_byte(*node.comment, node.plyEntity.cursorPosition);
+                deletedBytes := Chamber.delete_before_byte(*node.comment, node.plyEntity.textCursorPosition);
                 if deletedBytes == 0 then return;
-                node.plyEntity.cursorPosition -= deletedBytes;
+                node.plyEntity.textCursorPosition -= deletedBytes;
                 textChanged = true;
             } else if trigger.event.key.which == .Left {
-                if node.plyEntity.cursorPosition == 0 then return;
-                node.plyEntity.cursorPosition -= Chamber.utf8_word_length_before_byte(node.comment, node.plyEntity.cursorPosition);
+                if node.plyEntity.textCursorPosition == 0 then return;
+                node.plyEntity.textCursorPosition -= Chamber.utf8_word_length_before_byte(node.comment, node.plyEntity.textCursorPosition);
             } else if trigger.event.key.which == .Right {
-                if node.plyEntity.cursorPosition == node.comment.count then return;
-                node.plyEntity.cursorPosition += Chamber.utf8_word_length_after_byte(node.comment, node.plyEntity.cursorPosition);
+                if node.plyEntity.textCursorPosition == node.comment.count then return;
+                node.plyEntity.textCursorPosition += Chamber.utf8_word_length_after_byte(node.comment, node.plyEntity.textCursorPosition);
             } else {
                 return;
             }
+        } else {
+            Crater.window_pointer_style(instance.engine.window, .Default);
+            return;
         }
 
         // @todo Do a clever diff instead of regenerating everything?
@@ -314,8 +324,42 @@ _init_ply_entity :: (node : *Variation.Node) {
             _place_ply_entity(node, propagate = true);
         }
 
-        _update_cursor(node);
-    }, Sill.UiCallbackFlags.Text | .Key, node);
+        _update_text_cursor(node);
+    }, Sill.UiCallbackFlags.Text | .Key | .NoHover, node);
+
+    Sill.ui_check_hovered_handler(*node.plyEntity.ui, (plyEntity : *PlyEntity) -> bool {
+        ray : Ray = ---;
+        ray.origin.x = cast(float) instance.engine.window.mousePosition.x - 800; // @fixme...
+        ray.origin.y = cast(float) instance.engine.window.mousePosition.y - 450;
+        ray.origin.z = -40;
+        ray.direction = .{0, 0, 1};
+
+        plyEntity.moveHovered = false;
+
+        if plyEntity.moveMeshNode {
+            mesh := plyEntity.moveMeshNode.primitives[0];
+            distance := Magma.mesh_distance_from(mesh, ray, .MeshClosestHit);
+            if distance > 0.0 {
+                plyEntity.moveHovered = true;
+                Crater.window_pointer_style(instance.engine.window, .HandPointer);
+                return true;
+            }
+        }
+
+        if plyEntity.commentMeshNode {
+            // @fixme As we don't have spaces in the geometry, the cursor is changing from Text to Default
+            // regularly. We'd do better with a collider component.
+            mesh := plyEntity.commentMeshNode.primitives[0];
+            distance := Magma.mesh_distance_from(mesh, ray, .MeshClosestHit);
+
+            if distance > 0.0 {
+                Crater.window_pointer_style(instance.engine.window, .Text);
+                return true;
+            }
+        }
+
+        return false;
+    }, node.plyEntity);
 }
 
 _place_comment_from_char_infos :: (node : *Variation.Node) {
@@ -490,31 +534,70 @@ _rebuild_decorums :: (variation : *Variation) {
     }
 }
 
-_update_cursor :: (node : *Variation.Node) {
-    commentMesh := node.plyEntity.commentMeshNode.primitives[0];
+_set_text_cursor_position_from_mouse :: (node : *Variation.Node) {
+    plyEntity := node.plyEntity;
+    relativePosition := plyEntity.ui.relativeMousePointerPosition;
+    relativePosition.std -= plyEntity.commentMeshNode.transform.translation.xy;
+
+    // Find the closest char info.
+    byteIndex : u32;
+    xStart := 0.0;
+    lastYStart := -1.0;
+    for *charInfo : plyEntity.charInfos {
+        // New line, reset xStart.
+        if lastYStart != charInfo.effective.yStart {
+            xStart = charInfo.effective.xStart;
+        }
+
+        if xStart <= relativePosition.x && charInfo.effective.xEnd > relativePosition.x &&
+           charInfo.effective.yStart <= relativePosition.y && charInfo.effective.yEnd > relativePosition.y {
+            plyEntity.textCursorPosition = byteIndex;
+            // Next character if we are closer to the end.
+            if relativePosition.x - xStart > charInfo.effective.xEnd - relativePosition.x {
+                plyEntity.textCursorPosition += Chamber.utf8_word_length_after_byte(node.comment, byteIndex);
+            }
+            break;
+        }
+
+        byteIndex += Chamber.utf8_word_length_after_byte(node.comment, byteIndex);
+        xStart = charInfo.effective.xEnd;
+        lastYStart = charInfo.effective.yStart;
+    }
+}
+
+_update_text_cursor :: (node : *Variation.Node) {
+    plyEntity := node.plyEntity;
+    textCursor := *instance.list.textCursor;
+    commentMesh := plyEntity.commentMeshNode.primitives[0];
+
+    Sill.entity_set_parent(textCursor, plyEntity);
 
     // @note We always update the cursor, because when the text changed and not the cursor position,
     // the justification of the line might slightly move the cursor itself.
-    instance.list.cursorMesh.translation.xy = commentMesh.translation.xy;
-    if node.plyEntity.cursorPosition == 0 {
-        if node.plyEntity.charInfos.count != 0 {
-            instance.list.cursorMesh.translation.x += node.plyEntity.charInfos[0].effective.xStart;
-            instance.list.cursorMesh.translation.y += node.plyEntity.charInfos[0].effective.y + UiConstants.HeightLine / 2;
+    textCursor.transform.translation = plyEntity.commentMeshNode.transform.translation;
+    if plyEntity.textCursorPosition == 0 {
+        if plyEntity.charInfos.count != 0 {
+            textCursor.transform.translation.x += plyEntity.charInfos[0].effective.xStart;
+            textCursor.transform.translation.y += plyEntity.charInfos[0].effective.yStart + UiConstants.HeightLine / 2;
         }
-        Magma.mesh_commit_instance(instance.list.cursorMesh);
     } else {
         byteIndex : u32;
-        for i : 0..node.plyEntity.charInfos.count-1 {
+        for i : 0 .. plyEntity.charInfos.count - 1 {
             byteIndex += Chamber.utf8_word_length_after_byte(node.comment, byteIndex);
 
-            if node.plyEntity.cursorPosition <= byteIndex {
-                instance.list.cursorMesh.translation.x += node.plyEntity.charInfos[i].effective.xEnd;
-                instance.list.cursorMesh.translation.y += node.plyEntity.charInfos[i].effective.y + UiConstants.HeightLine / 2;
-                Magma.mesh_commit_instance(instance.list.cursorMesh);
+            if plyEntity.textCursorPosition <= byteIndex {
+                textCursor.transform.translation.x += Math.floor(plyEntity.charInfos[i].effective.xEndWithAdvance + 0.5);
+                textCursor.transform.translation.y += plyEntity.charInfos[i].effective.yStart + UiConstants.HeightLine / 2;
                 break;
             }
         }
     }
+
+    Sill.transform_commit(*textCursor.transform);
+}
+
+_show_text_cursor :: (show := true) {
+    instance.list.textCursor.mesh.nodes[0].primitives[0].disabled = !show;
 }
 
 _make_decorum_mesh :: (width : float) -> *Magma.Mesh {

@@ -10,7 +10,9 @@ CharInfo :: struct { // @fixme Also store how many bytes it is worth.
         glyphOffset : Chamber.vec2;
         xStart : float;
         xEnd : float;
-        y : float;
+        xEndWithAdvance : float;
+        yStart : float;
+        yEnd : float;
     }
 }
 
@@ -89,7 +91,10 @@ text_mesh_update :: (mesh : *Magma.Mesh, text : string, font : *Chamber.Font, co
     for *charInfo : charInfos {
         charInfo.effective.glyphOffset.std = charInfo.glyphOffset;
         charInfo.effective.xStart = charInfo.effective.glyphOffset.x;
-        charInfo.effective.xEnd = charInfo.effective.glyphOffset.x + charInfo.glyphAdvance;
+        charInfo.effective.xEnd = charInfo.effective.glyphOffset.x + charInfo.glyphExtent.width;
+        charInfo.effective.xEndWithAdvance = charInfo.effective.glyphOffset.x + charInfo.glyphAdvance;
+        charInfo.effective.yStart = 0;
+        charInfo.effective.yEnd = font.size;
     }
 
     Magma.mesh_commit_vertices(mesh);
@@ -112,7 +117,8 @@ justify_char_infos :: (charInfos : []CharInfo, maxWidth : float, startingOffsetX
     for *charInfo, index : charInfos {
         if charInfo.glyphBlank then lastKnownBlankIndex = index;
         charInfo.effective.glyphOffset.std = charInfo.glyphOffset + offset;
-        charInfo.effective.y = offset.y;
+        charInfo.effective.yStart = offset.y;
+        charInfo.effective.yEnd = offset.y + UiConstants.HeightLine;
         currentWidth := charInfo.effective.glyphOffset.x + charInfo.glyphExtent.width;
 
         if currentWidth > maxWidth {
@@ -124,14 +130,15 @@ justify_char_infos :: (charInfos : []CharInfo, maxWidth : float, startingOffsetX
             // Moving the whole word down to the next line.
             for i : lastKnownBlankIndex + 1 .. index {
                 charInfos[i].effective.glyphOffset.y += UiConstants.HeightLine;
-                charInfos[i].effective.y += UiConstants.HeightLine;
+                charInfos[i].effective.yStart += UiConstants.HeightLine;
+                charInfos[i].effective.yEnd += UiConstants.HeightLine;
             }
 
             // Justify the whole previous line.
             j := lastKnownBlankIndex;
             blankCount := 0;
             while j >= 0 && charInfos[j].glyphBlank { j -= 1; } // Ignore ending blanks.
-            while j >= 0 && charInfos[j].effective.y == charInfos[j + 1].effective.y {
+            while j >= 0 && charInfos[j].effective.yStart == charInfos[j + 1].effective.yStart {
                 if charInfos[j].glyphBlank then blankCount += 1;
                 j -= 1;
             }
@@ -146,7 +153,7 @@ justify_char_infos :: (charInfos : []CharInfo, maxWidth : float, startingOffsetX
                     charInfos[j].effective.glyphOffset.x += Math.floor(blankCount * extraSpacePerBlank + 0.5);
                     j -= 1;
                 }
-                while j >= 0 && charInfos[j].effective.y == charInfos[j + 1].effective.y {
+                while j >= 0 && charInfos[j].effective.yStart == charInfos[j + 1].effective.yStart {
                     charInfos[j].effective.glyphOffset.x += Math.floor(blankCount * extraSpacePerBlank + 0.5);
                     if charInfos[j].glyphBlank then blankCount -= 1;
                     j -= 1;
@@ -172,7 +179,8 @@ justify_char_infos :: (charInfos : []CharInfo, maxWidth : float, startingOffsetX
 
     for *charInfo : charInfos {
         charInfo.effective.xStart = charInfo.effective.glyphOffset.x;
-        charInfo.effective.xEnd = charInfo.effective.glyphOffset.x + charInfo.glyphAdvance;
+        charInfo.effective.xEnd = charInfo.effective.glyphOffset.x + charInfo.glyphExtent.width;
+        charInfo.effective.xEndWithAdvance = charInfo.effective.glyphOffset.x + charInfo.glyphAdvance;
     }
 
     return offset.y + UiConstants.HeightLine;

@@ -1,5 +1,8 @@
-create_rect_mesh :: (width := 1.0, height := 1.0, depth := 0.0) -> *Magma.Mesh {
-    mesh := Magma.create_mesh(instance.engine.scene);
+create_rect_mesh :: (width := 1.0, height := 1.0, depth := 0.0, existingMesh : *Magma.Mesh = null) -> *Magma.Mesh {
+    mesh := existingMesh;
+    if mesh == null {
+        mesh = Magma.create_mesh(instance.engine.scene);
+    }
 
     positions : [4]Chamber.vec3 = ---;
 
