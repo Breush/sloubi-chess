@@ -13,10 +13,12 @@
 Position :: struct {
     board : [CoordCount]Piece;
 
+    // @fixme Clarify: why comment is not there? Or why do we have so much info here?
     moveIndex : u16; // @note Therefore contains the color to play: even = white, odd = black.
     lastMove : Move;
     annotation : PositionAnnotation;
     observationAnnotations : [..]ObservationAnnotation;
+    squareHighlights : [..]SquareHighlight;
 
     movesSinceLastCaptureOrPawnMove : u8;
 
@@ -76,6 +78,50 @@ ObservationAnnotation :: enum u8 {
     TimeControlPressure; // ⨁
     WithIdea; // ∆
     Novelty; // ℕ
+}
+
+SquareHighlight :: struct {
+    color : HighlightColor;
+    coord : Coord;
+}
+
+HighlightColor :: enum {
+    None :: 0;
+    Blue;
+    Green;
+    Red;
+    Yellow;
+}
+
+highlight_color :: (character : u8) -> HighlightColor {
+    if character == {
+        case #char "B"; return .Blue;
+        case #char "G"; return .Green;
+        case #char "R"; return .Red;
+        case #char "Y"; return .Yellow;
+    }
+    return .None;
+}
+
+highlight_color_to_string :: (highlightColor : HighlightColor) -> string {
+    if #complete highlightColor == {
+        case .None; return "";
+        case .Blue; return "B";
+        case .Green; return "G";
+        case .Red; return "R";
+        case .Yellow; return "Y";
+    }
+}
+
+highlight_color_to_vec4 :: (highlightColor : HighlightColor) -> Chamber.vec4 {
+    if #complete highlightColor == {
+        case .None; return .{0, 0, 0, 0};
+        case .Blue; return Chamber.make_vec4(instance.config.board.highlightColors.blue, 1);
+        case .Green; return Chamber.make_vec4(instance.config.board.highlightColors.green, 1);
+        case .Red; return Chamber.make_vec4(instance.config.board.highlightColors.red, 1);
+        case .Yellow; return Chamber.make_vec4(instance.config.board.highlightColors.yellow, 1);
+    }
+
 }
 
 annotation_color :: (annotation : MoveAnnotation) -> Chamber.vec3 {
@@ -374,4 +420,21 @@ position_play_move :: (position : *Position, sourceCoord : Coord, targetCoord : 
     position.board[sourceCoord].kind = .Empty;
 
     // @todo :AutoCheck Detect if check, checkmate automatically!
+}
+
+// Removes the highlight if already existing with the same color.
+// Adds it or changes its color otherwise.
+position_toggle_highlight :: (position : *Position, squareHighlight : SquareHighlight) {
+    for *existingSquareHighlight : position.squareHighlights {
+        if existingSquareHighlight.coord == squareHighlight.coord {
+            if existingSquareHighlight.color == squareHighlight.color {
+                remove existingSquareHighlight;
+            } else {
+                existingSquareHighlight.color = squareHighlight.color;
+            }
+            return;
+        }
+    }
+
+    Basic.array_add(*position.squareHighlights, squareHighlight);
 }

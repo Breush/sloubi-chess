@@ -18,6 +18,12 @@ Config :: struct {
         pieces : string;
         lightSquareColor : Chamber.vec3;
         darkSquareColor : Chamber.vec3;
+        highlightColors : struct {
+            blue : Chamber.vec3;
+            green : Chamber.vec3;
+            red : Chamber.vec3;
+            yellow : Chamber.vec3;
+        }
     }
     controls : struct {
         nextPly : Crater.Key;

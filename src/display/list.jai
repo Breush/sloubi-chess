@@ -552,7 +552,7 @@ _rebuild_decorums :: (variation : *Variation) {
 
 _set_text_cursor_position_from_mouse :: (node : *Variation.Node) {
     plyEntity := node.plyEntity;
-    relativePosition := plyEntity.ui.relativeMousePointerPosition;
+    relativePosition := Sill.ui_relative_mouse_pointer_position(*plyEntity.ui);
     relativePosition.std -= plyEntity.commentMeshNode.transform.translation.xy;
 
     // Find the closest char info.

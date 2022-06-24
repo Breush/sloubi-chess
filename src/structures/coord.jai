@@ -55,6 +55,12 @@ coord_to_algebraic :: (coord : Coord, silentOnInvalid := false) -> string {
     return s;
 }
 
+algebraic_to_coord :: (s : string) -> Coord {
+    col := s[0] - #char "a";
+    row := s[1] - #char "1";
+    return coord(row, col);
+}
+
 // Return 0xFF if a component is invalid.
 row_col :: (coord : Coord) -> (row : u8, col : u8) {
     row, col : u8;

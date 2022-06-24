@@ -37,6 +37,7 @@ load_pgn :: (filename : string) -> bool {
         } else if tagName == "WhiteElo" { game.tags.whiteElo = cast(u16) Basic.to_integer(_parse_to_end_of_string(*bytes));
         } else if tagName == "BlackElo" { game.tags.blackElo = cast(u16) Basic.to_integer(_parse_to_end_of_string(*bytes));
         } else if tagName == "Result" { // Ignored, but silently.
+        } else if tagName == "SetUp" { // Ignored too. (Kind of duplicate with FEN.)
         } else {
             tag := Basic.array_add(*game.tags.extra);
             tag.name = Basic.copy_string(tagName);
@@ -144,6 +145,17 @@ _write_variation :: (builder : *Basic.String_Builder, variation : *Variation) {
             _write_escaped_comment(builder, node.comment);
         }
 
+        if node.position.squareHighlights.count != 0 {
+            Basic.append(builder, " {[%csl ");
+            for squareHighlight, index : node.position.squareHighlights {
+                Basic.print_to_builder(builder, "%1%2", highlight_color_to_string(squareHighlight.color), coord_to_algebraic(squareHighlight.coord));
+                if index != node.position.squareHighlights.count - 1 {
+                    Basic.append(builder, ",");
+                }
+            }
+            Basic.append(builder, "]}");
+        }
+
         if node.variations.count != 0 {
             if index != 0 || node.comment.count != 0 {
                 Basic.append(builder, " ");
@@ -180,6 +192,7 @@ _write_escaped_comment :: (builder : *Basic.String_Builder, comment : string) {
     Basic.append(builder, "{");
     for i : 0..comment.count - 1 {
         if comment[i] == #char "}" then Basic.append(builder, "\\}");
+        else if comment[i] == #char "[" then Basic.append(builder, "\\[");
         else Basic.append(builder, comment[i]);
     }
     Basic.append(builder, "}");
@@ -448,10 +461,12 @@ _parse_potential_move_number :: (bytes : *string) -> bool {
 }
 
 _parse_move :: (bytes : *string, variation : *Variation, color : Color) {
-    lastPosition := Basic.peek(variation.nodes).position;
-    lastPosition.annotation = .None;
-    lastPosition.observationAnnotations.count = 0;
-    lastPosition.lastMove = .{};
+    lastPosition := *Basic.peek(variation.nodes).position;
+
+    position : Position;
+    position.board = lastPosition.board;
+    position.moveIndex = lastPosition.moveIndex;
+    position.movesSinceLastCaptureOrPawnMove = lastPosition.movesSinceLastCaptureOrPawnMove;
 
     capture : bool;
     sourceCoord, targetCoord : Coord = 0xFF, 0xFF;
@@ -506,16 +521,16 @@ _parse_move :: (bytes : *string, variation : *Variation, color : Color) {
     }
 
     // @todo :AutoCheck Should not be our job to update position with this info.
-    lastPosition.check = _parse_potential_check(bytes);
-    lastPosition.mate = _parse_potential_mate(bytes);
+    position.check = _parse_potential_check(bytes);
+    position.mate = _parse_potential_mate(bytes);
     _skip_blanks(bytes);
 
     // Updating the game
     if coord_is_valid(sourceCoord) {
-        position_play_move(*lastPosition, sourceCoord, targetCoord, promotionPieceKind);
+        position_play_move(*position, sourceCoord, targetCoord, promotionPieceKind);
 
         node := game_add_variation_node(*instance.game, variation);
-        node.position = lastPosition;
+        node.position = position;
     }
 }
 
@@ -656,7 +671,7 @@ _parse_potential_result :: (bytes : *string) -> (bool, Game.Result) {
     return false, .Unknown;
 }
 
-_parse_potential_comment :: (bytes : *string) -> (string, bool) {
+_parse_potential_comment :: (bytes : *string, position : *Position) -> (string, bool) {
     if bytes.count == 0 then return ("", false);
     if (<<bytes)[0] != #char "{" then return ("", false);
     Basic.advance(bytes);
@@ -676,6 +691,17 @@ _parse_potential_comment :: (bytes : *string) -> (string, bool) {
         else if !previousIsBackslash {
             // Special command. @todo Detect arrows and circles!
             if (<<bytes)[0] == #char "[" && (<<bytes)[1] == #char "%" {
+                Basic.advance(bytes, 2);
+                commandName := _parse_word(bytes);
+                Basic.advance(bytes);
+
+                // Square highlight command.
+                if commandName == "csl" {
+                    _parse_square_highlights(bytes, position);
+                } else {
+                    Basic.log("Unknown PGN command name: %", commandName, flags = .WARNING);
+                }
+
                 while (<<bytes)[0] != #char "]" {
                     Basic.advance(bytes);
                 }
@@ -702,10 +728,10 @@ _parse_potential_comments :: (bytes : *string, variation : *Variation) {
         Basic.push_allocator(Basic.temp);
 
         while true {
-            comment, ok := _parse_potential_comment(bytes);
+            comment, ok := _parse_potential_comment(bytes, *Basic.peek(variation.nodes).position);
             if !ok then break;
 
-            if fullComment.count == 0 then  fullComment = comment;
+            if fullComment.count == 0 then fullComment = comment;
             else if comment.count != 0 {
                 fullComment = Basic.sprint("%\n%", fullComment, comment);
             }
@@ -821,14 +847,40 @@ _parse_potential_annotation :: (bytes : *string, variation : *Variation) -> bool
     return nag != .None;
 }
 
-_parse_word :: (bytes : *string) -> string {
+_parse_square_highlights :: (bytes : *string, position : *Position) {
+    Basic.push_allocator(context.default_allocator);
+
+    while true {
+        coloredSquare := _parse_until(bytes, .[#char "]", #char " ", #char ","]);
+        if coloredSquare.count != 0 {
+            squareHighlight := Basic.array_add(*position.squareHighlights);
+            squareHighlight.color = highlight_color(coloredSquare[0]);
+            Basic.advance(*coloredSquare);
+            squareHighlight.coord = algebraic_to_coord(coloredSquare);
+        }
+
+        _skip_blanks(bytes);
+        if (<<bytes)[0] == #char "]" then break;
+        Basic.advance(bytes);
+    }
+}
+
+_parse_until :: (bytes : *string, characters : []u8) -> string {
     word : string;
     word.data = bytes.data;
 
-    while (<<bytes)[0] != #char " " && (<<bytes)[0] != #char "\n" {
+    while true {
+        for character : characters {
+            if (<<bytes)[0] == character then return word;
+        }
+
         word.count += 1;
         Basic.advance(bytes);
     }
 
     return word;
+}
+
+_parse_word :: (bytes : *string) -> string {
+    return _parse_until(bytes, .[#char " ", #char "\n"]);
 }

@@ -18,6 +18,7 @@ BoardEntity :: struct {
     orientation : Color;
 
     hoveredCoord : Coord = 0xFF;
+    arrowingStartCoord : Coord = 0xFF;
 }
 
 PlayerNameEntity :: struct {
@@ -32,12 +33,43 @@ board_init :: () {
     using instance.board;
 
     instance.board = SillMeta.create_board_entity(instance.engine);
+    ui.draggable = true;
 
     _init_resources();
     _init_meshes();
     board_reflow();
 
     Sill.ui_on_update(*ui, _on_update, userData = instance.board);
+
+    Sill.ui_on_trigger(*ui, (trigger : Sill.UiTrigger, using board : *BoardEntity) {
+        if trigger.flags & .NoHover || trigger.flags & .Dragging  {
+            _update_hovered_coord(board);
+            return;
+        }
+
+        if !instance.game.node then return;
+
+        if trigger.flags & .Click {
+            if trigger.event.mouseButton.which == .Left {
+                instance.game.node.position.squareHighlights.count = 0;
+            } else if trigger.event.mouseButton.which == .Right && hoveredCoord != 0xFF {
+                _toggle_hovered_square_highlight(board);
+            }
+        } else if trigger.flags & .Drag {
+            board.arrowingStartCoord = hoveredCoord;
+        } else if trigger.flags & .NoDrag {
+            if trigger.event.mouseButton.which == .Right {
+                _update_hovered_coord(board);
+                if board.arrowingStartCoord == board.hoveredCoord {
+                    _toggle_hovered_square_highlight(board);
+                } else {
+                    // @todo Should draw arrow.
+                }
+            }
+        }
+
+        board_update_to_position(instance.game.node.position);
+    }, Sill.UiCallbackFlags.Click | .NoHover | .Drag | .Dragging | .NoDrag, instance.board);
 
     // Drawing a position
     position := get_starting_position();
@@ -114,6 +146,12 @@ board_update_to_position :: (position : Position) {
         node := *mesh.nodes[coord + 1];
         pieceTexture := piecesTextures[piece_id(position.board[coord])];
         Magma.material_set(node.primitives[0].material, "pieceTexture", pieceTexture);
+        Magma.material_set(node.primitives[0].material, "highlightColor", Chamber.vec4.{0, 0, 0, 0});
+    }
+
+    for squareHighlight : position.squareHighlights {
+        node := *mesh.nodes[squareHighlight.coord + 1];
+        Magma.material_set(node.primitives[0].material, "highlightColor", highlight_color_to_vec4(squareHighlight.color));
     }
 }
 
@@ -208,10 +246,16 @@ _reflow_board_info :: () {
     Sill.transform_commit(*info.blackPlayerName.transform);
 }
 
-_on_update :: (update : Sill.UiUpdate, using board : *BoardEntity) {
+_on_update :: (update : Sill.UiUpdate, board : *BoardEntity) {
+    _update_hovered_coord(board);
+}
+
+_update_hovered_coord :: (using board : *BoardEntity) {
+    relativeMousePointerPosition := Sill.ui_relative_mouse_pointer_position(*ui);
+
     normalizedCoord : Chamber.vec2;
-    normalizedCoord.x = -8.0 * ui.relativeMousePointerPosition.y / ui.extent.width + 4.0;
-    normalizedCoord.y =  8.0 * ui.relativeMousePointerPosition.x / ui.extent.width + 4.0;
+    normalizedCoord.x = -8.0 * relativeMousePointerPosition.y / ui.extent.width + 4.0;
+    normalizedCoord.y =  8.0 * relativeMousePointerPosition.x / ui.extent.width + 4.0;
 
     if orientation == .Black {
         normalizedCoord.x = 8 - normalizedCoord.x;
@@ -231,4 +275,24 @@ _on_update :: (update : Sill.UiUpdate, using board : *BoardEntity) {
     if hoveredCoord != 0xFF {
         Magma.material_set(mesh.nodes[hoveredCoord + 1].primitives[0].material, "hovered", true);
     }
+}
+
+_toggle_hovered_square_highlight :: (using board : *BoardEntity) {
+    squareHighlight : SquareHighlight;
+    squareHighlight.coord = hoveredCoord;
+
+    if Sill.input_state(instance.engine, .ShiftLeft) ||
+    Sill.input_state(instance.engine, .ShiftRight) {
+        squareHighlight.color = .Green;
+    } else if Sill.input_state(instance.engine, .ControlLeft) ||
+            Sill.input_state(instance.engine, .ControlRight) {
+        squareHighlight.color = .Yellow;
+    } else if Sill.input_state(instance.engine, .AltLeft) ||
+            Sill.input_state(instance.engine, .AltRight) {
+        squareHighlight.color = .Blue;
+    } else {
+        squareHighlight.color = .Red;
+    }
+
+    position_toggle_highlight(*instance.game.node.position, squareHighlight);
 }

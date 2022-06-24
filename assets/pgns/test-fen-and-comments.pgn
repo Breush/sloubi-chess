@@ -8,8 +8,8 @@
 [SetUp "1"]
 [FEN "rnbqkbnr/pppp1ppp/8/4p3/3P4/8/PPP1PPPP/RNBQKBNR w KQkq e6 0 2"]
 
-{Intro comment.} 2. dxe5 {Post comment.} 2... d6 {Crazy comment.} ({An
-alternative:} 2... Nc6 {even though first move was already bad.} 3. Nf3 {(you
-can defend)} ({or be aggressive:} 3. e4)) (2... d5 $6 {which won't solve all
-issues, neither those: {Hey\} $1.}) 3. exd6 $2 {is more than strange however.}
-3... Bxd6 $1 {developping the bishop!} *
+{Intro comment.} {[%csl Rf5,Gg5,Bg4,Yf4]} 2. dxe5 {Post comment.} 2... d6 {Crazy
+comment.} ({An alternative:} 2... Nc6 {even though first move was already bad.}
+3. Nf3 {(you can defend)} ({or be aggressive:} 3. e4)) (2... d5 $6 {which won't
+solve all issues, neither those: {Hey\} $1.}) 3. exd6 $2 {is more than strange
+however.} 3... Bxd6 $1 {developping the bishop!} *

@@ -17,6 +17,7 @@
 layout(std140, set = MATERIAL_DESCRIPTOR_SET_INDEX, binding = 0) uniform MaterialShaderObject {
     vec3 color;
     bool hovered;
+    vec4 highlightColor;
 } material;
 
 layout(set = MATERIAL_DESCRIPTOR_SET_INDEX, binding = 1) uniform sampler2D pieceTexture;
@@ -33,9 +34,19 @@ vec3 toLinear(vec3 sRGB)
 void main() {
     outColor = vec4(material.color, 1.0);
 
-    // @todo Make the highlight be of a inversed-round shape
+    // Highlighted square
+    float f = 0.20 + 0.40 * length(uv - 0.5);
+    float v = floor(40 * (uv.x + uv.y));
+    f *= mod(v, 4) / 3;
+    outColor.rgb = mix(outColor.rgb, material.highlightColor.rgb, f * material.highlightColor.a);
+
+    // Hovering
     if (material.hovered) {
-        outColor.rgb -= 0.1;
+        const float lineSize = 0.02;
+        if (uv.x < lineSize || uv.x > 1 - lineSize ||
+            uv.y < lineSize || uv.y > 1 - lineSize) {
+            outColor.rgb = mix(outColor.rgb, material.highlightColor.rgb, 0.5);
+        }
     }
 
     // Alpha compositing to opaque background
