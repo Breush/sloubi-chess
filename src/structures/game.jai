@@ -60,7 +60,7 @@ Variation :: struct {
 }
 
 game_show :: (game : *Game) {
-    board_info_show(game);
+    meta_board_show(game);
     list_show(game);
     button_bar_show();
 
@@ -122,8 +122,8 @@ game_update_to :: (game : *Game, node : *Variation.Node) {
     game.node = node;
 
     variation := game_current_variation(game);
-    board_orient(game.boardOrientation);
-    board_update_to_position(node.position);
+    meta_board_orient(game.boardOrientation);
+    meta_board_update_to_position(node.position);
     list_update_to_current_move(game, oldNode);
 }
 

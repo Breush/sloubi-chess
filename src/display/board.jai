@@ -1,5 +1,6 @@
+// The board entity is really the squares and arrows.
 BoardEntity :: struct {
-    using entity : Sill.Entity;
+    using entity : Sill.Entity; @Sill:NoStorage
 
     ui : Sill.UiComponent;
     mesh : Sill.MeshComponent;
@@ -8,38 +9,25 @@ BoardEntity :: struct {
     squareShader : *Magma.Shader;
     piecesTextures : [PieceIdCount]*Magma.Texture;
 
-    info : struct {
-        whitePlayerName : *PlayerNameEntity;
-        blackPlayerName : *PlayerNameEntity;
-    };
-
-    PLAYER_NAME_PADDING :: 2;
-
-    orientation : Color;
-
     hoveredCoord : Coord = 0xFF;
     arrowingStartCoord : Coord = 0xFF;
+    arrows : [..]*ArrowEntity;
 }
 
-PlayerNameEntity :: struct {
+ArrowEntity :: struct {
     using entity : Sill.Entity;
 
     transform : Sill.TransformComponent;
     mesh : Sill.MeshComponent;
-    ui : Sill.UiComponent;
 }
 
-board_init :: () {
-    using instance.board;
-
-    instance.board = SillMeta.create_board_entity(instance.engine);
+board_init :: (using board : *BoardEntity) {
     ui.draggable = true;
 
-    _init_resources();
-    _init_meshes();
-    board_reflow();
+    _init_resources(board);
+    _init_meshes(board);
 
-    Sill.ui_on_update(*ui, _on_update, userData = instance.board);
+    Sill.ui_on_update(*ui, _on_update, userData = board);
 
     Sill.ui_on_trigger(*ui, (trigger : Sill.UiTrigger, using board : *BoardEntity) {
         if trigger.flags & .NoHover || trigger.flags & .Dragging  {
@@ -51,7 +39,8 @@ board_init :: () {
 
         if trigger.flags & .Click {
             if trigger.event.mouseButton.which == .Left {
-                instance.game.node.position.squareHighlights.count = 0;
+                instance.game.node.position.highlights.squares.count = 0;
+                instance.game.node.position.highlights.arrows.count = 0;
             } else if trigger.event.mouseButton.which == .Right && hoveredCoord != 0xFF {
                 _toggle_hovered_square_highlight(board);
             }
@@ -63,85 +52,43 @@ board_init :: () {
                 if board.arrowingStartCoord == board.hoveredCoord {
                     _toggle_hovered_square_highlight(board);
                 } else {
-                    // @todo Should draw arrow.
+                    arrowHighlight : ArrowHighlight;
+                    arrowHighlight.color = highlight_color();
+                    arrowHighlight.fromCoord = arrowingStartCoord;
+                    arrowHighlight.toCoord = hoveredCoord;
+                    position_add_arrow_highlight(*instance.game.node.position, arrowHighlight);
                 }
             }
         }
 
-        board_update_to_position(instance.game.node.position);
-    }, Sill.UiCallbackFlags.Click | .NoHover | .Drag | .Dragging | .NoDrag, instance.board);
+        board_update_to_position(board, instance.game.node.position);
+    }, Sill.UiCallbackFlags.Click | .NoHover | .Drag | .Dragging | .NoDrag, board);
 
     // Drawing a position
     position := get_starting_position();
-    board_update_to_position(position);
+    board_update_to_position(board, position);
 }
 
-board_reflow :: () {
-    using instance.board;
-
-    // We want to fit the board in the left part of the screen nicely à 95% of the available space.
-    eye := Magma.renderer_get_eye(engine.renderer, 0);
-    size := 0.95 * Basic.min(eye.extent.width / 2.0, cast(float) eye.extent.height);
+board_update_to_size :: (using board : *BoardEntity, size : float) {
     ui.extent.width, ui.extent.height = size, size;
 
-    transform.translation.x = -size / 2.0;
-    transform.factor = size;
+    // Each square mesh is created of extent (1,1) so we scale them here.
+    transform.factor = size / 8.0;
     Sill.transform_commit(*transform);
-
-    _reflow_board_info();
 }
 
-board_orient :: (_orientation : Color) {
-    using instance.board;
-
-    orientation = _orientation;
+board_update_from_orientation :: (using board : *BoardEntity, orientation : Color) {
+    // 180° rotation around Z when black
+    transform.rotation = ifx orientation == .Black then Chamber.quat.{0, 0, 1, 0} else .{0, 0, 0, 1};
+    Sill.transform_commit(*transform);
 
     for coord : 0..CoordCount-1 {
         node := *mesh.nodes[coord + 1];
-        row, col := row_col(cast(u8) coord);
-        if orientation == .White {
-            node.transform.translation.x = -4 + (col + 0.5);
-            node.transform.translation.y =  4 - (row + 0.5);
-        } else {
-            node.transform.translation.x = -4 + (7 - col + 0.5);
-            node.transform.translation.y =  4 - (7 - row + 0.5);
-        }
+        Magma.material_set(node.primitives[0].material, "flipped", orientation == .Black);
     }
-
-    Sill.mesh_commit_nodes(*mesh);
 }
 
-board_info_show :: (game : Game) {
-    using instance.board;
-
-    info.whitePlayerName.mesh.nodes[0].primitives[0].disabled = true;
-    info.blackPlayerName.mesh.nodes[0].primitives[0].disabled = true;
-
-    _set_name :: (playerNameEntity : *PlayerNameEntity, name : string) {
-        playerNameEntity.mesh.nodes[0].primitives[0].disabled = false;
-        charInfos := text_mesh_update(playerNameEntity.mesh.nodes[0].primitives[0], name, *instance.fonts.bold, instance.config.env.textColor);
-        Basic.array_free(charInfos);
-
-    }
-
-    if game.tags.white != "" {
-        name := ifx game.tags.whiteElo == 0 then game.tags.white
-                                            else Basic.tprint("% (%)", game.tags.white, game.tags.whiteElo);
-        _set_name(info.whitePlayerName, name);
-    }
-
-    if game.tags.black != "" {
-        name := ifx game.tags.blackElo == 0 then game.tags.black
-                                            else Basic.tprint("% (%)", game.tags.black, game.tags.blackElo);
-        _set_name(info.blackPlayerName, name);
-    }
-
-    _reflow_board_info();
-}
-
-board_update_to_position :: (position : Position) {
-    using instance.board;
-
+board_update_to_position :: (using board : *BoardEntity, position : Position) {
     for coord : 0..CoordCount-1 {
         node := *mesh.nodes[coord + 1];
         pieceTexture := piecesTextures[piece_id(position.board[coord])];
@@ -149,37 +96,67 @@ board_update_to_position :: (position : Position) {
         Magma.material_set(node.primitives[0].material, "highlightColor", Chamber.vec4.{0, 0, 0, 0});
     }
 
-    for squareHighlight : position.squareHighlights {
+    for squareHighlight : position.highlights.squares {
         node := *mesh.nodes[squareHighlight.coord + 1];
         Magma.material_set(node.primitives[0].material, "highlightColor", highlight_color_to_vec4(squareHighlight.color));
+    }
+
+    // Destroy old arrows entities.
+    // @todo Maybe reuse them if existing!
+    for arrow : arrows {
+        Sill.destroy_entity(arrow);
+    }
+    arrows.count = 0;
+
+    for arrowHighlight, arrowIndex : position.highlights.arrows {
+        arrow := SillMeta.create_arrow_entity(instance.engine);
+        Basic.array_add(*arrows, arrow);
+
+        arrowDirection := coords_direction(arrowHighlight.fromCoord, arrowHighlight.toCoord);
+        arrowLength := Math.length(arrowDirection);
+        arrowDirection.std /= arrowLength;
+        theta := Math.atan2(-arrowDirection.x, arrowDirection.y); // Angle between (0,1) and the arrow direction
+
+        Basic.array_add(*arrow.mesh.nodes, .{});
+        Basic.array_add(*arrow.mesh.nodes[0].primitives, create_arrow_mesh(arrowLength, thickness = 0.16, basePadding = 0.24, headPadding = 0.08));
+
+        // Position the arrow
+        row, col := row_col(arrowHighlight.fromCoord);
+        Sill.entity_set_parent(arrow, board);
+        arrow.transform.translation.x = 0.5 + col - 4;
+        arrow.transform.translation.y = 0.5 + (7 - row) - 4;
+        arrow.transform.translation.z = -0.1; // As this is multiplied by the parent's scaling, cannot use better unit.
+        arrow.transform.translation.z -= 0.01 * cast(float) arrowIndex; // Preventing z-fight between arrows.
+        Sill.transform_rotate(*arrow.transform, theta, .{0, 0, 1});
+        Sill.transform_commit(*arrow.transform);
+
+        arrow.mesh.nodes[0].primitives[0].material = Magma.create_material(instance.shaders.translucentMonochrome);
+        Magma.material_set(arrow.mesh.nodes[0].primitives[0].material, "color", highlight_color_to_vec4(arrowHighlight.color));
     }
 }
 
 #scope_file
 
-_init_resources :: () {
-    using instance.board;
-
+_init_resources :: (using board : *BoardEntity) {
     squareShader = Magma.create_shader(instance.engine.renderer, "./assets/materials/square");
 
-    init_piece_texture :: (pieceId : PieceId, filename : string) {
-        using instance.board;
+    init_piece_texture :: (using board : *BoardEntity, pieceId : PieceId, filename : string) {
         piecesTextures[pieceId] = Magma.create_texture(instance.engine.renderEngine);
         Magma.texture_load_from_file(piecesTextures[pieceId], filename);
     }
 
-    init_piece_texture(piece_id(.{ .B, .White }), Basic.tprint("./assets/images/pieces/%-wb.png", instance.config.board.pieces));
-    init_piece_texture(piece_id(.{ .K, .White }), Basic.tprint("./assets/images/pieces/%-wk.png", instance.config.board.pieces));
-    init_piece_texture(piece_id(.{ .N, .White }), Basic.tprint("./assets/images/pieces/%-wn.png", instance.config.board.pieces));
-    init_piece_texture(piece_id(.{ .P, .White }), Basic.tprint("./assets/images/pieces/%-wp.png", instance.config.board.pieces));
-    init_piece_texture(piece_id(.{ .Q, .White }), Basic.tprint("./assets/images/pieces/%-wq.png", instance.config.board.pieces));
-    init_piece_texture(piece_id(.{ .R, .White }), Basic.tprint("./assets/images/pieces/%-wr.png", instance.config.board.pieces));
-    init_piece_texture(piece_id(.{ .B, .Black }), Basic.tprint("./assets/images/pieces/%-bb.png", instance.config.board.pieces));
-    init_piece_texture(piece_id(.{ .K, .Black }), Basic.tprint("./assets/images/pieces/%-bk.png", instance.config.board.pieces));
-    init_piece_texture(piece_id(.{ .N, .Black }), Basic.tprint("./assets/images/pieces/%-bn.png", instance.config.board.pieces));
-    init_piece_texture(piece_id(.{ .P, .Black }), Basic.tprint("./assets/images/pieces/%-bp.png", instance.config.board.pieces));
-    init_piece_texture(piece_id(.{ .Q, .Black }), Basic.tprint("./assets/images/pieces/%-bq.png", instance.config.board.pieces));
-    init_piece_texture(piece_id(.{ .R, .Black }), Basic.tprint("./assets/images/pieces/%-br.png", instance.config.board.pieces));
+    init_piece_texture(board, piece_id(.{ .B, .White }), Basic.tprint("./assets/images/pieces/%-wb.png", instance.config.board.pieces));
+    init_piece_texture(board, piece_id(.{ .K, .White }), Basic.tprint("./assets/images/pieces/%-wk.png", instance.config.board.pieces));
+    init_piece_texture(board, piece_id(.{ .N, .White }), Basic.tprint("./assets/images/pieces/%-wn.png", instance.config.board.pieces));
+    init_piece_texture(board, piece_id(.{ .P, .White }), Basic.tprint("./assets/images/pieces/%-wp.png", instance.config.board.pieces));
+    init_piece_texture(board, piece_id(.{ .Q, .White }), Basic.tprint("./assets/images/pieces/%-wq.png", instance.config.board.pieces));
+    init_piece_texture(board, piece_id(.{ .R, .White }), Basic.tprint("./assets/images/pieces/%-wr.png", instance.config.board.pieces));
+    init_piece_texture(board, piece_id(.{ .B, .Black }), Basic.tprint("./assets/images/pieces/%-bb.png", instance.config.board.pieces));
+    init_piece_texture(board, piece_id(.{ .K, .Black }), Basic.tprint("./assets/images/pieces/%-bk.png", instance.config.board.pieces));
+    init_piece_texture(board, piece_id(.{ .N, .Black }), Basic.tprint("./assets/images/pieces/%-bn.png", instance.config.board.pieces));
+    init_piece_texture(board, piece_id(.{ .P, .Black }), Basic.tprint("./assets/images/pieces/%-bp.png", instance.config.board.pieces));
+    init_piece_texture(board, piece_id(.{ .Q, .Black }), Basic.tprint("./assets/images/pieces/%-bq.png", instance.config.board.pieces));
+    init_piece_texture(board, piece_id(.{ .R, .Black }), Basic.tprint("./assets/images/pieces/%-br.png", instance.config.board.pieces));
 
     // Use a transparent texture for emptiness.
     // @fixme This could be done "automatically" by Magma when the texture is set to "null".
@@ -188,13 +165,8 @@ _init_resources :: () {
     Magma.texture_load_from_memory(piecesTextures[emptyPieceId], .[0, 0, 0, 0], .{1, 1});
 }
 
-_init_meshes :: () {
-    using instance.board;
-
-    // @note We create the square meshes to be size 1,
-    // but set the root node size to 1/8 so that the board is of size 1.
-    Basic.array_add(*mesh.nodes, .{});
-    mesh.nodes[0].transform.scaling = .{1.0 / 8.0, 1.0 / 8.0, 1.0};
+_init_meshes :: (using board : *BoardEntity) {
+    Basic.array_add(*mesh.nodes, .{}); // @fixme The root node is probably not useful
 
     for coord : 0..CoordCount-1 {
         squareMesh := create_rect_mesh();
@@ -210,40 +182,10 @@ _init_meshes :: () {
         node := Basic.peek_pointer(mesh.nodes);
         node.parent = 0;
         Basic.array_add(*node.primitives, squareMesh);
+
+        node.transform.translation.x = -4 + (col + 0.5);
+        node.transform.translation.y =  4 - (row + 0.5);
     }
-
-    // Will update the position of the squares
-    board_orient(orientation);
-
-    // @todo Make on_create functions (like on_destroy) that act like constructors?
-    info.whitePlayerName = SillMeta.create_player_name_entity(instance.engine);
-    Basic.array_add(*info.whitePlayerName.mesh.nodes, .{});
-    Basic.array_add(*info.whitePlayerName.mesh.nodes[0].primitives, create_text_mesh());
-    info.whitePlayerName.mesh.nodes[0].transform.translation.y -= instance.config.env.fontSize / 2;
-    info.whitePlayerName.mesh.nodes[0].transform.translation.z = -0.2;
-
-    info.blackPlayerName = SillMeta.create_player_name_entity(instance.engine);
-    Basic.array_add(*info.blackPlayerName.mesh.nodes, .{});
-    Basic.array_add(*info.blackPlayerName.mesh.nodes[0].primitives, create_text_mesh());
-    info.blackPlayerName.mesh.nodes[0].transform.translation.y -= instance.config.env.fontSize / 2;
-    info.blackPlayerName.mesh.nodes[0].transform.translation.z = 0.2;
-}
-
-_reflow_board_info :: () {
-    using instance.board;
-
-    info.whitePlayerName.transform.translation.x = -ui.extent.width;
-    info.whitePlayerName.transform.translation.y = ui.extent.height / 2 + instance.config.env.fontSize / 2 + BoardEntity.PLAYER_NAME_PADDING;
-    info.blackPlayerName.transform.translation.x = -ui.extent.width;
-    info.blackPlayerName.transform.translation.y = -ui.extent.height / 2 - instance.config.env.fontSize / 2 - BoardEntity.PLAYER_NAME_PADDING;
-
-    if orientation == .Black {
-        info.whitePlayerName.transform.translation.y *= -1;
-        info.blackPlayerName.transform.translation.y *= -1;
-    }
-
-    Sill.transform_commit(*info.whitePlayerName.transform);
-    Sill.transform_commit(*info.blackPlayerName.transform);
 }
 
 _on_update :: (update : Sill.UiUpdate, board : *BoardEntity) {
@@ -256,11 +198,6 @@ _update_hovered_coord :: (using board : *BoardEntity) {
     normalizedCoord : Chamber.vec2;
     normalizedCoord.x = -8.0 * relativeMousePointerPosition.y / ui.extent.width + 4.0;
     normalizedCoord.y =  8.0 * relativeMousePointerPosition.x / ui.extent.width + 4.0;
-
-    if orientation == .Black {
-        normalizedCoord.x = 8 - normalizedCoord.x;
-        normalizedCoord.y = 8 - normalizedCoord.y;
-    }
 
     if hoveredCoord != 0xFF {
         Magma.material_set(mesh.nodes[hoveredCoord + 1].primitives[0].material, "hovered", false);
@@ -280,19 +217,6 @@ _update_hovered_coord :: (using board : *BoardEntity) {
 _toggle_hovered_square_highlight :: (using board : *BoardEntity) {
     squareHighlight : SquareHighlight;
     squareHighlight.coord = hoveredCoord;
-
-    if Sill.input_state(instance.engine, .ShiftLeft) ||
-    Sill.input_state(instance.engine, .ShiftRight) {
-        squareHighlight.color = .Green;
-    } else if Sill.input_state(instance.engine, .ControlLeft) ||
-            Sill.input_state(instance.engine, .ControlRight) {
-        squareHighlight.color = .Yellow;
-    } else if Sill.input_state(instance.engine, .AltLeft) ||
-            Sill.input_state(instance.engine, .AltRight) {
-        squareHighlight.color = .Blue;
-    } else {
-        squareHighlight.color = .Red;
-    }
-
+    squareHighlight.color = highlight_color();
     position_toggle_highlight(*instance.game.node.position, squareHighlight);
 }

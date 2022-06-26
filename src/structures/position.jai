@@ -18,7 +18,11 @@ Position :: struct {
     lastMove : Move;
     annotation : PositionAnnotation;
     observationAnnotations : [..]ObservationAnnotation;
-    squareHighlights : [..]SquareHighlight;
+
+    highlights : struct {
+        squares : [..]SquareHighlight;
+        arrows : [..]ArrowHighlight;
+    }
 
     movesSinceLastCaptureOrPawnMove : u8;
 
@@ -85,12 +89,32 @@ SquareHighlight :: struct {
     coord : Coord;
 }
 
+ArrowHighlight :: struct {
+    color : HighlightColor;
+    fromCoord : Coord;
+    toCoord : Coord;
+}
+
 HighlightColor :: enum {
     None :: 0;
     Blue;
     Green;
     Red;
     Yellow;
+}
+
+highlight_color :: () -> HighlightColor {
+    if Sill.input_state(instance.engine, .ShiftLeft) ||
+       Sill.input_state(instance.engine, .ShiftRight) {
+        return .Green;
+    } else if Sill.input_state(instance.engine, .ControlLeft) ||
+              Sill.input_state(instance.engine, .ControlRight) {
+        return .Yellow;
+    } else if Sill.input_state(instance.engine, .AltLeft) ||
+              Sill.input_state(instance.engine, .AltRight) {
+        return .Blue;
+    }
+    return .Red;
 }
 
 highlight_color :: (character : u8) -> HighlightColor {
@@ -116,10 +140,10 @@ highlight_color_to_string :: (highlightColor : HighlightColor) -> string {
 highlight_color_to_vec4 :: (highlightColor : HighlightColor) -> Chamber.vec4 {
     if #complete highlightColor == {
         case .None; return .{0, 0, 0, 0};
-        case .Blue; return Chamber.make_vec4(instance.config.board.highlightColors.blue, 1);
-        case .Green; return Chamber.make_vec4(instance.config.board.highlightColors.green, 1);
-        case .Red; return Chamber.make_vec4(instance.config.board.highlightColors.red, 1);
-        case .Yellow; return Chamber.make_vec4(instance.config.board.highlightColors.yellow, 1);
+        case .Blue; return instance.config.board.highlightColors.blue;
+        case .Green; return instance.config.board.highlightColors.green;
+        case .Red; return instance.config.board.highlightColors.red;
+        case .Yellow; return instance.config.board.highlightColors.yellow;
     }
 
 }
@@ -425,16 +449,30 @@ position_play_move :: (position : *Position, sourceCoord : Coord, targetCoord : 
 // Removes the highlight if already existing with the same color.
 // Adds it or changes its color otherwise.
 position_toggle_highlight :: (position : *Position, squareHighlight : SquareHighlight) {
-    for *existingSquareHighlight : position.squareHighlights {
-        if existingSquareHighlight.coord == squareHighlight.coord {
-            if existingSquareHighlight.color == squareHighlight.color {
-                remove existingSquareHighlight;
-            } else {
-                existingSquareHighlight.color = squareHighlight.color;
-            }
-            return;
+    for *existingSquareHighlight : position.highlights.squares {
+        if existingSquareHighlight.coord != squareHighlight.coord then continue;
+        if existingSquareHighlight.color == squareHighlight.color {
+            remove existingSquareHighlight;
+        } else {
+            existingSquareHighlight.color = squareHighlight.color;
         }
+        return;
     }
 
-    Basic.array_add(*position.squareHighlights, squareHighlight);
+    Basic.array_add(*position.highlights.squares, squareHighlight);
+}
+
+position_add_arrow_highlight :: (position : *Position, arrowHighlight : ArrowHighlight) {
+    for *existingArrowHighlight : position.highlights.arrows {
+        if existingArrowHighlight.fromCoord != arrowHighlight.fromCoord then continue;
+        if existingArrowHighlight.toCoord != arrowHighlight.toCoord then continue;
+        if existingArrowHighlight.color == arrowHighlight.color {
+            remove existingArrowHighlight;
+        } else {
+            existingArrowHighlight.color = arrowHighlight.color;
+        }
+        return;
+    }
+
+    Basic.array_add(*position.highlights.arrows, arrowHighlight);
 }

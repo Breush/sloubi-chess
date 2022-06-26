@@ -19,7 +19,9 @@ for_expansion :: Hash.for_expansion;
 #load "display/board.jai";
 #load "display/file-select.jai";
 #load "display/list.jai";
+#load "display/meta-board.jai";
 #load "helpers/fork-awesome.jai";
+#load "helpers/arrow-mesh.jai";
 #load "helpers/rect-mesh.jai";
 #load "helpers/text-mesh.jai";
 #load "helpers/ui-constants.jai";
@@ -46,10 +48,11 @@ Instance :: struct {
     shaders : struct {
         monochrome : *Magma.Shader;
         text : *Magma.Shader;
+        translucentMonochrome : *Magma.Shader;
     }
 
     background : Background;
-    board : *BoardEntity;
+    metaBoard : *MetaBoardEntity;
     buttonBar : ButtonBar;
     config : Config;
     controller : *ControllerEntity;
@@ -83,7 +86,7 @@ main :: () {
     _shaders_init();
     _fonts_init();
     controller_init();
-    board_init();
+    meta_board_init();
     background_init();
     list_init();
     button_bar_init();
@@ -106,10 +109,10 @@ main :: () {
 
 reflow :: () {
     background_reflow();
-    board_reflow();
+    button_bar_reflow();
     file_select_reflow();
     list_reflow();
-    button_bar_reflow();
+    meta_board_reflow();
 }
 
 #scope_file
@@ -163,6 +166,7 @@ _fonts_cleanup :: () {
 _shaders_init :: () {
     instance.shaders.monochrome = Magma.create_shader(instance.engine.renderer, "./assets/materials/monochrome");
     instance.shaders.text = Magma.create_shader(instance.engine.renderer, "./assets/materials/text", .{ depthWriteEnabled = false, alphaBlendingEnabled = true });
+    instance.shaders.translucentMonochrome = Magma.create_shader(instance.engine.renderer, "./assets/materials/translucent-monochrome", .{ depthWriteEnabled = false, alphaBlendingEnabled = true });
 }
 
 #import "Math";

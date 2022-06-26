@@ -6,4 +6,5 @@ UiConstants :: struct #type_info_none {
     PaddingHorizontalVariation :: 40.0;
     WidthDecorumVariation :: 3.0;
     PaddingCommentInline :: 5.0;
+    PaddingPlayerName :: 2.0;
 }

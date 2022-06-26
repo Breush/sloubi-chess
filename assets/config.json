@@ -12,11 +12,11 @@
         "pieces": "staunty",    // Files have to be in ./assets/images/pieces/ and prefixed accordingly
         "lightSquareColor": [0.905, 0.911, 0.822],  // RGB color, 0 to 1 values
         "darkSquareColor": [0.703, 0.573, 0.335],   // RGB color, 0 to 1 values
-        "highlightColors": { // RGB colors used for square highlights and arrows
-            "blue": [0.33, 0.33, 0.81],
-            "green": [0.33, 0.81, 0.33],
-            "red": [0.81, 0.33, 0.33],
-            "yellow": [0.81, 0.81, 0.33]
+        "highlightColors": { // RGBA colors used for square highlights and arrows
+            "blue": [0.33, 0.33, 0.81, 0.9],
+            "green": [0.33, 0.81, 0.33, 0.9],
+            "red": [0.81, 0.33, 0.33, 0.9],
+            "yellow": [0.81, 0.81, 0.33, 0.9]
         }
     },
     "analysis": {

@@ -145,11 +145,22 @@ _write_variation :: (builder : *Basic.String_Builder, variation : *Variation) {
             _write_escaped_comment(builder, node.comment);
         }
 
-        if node.position.squareHighlights.count != 0 {
+        if node.position.highlights.squares.count != 0 {
             Basic.append(builder, " {[%csl ");
-            for squareHighlight, index : node.position.squareHighlights {
+            for squareHighlight, index : node.position.highlights.squares {
                 Basic.print_to_builder(builder, "%1%2", highlight_color_to_string(squareHighlight.color), coord_to_algebraic(squareHighlight.coord));
-                if index != node.position.squareHighlights.count - 1 {
+                if index != node.position.highlights.squares.count - 1 {
+                    Basic.append(builder, ",");
+                }
+            }
+            Basic.append(builder, "]}");
+        }
+
+        if node.position.highlights.arrows.count != 0 {
+            Basic.append(builder, " {[%cal ");
+            for arrowHighlight, index : node.position.highlights.arrows {
+                Basic.print_to_builder(builder, "%1%2%3", highlight_color_to_string(arrowHighlight.color), coord_to_algebraic(arrowHighlight.fromCoord), coord_to_algebraic(arrowHighlight.toCoord));
+                if index != node.position.highlights.arrows.count - 1 {
                     Basic.append(builder, ",");
                 }
             }
@@ -696,11 +707,9 @@ _parse_potential_comment :: (bytes : *string, position : *Position) -> (string, 
                 Basic.advance(bytes);
 
                 // Square highlight command.
-                if commandName == "csl" {
-                    _parse_square_highlights(bytes, position);
-                } else {
-                    Basic.log("Unknown PGN command name: %", commandName, flags = .WARNING);
-                }
+                if commandName == "csl" then _parse_square_highlights(bytes, position);
+                else if commandName == "cal" then _parse_arrow_highlights(bytes, position);
+                else Basic.log("Unknown PGN command name: %", commandName, flags = .WARNING);
 
                 while (<<bytes)[0] != #char "]" {
                     Basic.advance(bytes);
@@ -853,10 +862,30 @@ _parse_square_highlights :: (bytes : *string, position : *Position) {
     while true {
         coloredSquare := _parse_until(bytes, .[#char "]", #char " ", #char ","]);
         if coloredSquare.count != 0 {
-            squareHighlight := Basic.array_add(*position.squareHighlights);
+            squareHighlight := Basic.array_add(*position.highlights.squares);
             squareHighlight.color = highlight_color(coloredSquare[0]);
             Basic.advance(*coloredSquare);
             squareHighlight.coord = algebraic_to_coord(coloredSquare);
+        }
+
+        _skip_blanks(bytes);
+        if (<<bytes)[0] == #char "]" then break;
+        Basic.advance(bytes);
+    }
+}
+
+_parse_arrow_highlights :: (bytes : *string, position : *Position) {
+    Basic.push_allocator(context.default_allocator);
+
+    while true {
+        coloredArrow := _parse_until(bytes, .[#char "]", #char " ", #char ","]);
+        if coloredArrow.count != 0 {
+            arrowHighlight := Basic.array_add(*position.highlights.arrows);
+            arrowHighlight.color = highlight_color(coloredArrow[0]);
+            Basic.advance(*coloredArrow);
+            arrowHighlight.fromCoord = algebraic_to_coord(coloredArrow);
+            Basic.advance(*coloredArrow, 2);
+            arrowHighlight.toCoord = algebraic_to_coord(coloredArrow);
         }
 
         _skip_blanks(bytes);

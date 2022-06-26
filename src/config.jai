@@ -19,10 +19,10 @@ Config :: struct {
         lightSquareColor : Chamber.vec3;
         darkSquareColor : Chamber.vec3;
         highlightColors : struct {
-            blue : Chamber.vec3;
-            green : Chamber.vec3;
-            red : Chamber.vec3;
-            yellow : Chamber.vec3;
+            blue : Chamber.vec4;
+            green : Chamber.vec4;
+            red : Chamber.vec4;
+            yellow : Chamber.vec4;
         }
     }
     controls : struct {
@@ -83,6 +83,13 @@ readJsonStruct :: (dataBytes : *u8, typeInfo : *Type_Info_Struct, json : Chamber
         dataFloats[0] = cast(float) json[0].number;
         dataFloats[1] = cast(float) json[1].number;
         dataFloats[2] = cast(float) json[2].number;
+        return;
+    } else if typeInfo == type_info(Chamber.vec4) {
+        dataFloats := cast(*float) dataBytes;
+        dataFloats[0] = cast(float) json[0].number;
+        dataFloats[1] = cast(float) json[1].number;
+        dataFloats[2] = cast(float) json[2].number;
+        dataFloats[3] = cast(float) json[3].number;
         return;
     }
 

@@ -61,6 +61,16 @@ algebraic_to_coord :: (s : string) -> Coord {
     return coord(row, col);
 }
 
+coords_direction :: (fromCoord : Coord, toCoord : Coord) -> Chamber.vec2 {
+    fromRow, fromCol := row_col(fromCoord);
+    toRow, toCol := row_col(toCoord);
+
+    v : Chamber.vec2 = ---;
+    v.x = cast(float) toCol - cast(float) fromCol;
+    v.y = cast(float) fromRow - cast(float) toRow; // @note Screen convention is Y negative.
+    return v;
+}
+
 // Return 0xFF if a component is invalid.
 row_col :: (coord : Coord) -> (row : u8, col : u8) {
     row, col : u8;
