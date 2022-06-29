@@ -76,8 +76,8 @@ controller_init :: () {
             }
         }
 
-        lookX := Sill.input_axis_value(*engine.input, "debug.3d.look-x");
-        lookY := Sill.input_axis_value(*engine.input, "debug.3d.look-y");
+        lookX := Sill.input_axis_value(engine, "debug.3d.look-x");
+        lookY := Sill.input_axis_value(engine, "debug.3d.look-y");
         if lookX != 0. || lookY != 0. {
             controller.debug.origin.std += Chamber.rotate_around_target(controller.debug.origin, controller.debug.target, -lookX / 100., -lookY / 100., upAxis = .NegativeY);
             Sill.transform_origin_target(*controller.debug.transform, controller.debug.origin, controller.debug.target, referenceUp=.{0, -1, 0});

@@ -21,8 +21,9 @@ dummy_ide_check_message :: (message : *Compiler.Message) {
     options.backend = .LLVM;
 
     arguments := options.compile_time_command_line;
-    if arguments.count > 0 && arguments[0] == "release" {
-        Basic.log("Building RELEASE.");
+    if arguments.count > 0 && (arguments[0] == "release" || arguments[0] == "ship") {
+        Basic.log("Building release...");
+        if arguments[0] == "ship" then options.text_output_flags = 0;
         options.optimization_level = .RELEASE;
         options.backend = .X64;
     }
@@ -44,7 +45,6 @@ dummy_ide_check_message :: (message : *Compiler.Message) {
         if options.optimization_level == .DEBUG {
             Basic.array_add(*arguments, "-rpath='$ORIGIN/../lava/bindings/Shaderc'");
             Basic.array_add(*arguments, "-rpath='$ORIGIN/../lava/bindings/StbTrueType'");
-            Basic.array_add(*arguments, "-rpath='$ORIGIN/../lava/bindings/Xcb'"); // For libxcbglue.so
             Basic.array_add(*arguments, "-rpath='$ORIGIN/../lava/bindings/Vulkan'");
         }
 

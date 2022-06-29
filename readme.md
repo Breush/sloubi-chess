@@ -18,10 +18,11 @@ It is **not** (yet?):
 
 Check the [Releases](https://github.com/Breush/sloubi-chess/releases) for your platform. We provide Linux and Windows 64 bits binaries.
 
-## Compile
+## Compile and ship
 
 ```bash
-jai ./src/first.jai
+jai ./src/first.jai         # Generate the binary in bin/
+jai ./src/first.jai -- ship # Create a release package for the current platform in releases/
 ```
 
 ## Usage

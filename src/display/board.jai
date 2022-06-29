@@ -83,21 +83,21 @@ board_update_from_orientation :: (using board : *BoardEntity, orientation : Colo
     Sill.transform_commit(*transform);
 
     for coord : 0..CoordCount-1 {
-        node := *mesh.nodes[coord + 1];
+        node := *mesh.nodes[coord];
         Magma.material_set(node.primitives[0].material, "flipped", orientation == .Black);
     }
 }
 
 board_update_to_position :: (using board : *BoardEntity, position : Position) {
     for coord : 0..CoordCount-1 {
-        node := *mesh.nodes[coord + 1];
+        node := *mesh.nodes[coord];
         pieceTexture := piecesTextures[piece_id(position.board[coord])];
         Magma.material_set(node.primitives[0].material, "pieceTexture", pieceTexture);
         Magma.material_set(node.primitives[0].material, "highlightColor", Chamber.vec4.{0, 0, 0, 0});
     }
 
     for squareHighlight : position.highlights.squares {
-        node := *mesh.nodes[squareHighlight.coord + 1];
+        node := *mesh.nodes[squareHighlight.coord];
         Magma.material_set(node.primitives[0].material, "highlightColor", highlight_color_to_vec4(squareHighlight.color));
     }
 
@@ -166,8 +166,6 @@ _init_resources :: (using board : *BoardEntity) {
 }
 
 _init_meshes :: (using board : *BoardEntity) {
-    Basic.array_add(*mesh.nodes, .{}); // @fixme The root node is probably not useful
-
     for coord : 0..CoordCount-1 {
         squareMesh := create_rect_mesh();
         squareMesh.material = Magma.create_material(squareShader);
@@ -176,11 +174,7 @@ _init_meshes :: (using board : *BoardEntity) {
         color := ifx (row + col) % 2 then instance.config.board.lightSquareColor else instance.config.board.darkSquareColor;
         Magma.material_set(squareMesh.material, "color", color);
 
-        Basic.array_add(*mesh.nodes[0].children, cast(s64) mesh.nodes.count);
-        Basic.array_add(*mesh.nodes, .{});
-
-        node := Basic.peek_pointer(mesh.nodes);
-        node.parent = 0;
+        node := Basic.array_add(*mesh.nodes);
         Basic.array_add(*node.primitives, squareMesh);
 
         node.transform.translation.x = -4 + (col + 0.5);
@@ -200,7 +194,7 @@ _update_hovered_coord :: (using board : *BoardEntity) {
     normalizedCoord.y =  8.0 * relativeMousePointerPosition.x / ui.extent.width + 4.0;
 
     if hoveredCoord != 0xFF {
-        Magma.material_set(mesh.nodes[hoveredCoord + 1].primitives[0].material, "hovered", false);
+        Magma.material_set(mesh.nodes[hoveredCoord].primitives[0].material, "hovered", false);
     }
 
     if normalizedCoord.x >= 0 && normalizedCoord.x < 8 && normalizedCoord.y >= 0 && normalizedCoord.y < 8 {
@@ -210,7 +204,7 @@ _update_hovered_coord :: (using board : *BoardEntity) {
     }
 
     if hoveredCoord != 0xFF {
-        Magma.material_set(mesh.nodes[hoveredCoord + 1].primitives[0].material, "hovered", true);
+        Magma.material_set(mesh.nodes[hoveredCoord].primitives[0].material, "hovered", true);
     }
 }
 

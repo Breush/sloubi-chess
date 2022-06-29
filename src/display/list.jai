@@ -173,8 +173,6 @@ _detect_comment_location :: (node : *Variation.Node) -> CommentLocation {
     commentLocation.color = ifx node.position.moveIndex % 2 != 0 then Color.White else .Black;
 
     if node.index == 0 {
-        // @fixme Intro comments before black ones should be more clever,
-        // as if small enough, the following should not be preflushed.
         commentLocation.style = .Full;
         commentLocation.preflushed = true;
         commentLocation.spaced = (node.parentVariation.depth == 1);

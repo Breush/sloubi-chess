@@ -151,7 +151,6 @@ _make_entry :: (name : string, isDirectory : bool) -> *EntryEntity {
 
     Sill.ui_on_trigger(*entryEntity.ui, (trigger : Sill.UiTrigger, entryEntity : *EntryEntity) {
         if trigger.flags & .Hover {
-            <<trigger.stopPropagation = true; // @fixme Does that make sense?
             entryEntity.mesh.nodes[0].primitives[1].disabled = false;
             Crater.window_pointer_style(instance.engine.window, .HandPointer);
         } else if trigger.flags & .NoHover {
