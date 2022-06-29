@@ -39,7 +39,7 @@ meta_board_show :: (game : Game) {
 
     _set_name :: (playerNameEntity : *PlayerNameEntity, name : string) {
         playerNameEntity.mesh.nodes[0].primitives[0].disabled = false;
-        charInfos := text_mesh_update(playerNameEntity.mesh.nodes[0].primitives[0], name, *instance.fonts.bold, instance.config.env.textColor);
+        charInfos := text_mesh_update(playerNameEntity.mesh.nodes[0].primitives[0], name, "mainBold", instance.config.env.textColor);
         Basic.array_free(charInfos);
 
     }

@@ -47,7 +47,7 @@ file_select_show :: (extensionFilter : string, callback : FileSelectEntity.FileS
     Basic.array_add(*fileSelect.mesh.nodes, .{});
     Basic.array_add(*fileSelect.mesh.nodes[0].primitives, mesh);
 
-    charInfos := text_mesh_update(mesh, Basic.tprint("Select a % file", extensionFilter), *instance.fonts.bold, *instance.config.env.textColor);
+    charInfos := text_mesh_update(mesh, Basic.tprint("Select a % file", extensionFilter), "mainBold", *instance.config.env.textColor);
     Basic.array_free(charInfos);
 
     Sill.ui_on_update(*fileSelect.ui, (update : Sill.UiUpdate, fileSelect : *FileSelectEntity) {
@@ -133,7 +133,7 @@ _make_entry :: (name : string, isDirectory : bool) -> *EntryEntity {
     Basic.array_add(*entryEntity.mesh.nodes, .{});
     Basic.array_add(*entryEntity.mesh.nodes[0].primitives, textMesh);
     charInfos := text_mesh_update(textMesh, Basic.tprint("% %", (ifx isDirectory then ForkAwesome.Folder else ForkAwesome.FileO), name),
-                                  *instance.fonts.light, *instance.config.env.textColor);
+                                  "mainLight", *instance.config.env.textColor);
     Basic.array_free(charInfos);
     entryEntity.ui.extent.width = 400;
     entryEntity.ui.extent.height = UiConstants.HeightLine;

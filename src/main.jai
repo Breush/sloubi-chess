@@ -39,12 +39,6 @@ instance : Instance;
 Instance :: struct {
     engine : *Sill.Engine(SillMeta);
 
-    fonts : struct {
-        light : Chamber.Font;
-        lightItalic : Chamber.Font;
-        bold : Chamber.Font;
-    };
-
     shaders : struct {
         monochrome : *Magma.Shader;
         text : *Magma.Shader;
@@ -125,7 +119,6 @@ _cleanup :: () {
     Basic.free(instance.persistence.fileSelect.lastPath);
 
     game_cleanup(*instance.game);
-    _fonts_cleanup();
 }
 
 _event_handler :: (event : Crater.Event) {
@@ -152,15 +145,11 @@ _fonts_init :: () {
     lightFontFiles[1] = "./assets/fonts/DejaVuSans.ttf";
     lightFontFiles[2] = "./assets/fonts/ForkAwesome.ttf";
 
-    instance.fonts.light = Chamber.font_load(lightFontFiles, cast(float) instance.config.env.fontSize);
-    instance.fonts.lightItalic = Chamber.font_load(Basic.tprint("./assets/fonts/%-LightItalic.ttf", instance.config.env.fontFamily), cast(float) instance.config.env.fontSize);
-    instance.fonts.bold = Chamber.font_load(boldFontFiles, cast(float) instance.config.env.fontSize);
-}
+    lightItalicFontFile := Basic.tprint("./assets/fonts/%-LightItalic.ttf", instance.config.env.fontFamily);
 
-_fonts_cleanup :: () {
-    Chamber.font_free(*instance.fonts.light);
-    Chamber.font_free(*instance.fonts.lightItalic);
-    Chamber.font_free(*instance.fonts.bold);
+    Sill.fonts_register(instance.engine, "mainLight", lightFontFiles, cast(float) instance.config.env.fontSize);
+    Sill.fonts_register(instance.engine, "mainLightItalic", lightItalicFontFile, cast(float) instance.config.env.fontSize);
+    Sill.fonts_register(instance.engine, "mainBold", boldFontFiles, cast(float) instance.config.env.fontSize);
 }
 
 _shaders_init :: () {

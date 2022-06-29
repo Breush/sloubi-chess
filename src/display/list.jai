@@ -252,8 +252,8 @@ _init_ply_entity :: (node : *Variation.Node) {
 
         moveIndex := (node.position.moveIndex + 1) / 2;
         moveText := Basic.tprint("%.% %", moveIndex, ifx node.position.moveIndex % 2 then "" else ".. ", position_last_move_to_san(node.position, annotations = true));
-        font := ifx node.plyEntity.depth == 0 then *instance.fonts.bold else *instance.fonts.light;
-        charInfos := text_mesh_update(node.plyEntity.moveMeshNode.primitives[0], moveText, font, node.plyEntity.moveColor);
+        fontId := ifx node.plyEntity.depth == 0 then "mainBold" else "mainLight";
+        charInfos := text_mesh_update(node.plyEntity.moveMeshNode.primitives[0], moveText, fontId, node.plyEntity.moveColor);
         node.plyEntity.moveTextWidth = Basic.peek(charInfos).effective.xEnd;
         Basic.array_free(charInfos);
     } else if (node.parentVariation.parentNode != null) {
@@ -268,7 +268,7 @@ _init_ply_entity :: (node : *Variation.Node) {
     Basic.array_add(*node.plyEntity.mesh.nodes, .{});
     Basic.array_add(*Basic.peek_pointer(node.plyEntity.mesh.nodes).primitives, create_text_mesh());
     node.plyEntity.commentMeshNode = Basic.peek_pointer(node.plyEntity.mesh.nodes);
-    node.plyEntity.charInfos = text_mesh_update(node.plyEntity.commentMeshNode.primitives[0], node.comment, *instance.fonts.light, instance.config.moves.mainColor);
+    node.plyEntity.charInfos = text_mesh_update(node.plyEntity.commentMeshNode.primitives[0], node.comment, "mainLight", instance.config.moves.mainColor);
     Basic.array_add(*node.plyEntity.collider.boxShapes, .{});
 
     Sill.ui_on_trigger(*node.plyEntity.ui, (trigger : Sill.UiTrigger, node : *Variation.Node) {
@@ -322,7 +322,7 @@ _init_ply_entity :: (node : *Variation.Node) {
         // @todo Do a clever diff instead of regenerating everything?
         if textChanged then {
             Basic.array_free(node.plyEntity.charInfos);
-            node.plyEntity.charInfos = text_mesh_update(node.plyEntity.commentMeshNode.primitives[0], node.comment, *instance.fonts.light, instance.config.moves.mainColor);
+            node.plyEntity.charInfos = text_mesh_update(node.plyEntity.commentMeshNode.primitives[0], node.comment, "mainLight", instance.config.moves.mainColor);
             _place_ply_entity(node, propagate = true);
         }
 

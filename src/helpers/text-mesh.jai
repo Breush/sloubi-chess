@@ -22,18 +22,15 @@ create_text_mesh :: () -> *Magma.Mesh {
     return mesh;
 }
 
-text_mesh_update :: (mesh : *Magma.Mesh, text : string, font : *Chamber.Font, color : Chamber.vec3, depth := 0.0) -> []CharInfo #must {
+text_mesh_update :: (mesh : *Magma.Mesh, text : string, fontId : string, color : Chamber.vec3, depth := 0.0) -> []CharInfo #must {
     mesh.disabled = (text.count == 0);
     if mesh.disabled then return .[];
 
-    // @todo Have a clever way to keep the texture up-to-date.
-    // And not recreate it each time...
-    glyphInfos := Chamber.font_glyph_infos(font, text); // @todo Get them without the blanks characters.
+    glyphInfos := Sill.fonts_glyph_infos(instance.engine, fontId, text);
     defer Basic.array_free(glyphInfos);
-    fontTexture := Magma.create_texture(instance.engine.renderEngine);
-    Magma.texture_load_from_memory(fontTexture, font.pixels, font.extent);
+    fontInfo := Sill.fonts_info(instance.engine, fontId);
 
-    Magma.material_set(mesh.material, "fontTexture", fontTexture);
+    Magma.material_set(mesh.material, "fontTexture", fontInfo.texture);
     Magma.material_set(mesh.material, "color", color);
 
     charInfos : [..]CharInfo;
@@ -94,7 +91,7 @@ text_mesh_update :: (mesh : *Magma.Mesh, text : string, font : *Chamber.Font, co
         charInfo.effective.xEnd = charInfo.effective.glyphOffset.x + charInfo.glyphExtent.width;
         charInfo.effective.xEndWithAdvance = charInfo.effective.glyphOffset.x + charInfo.glyphAdvance;
         charInfo.effective.yStart = 0;
-        charInfo.effective.yEnd = font.size;
+        charInfo.effective.yEnd = fontInfo.font.size;
     }
 
     Magma.mesh_commit_vertices(mesh);
