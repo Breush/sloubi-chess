@@ -3,8 +3,8 @@ UiConstants :: struct #type_info_none {
     PaddingHorizontal :: 50.0;
     PaddingVertical :: 50.0;
     PaddingHorizontalSplit :: 20.0;
-    PaddingHorizontalVariation :: 40.0;
-    WidthDecorumVariation :: 3.0;
+    PaddingHorizontalVariation :: 30.0;
+    WidthDecorumVariation :: 4.0;
     PaddingCommentInline :: 5.0;
     PaddingPlayerName :: 2.0;
 }

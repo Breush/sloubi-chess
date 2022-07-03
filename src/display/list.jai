@@ -20,20 +20,27 @@ PlyEntity :: struct {
     commentLocation : CommentLocation;
     depth : u8;
 
+    decorum : *DecorumEntity; // Might be null.
+
     // Below are just references to the corresponding primitive mesh within the component,
     // for easier use.
     moveMeshNode : *Sill.MeshNode;
     commentMeshNode : *Sill.MeshNode;
-    decorumMeshNode : *Sill.MeshNode; // Might be null.
 
     moveHovered : bool;
-
     moveColor : Chamber.vec3;
     moveTextWidth : float;
 
     on_cleanup :: (using this : *PlyEntity) {
         Basic.array_free(charInfos);
     }
+}
+
+DecorumEntity :: struct {
+    using entity : Sill.Entity;
+    transform : Sill.TransformComponent;
+    ui : Sill.UiComponent;
+    mesh : Sill.MeshComponent;
 }
 
 ScrollEntity :: struct {
@@ -255,10 +262,9 @@ _init_ply_entity :: (node : *Variation.Node) {
         node.plyEntity.moveTextWidth = Basic.peek(charInfos).effective.xEnd;
         Basic.array_free(charInfos);
     } else if (node.parentVariation.parentNode != null) {
-        Basic.array_add(*node.plyEntity.mesh.nodes, .{});
-        Basic.array_add(*Basic.peek_pointer(node.plyEntity.mesh.nodes).primitives, _make_decorum_mesh(UiConstants.WidthDecorumVariation));
-        node.plyEntity.decorumMeshNode = Basic.peek_pointer(node.plyEntity.mesh.nodes);
-        node.plyEntity.decorumMeshNode.transform.translation.x -= UiConstants.PaddingHorizontalVariation / 2.0;
+        node.plyEntity.decorum = _make_decorum(UiConstants.WidthDecorumVariation);
+        node.plyEntity.decorum.transform.translation.x = -UiConstants.PaddingHorizontalVariation / 2.0;
+        Sill.entity_set_parent(node.plyEntity.decorum, node.plyEntity);
     }
 
     // ----- Comment
@@ -447,6 +453,7 @@ _place_ply_entity :: (node : *Variation.Node, propagate := false) {
         }
     } else {
         node.plyEntity.ui.extent.height = commentHeight;
+        Chamber.debug(node.plyEntity.ui.extent);
     }
 
     // @note Waiting for the comment mesh node to be positioned so that we can place the collider accordingly.
@@ -541,7 +548,9 @@ _rebuild_decorums :: (variation : *Variation) {
 
             position := firstNode.plyEntity.transform.translation;
             height := lastNode.plyEntity.transform.translation.y + lastNode.plyEntity.ui.extent.height - position.y;
-            _update_decorum_mesh(firstNode.plyEntity.decorumMeshNode.primitives[0], height);
+            Chamber.debug(firstNode.plyEntity, " ", height, " ", lastNode.plyEntity, " ", lastNode.plyEntity.transform.translation.y," ", lastNode.plyEntity.ui.extent.height, " ", position.y);
+            _update_decorum(firstNode.plyEntity.decorum, height);
+            firstNode.plyEntity.ui.extent.height = height;
 
             _rebuild_decorums(subVariation);
         }
@@ -615,7 +624,11 @@ _show_text_cursor :: (show := true) {
     instance.list.textCursor.mesh.nodes[0].primitives[0].disabled = !show;
 }
 
-_make_decorum_mesh :: (width : float) -> *Magma.Mesh {
+_make_decorum :: (width : float) -> *DecorumEntity {
+    decorum := SillMeta.create_decorum_entity(instance.engine);
+    decorum.ui.extent.width = width;
+    decorum.ui.anchor = .TopLeft;
+
     mesh := Magma.create_mesh(instance.engine.scene);
 
     Basic.array_resize(*mesh.vertices, 4);
@@ -643,16 +656,27 @@ _make_decorum_mesh :: (width : float) -> *Magma.Mesh {
     Magma.mesh_commit_vertices(mesh);
     Magma.mesh_commit_indices(mesh);
 
-    return mesh;
+    Basic.array_add(*decorum.mesh.nodes, .{});
+    Basic.array_add(*Basic.peek_pointer(decorum.mesh.nodes).primitives, mesh);
+
+    Sill.ui_on_trigger(*decorum.ui, (trigger : Sill.UiTrigger, userData : *void) {
+        pointerStyle := ifx trigger.flags == .Hover then Crater.PointerStyle.HandPointer else .Default;
+        Crater.window_pointer_style(instance.engine.window, pointerStyle);
+    }, Sill.UiCallbackFlags.Hover | .NoHover);
+
+    return decorum;
 }
 
-_update_decorum_mesh :: (mesh : *Magma.Mesh, height : float) {
-    DECORUM_VERTICAL_PADDING := 2.0;
+_update_decorum :: (decorum : *DecorumEntity, height : float) {
+    DECORUM_VERTICAL_PADDING := 2.0; // @fixme Move to UiConstants
+    mesh := decorum.mesh.nodes[0].primitives[0];
 
     mesh.vertices[0].position.y = DECORUM_VERTICAL_PADDING;
     mesh.vertices[1].position.y = height - DECORUM_VERTICAL_PADDING;
     mesh.vertices[2].position.y = height - DECORUM_VERTICAL_PADDING;
     mesh.vertices[3].position.y = DECORUM_VERTICAL_PADDING;
+
+    decorum.ui.extent.height = height;
 
     Magma.mesh_commit_vertices(mesh);
 }
