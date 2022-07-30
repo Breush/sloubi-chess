@@ -478,6 +478,8 @@ _parse_move :: (bytes : *string, variation : *Variation, color : Color) {
     position.board = lastPosition.board;
     position.moveIndex = lastPosition.moveIndex;
     position.movesSinceLastCaptureOrPawnMove = lastPosition.movesSinceLastCaptureOrPawnMove;
+    position.whiteClock = lastPosition.whiteClock;
+    position.blackClock = lastPosition.blackClock;
 
     capture : bool;
     sourceCoord, targetCoord : Coord = 0xFF, 0xFF;
@@ -709,6 +711,7 @@ _parse_potential_comment :: (bytes : *string, position : *Position) -> (string, 
                 // Square highlight command.
                 if commandName == "csl" then _parse_square_highlights(bytes, position);
                 else if commandName == "cal" then _parse_arrow_highlights(bytes, position);
+                else if commandName == "clk" then _parse_clock(bytes, position);
                 else Basic.log("Unknown PGN command name: %", commandName, flags = .WARNING);
 
                 while (<<bytes)[0] != #char "]" {
@@ -891,6 +894,18 @@ _parse_arrow_highlights :: (bytes : *string, position : *Position) {
         _skip_blanks(bytes);
         if (<<bytes)[0] == #char "]" then break;
         Basic.advance(bytes);
+    }
+}
+
+_parse_clock :: (bytes : *string, position : *Position) {
+    Basic.push_allocator(context.default_allocator);
+
+    clock := _parse_until(bytes, .[#char "]", #char " "]);
+
+    if position.moveIndex % 2 == 0 {
+        position.blackClock = Basic.copy_string(clock);
+    } else {
+        position.whiteClock = Basic.copy_string(clock);
     }
 }
 

@@ -6,6 +6,7 @@
         "selectionBackgroundColor": [0.3, 0.3, 0.4],        // RGB color, 0 to 1 values
         "textColor": [1, 1, 1],                             // RGB color, 0 to 1 values
         "fontFamily": "Ubuntu", // Currently has to be in assets/fonts/, Light, LightItalic and Bold variants should exist.
+        "monoFontFamily": "SpaceMono", // Currently has to be in assets/fonts/, Regular variant should exists.
         "fontSize": 16
     },
     "board": {

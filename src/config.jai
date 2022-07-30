@@ -9,6 +9,7 @@ Config :: struct {
         selectionBackgroundColor : Chamber.vec3;
         textColor : Chamber.vec3;
         fontFamily : string;
+        monoFontFamily : string;
         fontSize : s64;
     }
     analysis : struct {

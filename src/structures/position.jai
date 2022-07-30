@@ -26,6 +26,9 @@ Position :: struct {
 
     movesSinceLastCaptureOrPawnMove : u8;
 
+    blackClock := "";
+    whiteClock := "";
+
     // Extra-info about current position
     // @todo Castling rights
     check : bool;

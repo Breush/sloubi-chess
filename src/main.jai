@@ -146,10 +146,12 @@ _fonts_init :: () {
     lightFontFiles[2] = "./assets/fonts/ForkAwesome.ttf";
 
     lightItalicFontFile := Basic.tprint("./assets/fonts/%-LightItalic.ttf", instance.config.env.fontFamily);
+    monoFontFile := Basic.tprint("./assets/fonts/%-Regular.ttf", instance.config.env.monoFontFamily);
 
     Sill.fonts_register(instance.engine, "mainLight", lightFontFiles, cast(float) instance.config.env.fontSize);
     Sill.fonts_register(instance.engine, "mainLightItalic", lightItalicFontFile, cast(float) instance.config.env.fontSize);
     Sill.fonts_register(instance.engine, "mainBold", boldFontFiles, cast(float) instance.config.env.fontSize);
+    Sill.fonts_register(instance.engine, "mono", monoFontFile, cast(float) instance.config.env.fontSize);
 }
 
 _shaders_init :: () {

@@ -5,13 +5,16 @@ MetaBoardEntity :: struct {
     transform : Sill.TransformComponent;
 
     board : BoardEntity;
-    whitePlayerName : PlayerNameEntity;
-    blackPlayerName : PlayerNameEntity;
+    whitePlayerName : PlayerInfoEntity;
+    blackPlayerName : PlayerInfoEntity;
+    whiteClock : PlayerInfoEntity;
+    blackClock : PlayerInfoEntity;
 
     orientation : Color;
+    moveIndex : u16;
 }
 
-PlayerNameEntity :: struct {
+PlayerInfoEntity :: struct {
     using #as entity : Sill.Entity; @Sill:NoStorage
 
     transform : Sill.TransformComponent;
@@ -37,9 +40,9 @@ meta_board_show :: (game : Game) {
     whitePlayerName.mesh.nodes[0].primitives[0].disabled = true;
     blackPlayerName.mesh.nodes[0].primitives[0].disabled = true;
 
-    _set_name :: (playerNameEntity : *PlayerNameEntity, name : string) {
-        playerNameEntity.mesh.nodes[0].primitives[0].disabled = false;
-        charInfos := text_mesh_update(playerNameEntity.mesh.nodes[0].primitives[0], name, "mainBold", instance.config.env.textColor);
+    _set_name :: (playerInfoEntity : *PlayerInfoEntity, name : string) {
+        playerInfoEntity.mesh.nodes[0].primitives[0].disabled = false;
+        charInfos := text_mesh_update(playerInfoEntity.mesh.nodes[0].primitives[0], name, "mainBold", instance.config.env.textColor);
         Basic.array_free(charInfos);
 
     }
@@ -73,6 +76,10 @@ meta_board_reflow :: () {
     whitePlayerName.transform.translation.y =  size / 2 + instance.config.env.fontSize / 2 + UiConstants.PaddingPlayerName;
     blackPlayerName.transform.translation.x = -size / 2;
     blackPlayerName.transform.translation.y = -size / 2 - instance.config.env.fontSize / 2 - UiConstants.PaddingPlayerName;
+    whiteClock.transform.translation.x =  size / 2;
+    whiteClock.transform.translation.y =  size / 2 + instance.config.env.fontSize / 2 + UiConstants.PaddingPlayerName;
+    blackClock.transform.translation.x =  size / 2;
+    blackClock.transform.translation.y = -size / 2 - instance.config.env.fontSize / 2 - UiConstants.PaddingPlayerName;
 
     if orientation == .Black {
         whitePlayerName.transform.translation.y *= -1;
@@ -94,6 +101,24 @@ meta_board_update_to_position :: (position : Position) {
     using instance.metaBoard;
 
     board_update_to_position(*board, position);
+
+    whiteClock.mesh.nodes[0].primitives[0].disabled = true;
+    if position.whiteClock.count != 0 {
+        whiteClock.mesh.nodes[0].primitives[0].disabled = false;
+        charInfos := text_mesh_update(whiteClock.mesh.nodes[0].primitives[0], position.whiteClock, "mono", instance.config.env.textColor);
+        whiteClock.mesh.nodes[0].transform.translation.x = -Basic.peek(charInfos).effective.xStart - Basic.peek(charInfos).glyphAdvance;
+        Basic.array_free(charInfos);
+    }
+
+    blackClock.mesh.nodes[0].primitives[0].disabled = true;
+    if position.blackClock.count != 0 {
+        blackClock.mesh.nodes[0].primitives[0].disabled = false;
+        charInfos := text_mesh_update(blackClock.mesh.nodes[0].primitives[0], position.blackClock, "mono", instance.config.env.textColor);
+        blackClock.mesh.nodes[0].transform.translation.x = -Basic.peek(charInfos).effective.xStart - Basic.peek(charInfos).glyphAdvance;
+        Basic.array_free(charInfos);
+    }
+
+    instance.metaBoard.moveIndex = position.moveIndex;
 }
 
 #scope_file
@@ -101,16 +126,16 @@ meta_board_update_to_position :: (position : Position) {
 _init_meshes :: () {
     using instance.metaBoard;
 
-    // @todo Make on_create functions (like on_destroy) that act like constructors?
-    Sill.entity_set_parent(*whitePlayerName, instance.metaBoard);
-    Basic.array_add(*whitePlayerName.mesh.nodes, .{});
-    Basic.array_add(*whitePlayerName.mesh.nodes[0].primitives, create_text_mesh());
-    whitePlayerName.mesh.nodes[0].transform.translation.y -= instance.config.env.fontSize / 2;
-    whitePlayerName.mesh.nodes[0].transform.translation.z = -0.2;
+    init_player_info :: (entity : *PlayerInfoEntity) {
+        Sill.entity_set_parent(entity, instance.metaBoard);
+        Basic.array_add(*entity.mesh.nodes, .{});
+        Basic.array_add(*entity.mesh.nodes[0].primitives, create_text_mesh());
+        entity.mesh.nodes[0].transform.translation.y -= instance.config.env.fontSize / 2;
+        entity.mesh.nodes[0].transform.translation.z = -0.2;
+    }
 
-    Sill.entity_set_parent(*blackPlayerName, instance.metaBoard);
-    Basic.array_add(*blackPlayerName.mesh.nodes, .{});
-    Basic.array_add(*blackPlayerName.mesh.nodes[0].primitives, create_text_mesh());
-    blackPlayerName.mesh.nodes[0].transform.translation.y -= instance.config.env.fontSize / 2;
-    blackPlayerName.mesh.nodes[0].transform.translation.z = 0.2;
+    init_player_info(*whitePlayerName);
+    init_player_info(*blackPlayerName);
+    init_player_info(*whiteClock);
+    init_player_info(*blackClock);
 }
