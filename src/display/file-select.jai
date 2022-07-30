@@ -1,5 +1,5 @@
 FileSelectEntity :: struct {
-    using entity : Sill.Entity;
+    using #as entity : Sill.Entity;
 
     ui : Sill.UiComponent;
     transform : Sill.TransformComponent;
@@ -23,7 +23,7 @@ Entries :: struct {
 };
 
 EntryEntity :: struct {
-    using entity : Sill.Entity;
+    using #as entity : Sill.Entity;
 
     ui : Sill.UiComponent;
     transform : Sill.TransformComponent;

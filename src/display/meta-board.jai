@@ -1,6 +1,6 @@
 // Holds both the board and extra data.
 MetaBoardEntity :: struct {
-    using entity : Sill.Entity;
+    using #as entity : Sill.Entity;
 
     transform : Sill.TransformComponent;
 
@@ -12,7 +12,7 @@ MetaBoardEntity :: struct {
 }
 
 PlayerNameEntity :: struct {
-    using entity : Sill.Entity; @Sill:NoStorage
+    using #as entity : Sill.Entity; @Sill:NoStorage
 
     transform : Sill.TransformComponent;
     mesh : Sill.MeshComponent;

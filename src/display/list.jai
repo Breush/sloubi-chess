@@ -1,5 +1,5 @@
 ListEntity :: struct {
-    using entity : Sill.Entity;
+    using #as entity : Sill.Entity;
     transform : Sill.TransformComponent;
     ui : Sill.UiComponent;
 
@@ -8,7 +8,7 @@ ListEntity :: struct {
 }
 
 PlyEntity :: struct {
-    using entity : Sill.Entity;
+    using #as entity : Sill.Entity;
     collider : Sill.ColliderComponent;
     transform : Sill.TransformComponent;
     mesh : Sill.MeshComponent;
@@ -37,12 +37,12 @@ PlyEntity :: struct {
 }
 
 ScrollEntity :: struct {
-    using entity : Sill.Entity; @Sill:NoStorage
+    using #as entity : Sill.Entity; @Sill:NoStorage
     transform : Sill.TransformComponent;
 }
 
 TextCursorEntity :: struct {
-    using entity : Sill.Entity; @Sill:NoStorage
+    using #as entity : Sill.Entity; @Sill:NoStorage
     transform : Sill.TransformComponent;
     mesh : Sill.MeshComponent;
 }

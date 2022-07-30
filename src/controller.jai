@@ -1,12 +1,12 @@
 ControllerEntity :: struct {
-    using entity : Sill.Entity;
+    using #as entity : Sill.Entity;
     behaviorComponent : Sill.BehaviorComponent;
 
     debug : *ControllerDebugEntity;
 }
 
 ControllerDebugEntity :: struct {
-    using entity : Sill.Entity;
+    using #as entity : Sill.Entity;
 
     transform : Sill.TransformComponent;
     behavior : Sill.BehaviorComponent;

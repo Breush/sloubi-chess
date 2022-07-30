@@ -1,6 +1,6 @@
 // The board entity is really the squares and arrows.
 BoardEntity :: struct {
-    using entity : Sill.Entity; @Sill:NoStorage
+    using #as entity : Sill.Entity; @Sill:NoStorage
 
     ui : Sill.UiComponent;
     mesh : Sill.MeshComponent;
@@ -15,7 +15,7 @@ BoardEntity :: struct {
 }
 
 ArrowEntity :: struct {
-    using entity : Sill.Entity;
+    using #as entity : Sill.Entity;
 
     transform : Sill.TransformComponent;
     mesh : Sill.MeshComponent;

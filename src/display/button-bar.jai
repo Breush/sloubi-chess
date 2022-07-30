@@ -5,7 +5,7 @@ ButtonBar :: struct {
 }
 
 ButtonEntity :: struct {
-    using entity : Sill.Entity;
+    using #as entity : Sill.Entity;
     transform : Sill.TransformComponent;
     mesh : Sill.MeshComponent;
     ui : Sill.UiComponent;
