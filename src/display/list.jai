@@ -453,7 +453,6 @@ _place_ply_entity :: (node : *Variation.Node, propagate := false) {
         }
     } else {
         node.plyEntity.ui.extent.height = commentHeight;
-        Chamber.debug(node.plyEntity.ui.extent);
     }
 
     // @note Waiting for the comment mesh node to be positioned so that we can place the collider accordingly.
@@ -548,9 +547,7 @@ _rebuild_decorums :: (variation : *Variation) {
 
             position := firstNode.plyEntity.transform.translation;
             height := lastNode.plyEntity.transform.translation.y + lastNode.plyEntity.ui.extent.height - position.y;
-            Chamber.debug(firstNode.plyEntity, " ", height, " ", lastNode.plyEntity, " ", lastNode.plyEntity.transform.translation.y," ", lastNode.plyEntity.ui.extent.height, " ", position.y);
             _update_decorum(firstNode.plyEntity.decorum, height);
-            firstNode.plyEntity.ui.extent.height = height;
 
             _rebuild_decorums(subVariation);
         }
@@ -659,22 +656,27 @@ _make_decorum :: (width : float) -> *DecorumEntity {
     Basic.array_add(*decorum.mesh.nodes, .{});
     Basic.array_add(*Basic.peek_pointer(decorum.mesh.nodes).primitives, mesh);
 
-    Sill.ui_on_trigger(*decorum.ui, (trigger : Sill.UiTrigger, userData : *void) {
-        pointerStyle := ifx trigger.flags == .Hover then Crater.PointerStyle.HandPointer else .Default;
-        Crater.window_pointer_style(instance.engine.window, pointerStyle);
-    }, Sill.UiCallbackFlags.Hover | .NoHover);
+    Sill.ui_on_trigger(*decorum.ui, (trigger : Sill.UiTrigger, decorum : *DecorumEntity) {
+        if trigger.flags == .Click {
+            Chamber.debug("CLICK ", decorum.parent);
+        } else {
+            pointerStyle := ifx trigger.flags == .Hover then Crater.PointerStyle.HandPointer else .Default;
+            color := ifx trigger.flags == .Hover then instance.config.moves.selectedColor else instance.config.moves.mainColor;
+            Magma.material_set(decorum.mesh.nodes[0].primitives[0].material, "color", color);
+            Crater.window_pointer_style(instance.engine.window, pointerStyle);
+        }
+    }, Sill.UiCallbackFlags.Hover | .NoHover | .Click, decorum);
 
     return decorum;
 }
 
 _update_decorum :: (decorum : *DecorumEntity, height : float) {
-    DECORUM_VERTICAL_PADDING := 2.0; // @fixme Move to UiConstants
     mesh := decorum.mesh.nodes[0].primitives[0];
 
-    mesh.vertices[0].position.y = DECORUM_VERTICAL_PADDING;
-    mesh.vertices[1].position.y = height - DECORUM_VERTICAL_PADDING;
-    mesh.vertices[2].position.y = height - DECORUM_VERTICAL_PADDING;
-    mesh.vertices[3].position.y = DECORUM_VERTICAL_PADDING;
+    mesh.vertices[0].position.y = UiConstants.PaddingVerticalDecorumVariation;
+    mesh.vertices[1].position.y = height - UiConstants.PaddingVerticalDecorumVariation;
+    mesh.vertices[2].position.y = height - UiConstants.PaddingVerticalDecorumVariation;
+    mesh.vertices[3].position.y = UiConstants.PaddingVerticalDecorumVariation;
 
     decorum.ui.extent.height = height;
 
