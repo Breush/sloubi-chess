@@ -70,6 +70,12 @@ ply_hide_recursively :: (ply : *PlyEntity, hidden := true, self := true) {
     if self {
         if ply.decorum then ply.decorum.mesh.nodes[0].primitives[0].disabled = hidden;
         if ply.moveMeshNode then ply.moveMeshNode.primitives[0].disabled = hidden;
+    } else {
+        // @fixme Obviously not what we should do...
+        rotationDelta : Chamber.quat = ---;
+        set_from_axis_and_angle(*rotationDelta, .{0, 0, 1}, Math.PI / 2.0);
+        ply.decorum.mesh.nodes[0].transform.rotation = rotationDelta;
+        Sill.mesh_commit_nodes(*ply.decorum.mesh);
     }
     if ply.commentMeshNode then ply.commentMeshNode.primitives[0].disabled = hidden;
 
