@@ -67,21 +67,14 @@ TextCursorEntity :: struct {
 }
 
 ply_hide_recursively :: (ply : *PlyEntity, hidden := true, self := true) {
-    if self {
-        if ply.decorum then ply.decorum.mesh.nodes[0].primitives[0].disabled = hidden;
-        if ply.moveMeshNode then ply.moveMeshNode.primitives[0].disabled = hidden;
-    } else {
-        // @fixme Obviously not what we should do...
-        rotationDelta : Chamber.quat = ---;
-        set_from_axis_and_angle(*rotationDelta, .{0, 0, 1}, Math.PI / 2.0);
-        ply.decorum.mesh.nodes[0].transform.rotation = rotationDelta;
-        Sill.mesh_commit_nodes(*ply.decorum.mesh);
-    }
+    if ply.moveMeshNode then ply.moveMeshNode.primitives[0].disabled = hidden;
     if ply.commentMeshNode then ply.commentMeshNode.primitives[0].disabled = hidden;
 
-    // @fixme SHould also disable the UI (except for the very top ply, of course)
-
     if ply.index == 0 {
+        ply.decorum.mesh.nodes[0].primitives[0].disabled = hidden;
+        ply.decorum.mesh.nodes[0].primitives[1].disabled = hidden || !ply.parentVariation.collapsed;
+        // @fixme Level of collapsing are badly handled.
+
         for otherPly, otherPlyIndex : ply.parentVariation.nodes {
             if otherPlyIndex == 0 then continue;
             ply_hide_recursively(otherPly, hidden);
@@ -660,9 +653,7 @@ _make_decorum :: (width : float) -> *DecorumEntity {
     decorum.ui.anchor = .TopLeft;
 
     mesh := Magma.create_mesh(instance.engine.scene);
-
-    Basic.array_resize(*mesh.vertices, 4);
-    Basic.array_resize(*mesh.indices, 6);
+    create_rect_mesh(existingMesh = mesh);
 
     mesh.vertices[0].position.x = 0.0;
     mesh.vertices[0].position.y = 0.0;
@@ -673,21 +664,18 @@ _make_decorum :: (width : float) -> *DecorumEntity {
     mesh.vertices[3].position.x = width;
     mesh.vertices[3].position.y = 0.0;
 
-    mesh.indices[0] = 0;
-    mesh.indices[1] = 1;
-    mesh.indices[2] = 2;
-    mesh.indices[3] = 2;
-    mesh.indices[4] = 3;
-    mesh.indices[5] = 0;
-
     mesh.material = Magma.create_material(instance.shaders.monochrome);
     Magma.material_set(mesh.material, "color", instance.config.moves.mainColor);
-
     Magma.mesh_commit_vertices(mesh);
-    Magma.mesh_commit_indices(mesh);
+
+    collapsedMesh := create_rect_mesh(3 * width, width);
+    collapsedMesh.disabled = true;
+    collapsedMesh.material = Magma.create_material(instance.shaders.monochrome);
+    Magma.material_set(collapsedMesh.material, "color", instance.config.moves.mainColor);
 
     Basic.array_add(*decorum.mesh.nodes, .{});
     Basic.array_add(*Basic.peek_pointer(decorum.mesh.nodes).primitives, mesh);
+    Basic.array_add(*Basic.peek_pointer(decorum.mesh.nodes).primitives, collapsedMesh);
 
     Sill.ui_on_trigger(*decorum.ui, (trigger : Sill.UiTrigger, decorum : *DecorumEntity) {
         if trigger.flags == .Click {

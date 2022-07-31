@@ -189,10 +189,16 @@ game_debug_dump :: (game : Game) {
 variation_collapse :: (variation : *Variation) {
     variation.collapsed = !variation.collapsed;
 
-    ply_hide_recursively(variation.nodes[0], variation.collapsed, self = false);
+    // @fixme Do all that logic in place_ply...
 
-    // @fixme Change the ply.decorum transform... (and size, etc.)
-    // @fixme update the plies positions
+    // @fixme Pass variation instead...
+    ply_hide_recursively(variation.nodes[0], variation.collapsed);
+
+    // Reactivate the decorum node
+    variation.nodes[0].decorum.mesh.nodes[0].primitives[1].disabled = !variation.collapsed;
+    variation.nodes[1].moveMeshNode.primitives[0].disabled = false;
+
+    // @fixme UI extent
 }
 
 variation_debug_dump :: (variation : Variation, depth : u8) {
