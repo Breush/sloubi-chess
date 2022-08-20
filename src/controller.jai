@@ -34,7 +34,7 @@ controller_init :: () {
     Sill.input_axis_bind(engine, "list.scroll", .MouseWheelY);
 
     Sill.behavior_on_update(*controller.behaviorComponent, xx (dt : float64, using instance : *Instance) {
-        if game.node == null then return;
+        if game.ply == null then return;
 
         if Sill.input_action_just_activated(engine, "game.ply.previous", true)         then game_go_to_previous_move(*game);
         if Sill.input_action_just_activated(engine, "game.ply.next", true)             then game_go_to_next_move(*game);

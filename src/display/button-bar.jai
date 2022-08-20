@@ -31,7 +31,7 @@ button_bar_init :: () {
 
     Sill.ui_on_trigger(*analysisButton.ui, (trigger : Sill.UiTrigger, analysisButton : *ButtonEntity) {
         Basic.log("Opening analysis.");
-        Chamber.os_open_browser(Basic.tprint("%1%2", instance.config.analysis.externalSite, position_to_fen(instance.game.node.position)));
+        Chamber.os_open_browser(Basic.tprint("%1%2", instance.config.analysis.externalSite, position_to_fen(instance.game.ply.position)));
     }, .Click, analysisButton);
 
     // Save button

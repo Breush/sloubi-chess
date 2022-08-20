@@ -5,8 +5,8 @@ load_pgn :: (filename : string) -> bool {
     defer Basic.free(fileBytes);
 
     game := *instance.game; // Filling the global game for now.
-    rootNode := game_add_variation_node(game, *game.mainVariation);
-    rootNode.position = get_starting_position();
+    rootPly := game_add_variation_ply(game, *game.mainVariation);
+    rootPly.position = get_starting_position();
 
     // Parsing tags
     bytes := fileBytes;
@@ -25,7 +25,7 @@ load_pgn :: (filename : string) -> bool {
         Basic.advance(*bytes); // Skipping the quote.
 
         if tagName == "FEN" {
-            rootNode.position = load_fen(bytes);
+            rootPly.position = load_fen(bytes);
         } else if tagName == "BoardOrientation" {
             game.boardOrientation = ifx bytes[0] == #char "W" then Color.White else Color.Black;
         } else if tagName == "Event" { game.tags.event = read_tag(*bytes);
@@ -91,9 +91,9 @@ save_pgn :: (filename : string) {
     if instance.game.boardOrientation != .White {
         Basic.print_to_builder(*builder, "[BoardOrientation \"%\"]\n", instance.game.boardOrientation);
     }
-    if !position_is_starting_one(instance.game.mainVariation.nodes[0].position) {
+    if !position_is_starting_one(instance.game.mainVariation.plies[0].position) {
         Basic.append(*builder, "[SetUp \"1\"]\n");
-        Basic.print_to_builder(*builder, "[FEN \"%\"]\n", position_to_fen(instance.game.mainVariation.nodes[0].position));
+        Basic.print_to_builder(*builder, "[FEN \"%\"]\n", position_to_fen(instance.game.mainVariation.plies[0].position));
     }
 
     // Extra tags
@@ -129,59 +129,59 @@ save_pgn :: (filename : string) {
 }
 
 _write_variation :: (builder : *Basic.String_Builder, variation : *Variation) {
-    for node, index : variation.nodes {
-        if index == 0 && node.position.comment.count == 0 && node.variations.count == 0 then continue;
+    for ply, plyIndex : variation.plies {
+        if plyIndex == 0 && ply.position.comment.count == 0 && ply.variations.count == 0 then continue;
 
-        if index != 0 {
-            moveIndex := (node.position.moveIndex + 1) / 2;
-            Basic.print_to_builder(builder, "%.% %", moveIndex, ifx node.position.moveIndex % 2 then "" else "..", position_last_move_to_san(node.position, annotations = false));
-            _write_nags(builder, *node.position);
+        if plyIndex != 0 {
+            moveIndex := (ply.position.moveIndex + 1) / 2;
+            Basic.print_to_builder(builder, "%.% %", moveIndex, ifx ply.position.moveIndex % 2 then "" else "..", position_last_move_to_san(ply.position, annotations = false));
+            _write_nags(builder, *ply.position);
         }
 
-        if node.position.comment.count != 0 {
-            if index != 0 {
+        if ply.position.comment.count != 0 {
+            if plyIndex != 0 {
                 Basic.append(builder, " ");
             }
-            _write_escaped_comment(builder, node.position.comment);
+            _write_escaped_comment(builder, ply.position.comment);
         }
 
-        if node.position.highlights.squares.count != 0 {
+        if ply.position.highlights.squares.count != 0 {
             Basic.append(builder, " {[%csl ");
-            for squareHighlight, index : node.position.highlights.squares {
+            for squareHighlight, index : ply.position.highlights.squares {
                 Basic.print_to_builder(builder, "%1%2", highlight_color_to_string(squareHighlight.color), coord_to_algebraic(squareHighlight.coord));
-                if index != node.position.highlights.squares.count - 1 {
+                if index != ply.position.highlights.squares.count - 1 {
                     Basic.append(builder, ",");
                 }
             }
             Basic.append(builder, "]}");
         }
 
-        if node.position.highlights.arrows.count != 0 {
+        if ply.position.highlights.arrows.count != 0 {
             Basic.append(builder, " {[%cal ");
-            for arrowHighlight, index : node.position.highlights.arrows {
+            for arrowHighlight, index : ply.position.highlights.arrows {
                 Basic.print_to_builder(builder, "%1%2%3", highlight_color_to_string(arrowHighlight.color), coord_to_algebraic(arrowHighlight.fromCoord), coord_to_algebraic(arrowHighlight.toCoord));
-                if index != node.position.highlights.arrows.count - 1 {
+                if index != ply.position.highlights.arrows.count - 1 {
                     Basic.append(builder, ",");
                 }
             }
             Basic.append(builder, "]}");
         }
 
-        if node.variations.count != 0 {
-            if index != 0 || node.position.comment.count != 0 {
+        if ply.variations.count != 0 {
+            if plyIndex != 0 || ply.position.comment.count != 0 {
                 Basic.append(builder, " ");
             }
-            for subVariation, subVariationIndex : node.variations {
+            for subVariation, subVariationIndex : ply.variations {
                 Basic.append(builder, "(");
                 _write_variation(builder, subVariation);
                 Basic.append(builder, ")");
-                if subVariationIndex != node.variations.count - 1 {
+                if subVariationIndex != ply.variations.count - 1 {
                     Basic.append(builder, " ");
                 }
             }
         }
 
-        if index != variation.nodes.count - 1 {
+        if plyIndex != variation.plies.count - 1 {
             Basic.append(builder, " ");
         }
     }
@@ -472,7 +472,7 @@ _parse_potential_move_number :: (bytes : *string) -> bool {
 }
 
 _parse_move :: (bytes : *string, variation : *Variation, color : Color) {
-    lastPosition := *Basic.peek(variation.nodes).position;
+    lastPosition := *Basic.peek(variation.plies).position;
 
     position : Position;
     position.board = lastPosition.board;
@@ -542,8 +542,8 @@ _parse_move :: (bytes : *string, variation : *Variation, color : Color) {
     if coord_is_valid(sourceCoord) {
         position_play_move(*position, sourceCoord, targetCoord, promotionPieceKind);
 
-        node := game_add_variation_node(*instance.game, variation);
-        node.position = position;
+        ply := game_add_variation_ply(*instance.game, variation);
+        ply.position = position;
     }
 }
 
@@ -740,7 +740,7 @@ _parse_potential_comments :: (bytes : *string, variation : *Variation) {
         Basic.push_allocator(Basic.temp);
 
         while true {
-            comment, ok := _parse_potential_comment(bytes, *Basic.peek(variation.nodes).position);
+            comment, ok := _parse_potential_comment(bytes, *Basic.peek(variation.plies).position);
             if !ok then break;
 
             if fullComment.count == 0 then fullComment = comment;
@@ -750,18 +750,18 @@ _parse_potential_comments :: (bytes : *string, variation : *Variation) {
         }
     }
 
-    Basic.peek(variation.nodes).position.comment = Basic.copy_string(fullComment);
+    Basic.peek(variation.plies).position.comment = Basic.copy_string(fullComment);
 }
 
 _parse_potential_variation :: (bytes : *string, parentVariation : *Variation, color : Color) -> bool {
     if (<<bytes)[0] != #char "(" then return false;
     Basic.advance(bytes);
 
-    lastNode := Basic.peek(parentVariation.nodes);
-    variation := game_add_variation(*instance.game, lastNode);
+    lastPly := Basic.peek(parentVariation.plies);
+    variation := game_add_variation(*instance.game, lastPly);
 
-    node := game_add_variation_node(*instance.game, variation);
-    node.position = parentVariation.nodes[parentVariation.nodes.count - 2].position;
+    ply := game_add_variation_ply(*instance.game, variation);
+    ply.position = parentVariation.plies[parentVariation.plies.count - 2].position;
 
     _skip_blanks(bytes);
     _parse_variation(bytes, variation, color);
@@ -793,7 +793,7 @@ _parse_variation :: (bytes : *string, variation : *Variation, firstColor := Colo
 
 // Returns false if this is the last move a variation.
 _parse_potential_annotated_move :: (bytes : *string, variation : *Variation, color : Color) -> bool {
-    // position_debug_dump(Basic.peek(variation.nodes).position);
+    // position_debug_dump(Basic.peek(variation.plies).position);
 
     _parse_potential_move_number(bytes);
     _parse_move(bytes, variation, color);
@@ -841,7 +841,7 @@ _parse_potential_annotation :: (bytes : *string, variation : *Variation) -> bool
     _skip_blanks(bytes);
 
     if nag != .None {
-        position := *Basic.peek(variation.nodes).position;
+        position := *Basic.peek(variation.plies).position;
         moveAnnotation := _nag_to_move_annotation(nag);
         if moveAnnotation != .None {
             position.lastMove.annotation = moveAnnotation;

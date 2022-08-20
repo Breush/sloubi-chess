@@ -35,12 +35,12 @@ board_init :: (using board : *BoardEntity) {
             return;
         }
 
-        if !instance.game.node then return;
+        if !instance.game.ply then return;
 
         if trigger.flags & .Click {
             if trigger.event.mouseButton.which == .Left {
-                instance.game.node.position.highlights.squares.count = 0;
-                instance.game.node.position.highlights.arrows.count = 0;
+                instance.game.ply.position.highlights.squares.count = 0;
+                instance.game.ply.position.highlights.arrows.count = 0;
             } else if trigger.event.mouseButton.which == .Right && hoveredCoord != 0xFF {
                 _toggle_hovered_square_highlight(board);
             }
@@ -56,12 +56,12 @@ board_init :: (using board : *BoardEntity) {
                     arrowHighlight.color = highlight_color();
                     arrowHighlight.fromCoord = arrowingStartCoord;
                     arrowHighlight.toCoord = hoveredCoord;
-                    position_add_arrow_highlight(*instance.game.node.position, arrowHighlight);
+                    position_add_arrow_highlight(*instance.game.ply.position, arrowHighlight);
                 }
             }
         }
 
-        board_update_to_position(board, instance.game.node.position);
+        board_update_to_position(board, instance.game.ply.position);
     }, Sill.UiCallbackFlags.Click | .NoHover | .Drag | .Dragging | .NoDrag, board);
 
     // Drawing a position
@@ -212,5 +212,5 @@ _toggle_hovered_square_highlight :: (using board : *BoardEntity) {
     squareHighlight : SquareHighlight;
     squareHighlight.coord = hoveredCoord;
     squareHighlight.color = highlight_color();
-    position_toggle_highlight(*instance.game.node.position, squareHighlight);
+    position_toggle_highlight(*instance.game.ply.position, squareHighlight);
 }

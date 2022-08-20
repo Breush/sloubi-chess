@@ -21,7 +21,7 @@ Game :: struct {
         extra : [..]struct { name : string; value : string; };
     }
 
-    node : *PlyEntity; // Current node.
+    ply : *PlyEntity; // Current ply displayed.
 
     // @note In order to never invalidate pointers but still
     // have efficient memory layout, we use pools.
@@ -36,13 +36,12 @@ Game :: struct {
 }
 
 Variation :: struct {
-    // @note nodes[0].position is the initial position.
+    // @note plies[0].position is the initial position.
     // And it should not get any variation in it.
-    // @fixme Forget the name "Node"?
-    nodes : [..]*PlyEntity; // @note Do not flatten this, the struct might be needed for extra info about a variation.
+    plies : [..]*PlyEntity; // @note Do not flatten this, the struct might be needed for extra info about a variation.
 
-    parentNode : *PlyEntity; // Can be null for the main variation.
-    index : u16; // Index of the variation in the parent node.
+    parentPly : *PlyEntity; // Can be null for the main variation.
+    index : u16; // Index of the variation in the parent ply.
 
     depth : u16;
     collapsed : bool;
@@ -53,11 +52,11 @@ game_show :: (game : *Game) {
     list_show(game);
     button_bar_show();
 
-    game_update_to(game, game.mainVariation.nodes[0]);
+    game_update_to(game, game.mainVariation.plies[0]);
 }
 
 game_cleanup :: (game : *Game) {
-    game.node = null;
+    game.ply = null;
     variation_cleanup(*game.mainVariation);
 
     Bucket_Array.bucket_array_reset(*game.variationPool);
@@ -68,107 +67,107 @@ game_cleanup :: (game : *Game) {
 }
 
 variation_cleanup :: (variation : *Variation) {
-    for node : variation.nodes {
-        node_cleanup(node);
+    for ply : variation.plies {
+        ply_cleanup(ply);
     }
-    Basic.array_free(variation.nodes);
+    Basic.array_free(variation.plies);
 }
 
 // @fixme Move all that on_cleanup?
-node_cleanup :: (node : *PlyEntity) {
-    for variation : node.variations {
+ply_cleanup :: (ply : *PlyEntity) {
+    for variation : ply.variations {
         variation_cleanup(variation);
     }
-    Basic.array_free(node.variations);
+    Basic.array_free(ply.variations);
 
-    Sill.destroy_entity(node);
+    Sill.destroy_entity(ply);
 }
 
-game_add_variation :: (game : *Game, parentNode : *PlyEntity) -> *Variation {
+game_add_variation :: (game : *Game, parentPly : *PlyEntity) -> *Variation {
     variation := Bucket_Array.find_and_occupy_empty_slot(*game.variationPool);
     variation.collapsed = instance.config.moves.variationsCollapsed;
-    Basic.array_add(*parentNode.variations, variation);
+    Basic.array_add(*parentPly.variations, variation);
 
-    variation.parentNode = parentNode;
-    variation.index = cast(u16) (parentNode.variations.count - 1);
-    variation.depth = parentNode.parentVariation.depth + 1;
+    variation.parentPly = parentPly;
+    variation.index = cast(u16) (parentPly.variations.count - 1);
+    variation.depth = parentPly.parentVariation.depth + 1;
     return variation;
 }
 
-game_add_variation_node :: (game : *Game, parentVariation : *Variation) -> *PlyEntity {
-    node := SillMeta.create_ply_entity(instance.engine);
-    Basic.array_add(*parentVariation.nodes, node);
+game_add_variation_ply :: (game : *Game, parentVariation : *Variation) -> *PlyEntity {
+    ply := SillMeta.create_ply_entity(instance.engine);
+    Basic.array_add(*parentVariation.plies, ply);
 
-    node.parentVariation = parentVariation;
-    node.index = cast(u16) (parentVariation.nodes.count - 1);
-    return node;
+    ply.parentVariation = parentVariation;
+    ply.index = cast(u16) (parentVariation.plies.count - 1);
+    return ply;
 }
 
-game_update_to :: (game : *Game, node : *PlyEntity) {
-    oldNode := game.node;
-    game.node = node;
+game_update_to :: (game : *Game, ply : *PlyEntity) {
+    oldPly := game.ply;
+    game.ply = ply;
 
     variation := game_current_variation(game);
     meta_board_orient(game.boardOrientation);
-    meta_board_update_to_position(node.position);
-    list_update_to_current_move(game, oldNode);
+    meta_board_update_to_position(ply.position);
+    list_update_to_current_move(game, oldPly);
 }
 
 game_current_variation :: (game : *Game) -> *Variation {
-    return game.node.parentVariation;
+    return game.ply.parentVariation;
 }
 
 game_go_to_first_ply :: (game : *Game) {
-    game_update_to(game, game.node.parentVariation.nodes[0]);
+    game_update_to(game, game.ply.parentVariation.plies[0]);
 }
 
 game_go_to_last_ply :: (game : *Game) {
-    game_update_to(game, Basic.peek(game.node.parentVariation.nodes));
+    game_update_to(game, Basic.peek(game.ply.parentVariation.plies));
 }
 
 game_go_to_previous_move :: (game : *Game) {
     variation := game_current_variation(game);
 
-    if game.node.index == 0 {
-        if game.node.parentVariation == *game.mainVariation then return;
+    if game.ply.index == 0 {
+        if game.ply.parentVariation == *game.mainVariation then return;
         game_go_to_previous_variation(game);
         game_go_to_previous_move(game);
         game_go_to_previous_move(game);
         return;
     }
 
-    game_update_to(game, game.node.parentVariation.nodes[game.node.index - 1]);
+    game_update_to(game, game.ply.parentVariation.plies[game.ply.index - 1]);
 }
 
 game_go_to_next_move :: (game : *Game) {
-    if game.node.index == game.node.parentVariation.nodes.count - 1 then return;
-    game_update_to(game, game.node.parentVariation.nodes[game.node.index + 1]);
+    if game.ply.index == game.ply.parentVariation.plies.count - 1 then return;
+    game_update_to(game, game.ply.parentVariation.plies[game.ply.index + 1]);
 }
 
 game_go_to_previous_variation :: (game : *Game) {
-    variation := game.node.parentVariation;
-    variationParentNode := variation.parentNode;
-    if variationParentNode != null {
+    variation := game.ply.parentVariation;
+    variationParentPly := variation.parentPly;
+    if variationParentPly != null {
         if variation.index > 0 {
-            game_update_to(game, variationParentNode.variations[variation.index - 1].nodes[1]);
+            game_update_to(game, variationParentPly.variations[variation.index - 1].plies[1]);
         } else {
-            game_update_to(game, variationParentNode);
+            game_update_to(game, variationParentPly);
         }
     }
 }
 
 game_go_to_next_variation :: (game : *Game) {
     // Is there a subvariation from where we are?
-    if game.node.variations.count != 0 {
-        game_update_to(game, game.node.variations[0].nodes[1]);
+    if game.ply.variations.count != 0 {
+        game_update_to(game, game.ply.variations[0].plies[1]);
     }
     // Or is there a next variation in the parent one?
     else {
-        variation := game.node.parentVariation;
-        variationParentNode := game.node.parentVariation.parentNode;
-        if variationParentNode != null {
-            if variation.index < variationParentNode.variations.count - 1 {
-                game_update_to(game, variationParentNode.variations[variation.index + 1].nodes[1]);
+        variation := game.ply.parentVariation;
+        variationParentPly := game.ply.parentVariation.parentPly;
+        if variationParentPly != null {
+            if variation.index < variationParentPly.variations.count - 1 {
+                game_update_to(game, variationParentPly.variations[variation.index + 1].plies[1]);
             }
         }
     }
@@ -189,24 +188,24 @@ game_debug_dump :: (game : Game) {
 
 variation_collapse :: (variation : *Variation) {
     variation.collapsed = !variation.collapsed;
-    replace_ply_recursively(variation.nodes[0]);
+    replace_ply_recursively(variation.plies[0]);
 }
 
 variation_debug_dump :: (variation : Variation, depth : u8) {
     prefix := "| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ";
     prefix.count = depth * 2;
 
-    for node, nodeIndex : variation.nodes {
-        if nodeIndex == 0 {
+    for ply, plyIndex : variation.plies {
+        if plyIndex == 0 {
             prefix.count -= 1;
-            Chamber.debug(prefix, "> {", node.position.comment, "}");
+            Chamber.debug(prefix, "> {", ply.position.comment, "}");
             prefix.count += 1;
         } else {
-            fullMoveIndex := (node.position.moveIndex + 1) / 2;
-            Chamber.debug(prefix, fullMoveIndex, ifx node.position.moveIndex % 2 then ". " else "… ", position_last_move_to_san(node.position), " {", node.position.comment, "}");
+            fullMoveIndex := (ply.position.moveIndex + 1) / 2;
+            Chamber.debug(prefix, fullMoveIndex, ifx ply.position.moveIndex % 2 then ". " else "… ", position_last_move_to_san(ply.position), " {", ply.position.comment, "}");
         }
 
-        for variation : node.variations {
+        for variation : ply.variations {
             variation_debug_dump(<<variation, depth + 1);
         }
     }
