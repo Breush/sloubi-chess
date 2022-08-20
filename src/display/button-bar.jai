@@ -20,7 +20,7 @@ button_bar_init :: () {
     Sill.ui_on_trigger(*backButton.ui, (trigger : Sill.UiTrigger, backButton : *ButtonEntity) {
         // @fixme Have a "not-saved changes" dialog.
         button_bar_show(false);
-        game_cleanup(*instance.game, resetUi = true);
+        game_cleanup(*instance.game);
         file_select_show(".pgn", (selectedFile : string) {
             load_pgn(selectedFile);
         });

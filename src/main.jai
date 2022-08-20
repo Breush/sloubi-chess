@@ -40,6 +40,7 @@ Instance :: struct {
     engine : *Sill.Engine(SillMeta);
 
     shaders : struct {
+        decorum : *Magma.Shader;
         monochrome : *Magma.Shader;
         text : *Magma.Shader;
         translucentMonochrome : *Magma.Shader;
@@ -160,6 +161,7 @@ _shaders_init :: () {
     instance.shaders.monochrome = Magma.create_shader(instance.engine.renderer, "./assets/materials/monochrome");
     instance.shaders.text = Magma.create_shader(instance.engine.renderer, "./assets/materials/text", .{ depthWriteEnabled = false, alphaBlendingEnabled = true });
     instance.shaders.translucentMonochrome = Magma.create_shader(instance.engine.renderer, "./assets/materials/translucent-monochrome", .{ depthWriteEnabled = false, alphaBlendingEnabled = true });
+    instance.shaders.decorum = Magma.create_shader(instance.engine.renderer, "./assets/materials/decorum", .{ alphaBlendingEnabled = true });
 }
 
 #import "Math";

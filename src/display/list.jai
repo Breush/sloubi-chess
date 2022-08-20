@@ -14,26 +14,45 @@ PlyEntity :: struct {
     mesh : Sill.MeshComponent;
     ui : Sill.UiComponent;
 
+    // -- Main properties
+    position : Position;
+    variations : [..]*Variation;
+    parentVariation : *Variation;
+    index : u16; // Index of the node in the parent variation.
+
+    // -- Display
     charInfos : []CharInfo;
     textCursorPosition : u32; // Stored in bytes, not codepoints.
     startingOffsetX : float;
     commentLocation : CommentLocation;
     depth : u8;
 
+    decorum : *DecorumEntity; // Might be null.
+
     // Below are just references to the corresponding primitive mesh within the component,
     // for easier use.
     moveMeshNode : *Sill.MeshNode;
     commentMeshNode : *Sill.MeshNode;
-    decorumMeshNode : *Sill.MeshNode; // Might be null.
 
     moveHovered : bool;
-
     moveColor : Chamber.vec3;
     moveTextWidth : float;
 
     on_cleanup :: (using this : *PlyEntity) {
+        Basic.free(position.comment);
         Basic.array_free(charInfos);
+
+        if decorum != null {
+            Sill.destroy_entity(decorum);
+        }
     }
+}
+
+DecorumEntity :: struct {
+    using #as entity : Sill.Entity;
+    transform : Sill.TransformComponent;
+    ui : Sill.UiComponent;
+    mesh : Sill.MeshComponent;
 }
 
 ScrollEntity :: struct {
@@ -45,6 +64,10 @@ TextCursorEntity :: struct {
     using #as entity : Sill.Entity; @Sill:NoStorage
     transform : Sill.TransformComponent;
     mesh : Sill.MeshComponent;
+}
+
+replace_ply_recursively :: (ply : *PlyEntity) {
+    _place_ply_entity(ply, propagate = true);
 }
 
 list_init :: () {
@@ -89,10 +112,6 @@ list_reflow :: () {
     }
 }
 
-list_reset_ui :: (node : *Variation.Node) {
-    Sill.destroy_entity(node.plyEntity);
-}
-
 list_show :: (game : Game) {
     list_show_variation(*game.mainVariation);
     _rebuild_decorums(*game.mainVariation);
@@ -104,12 +123,10 @@ list_show_variation :: (variation : *Variation, depth : u8 = 0) {
     for nodeIndex : 0..variation.nodes.count-1 {
         node := variation.nodes[nodeIndex];
 
-        if node.plyEntity != null then Sill.destroy_entity(node.plyEntity);
-        node.plyEntity = SillMeta.create_ply_entity(instance.engine);
-        node.plyEntity.moveColor = annotation_color(node.position.lastMove.annotation);
-        node.plyEntity.depth = depth;
+        node.moveColor = annotation_color(node.position.lastMove.annotation);
+        node.depth = depth;
 
-        Sill.entity_set_parent(node.plyEntity, *list.scroll);
+        Sill.entity_set_parent(node, *list.scroll);
         _init_ply_entity(node);
         _place_ply_entity(node, propagate = false);
 
@@ -119,21 +136,39 @@ list_show_variation :: (variation : *Variation, depth : u8 = 0) {
     }
 }
 
-list_update_to_current_move :: (game : *Game, oldNode : *Variation.Node) {
+list_update_to_current_move :: (game : *Game, oldNode : *PlyEntity) {
     list := instance.list;
 
+    // Uncollapse the tree if needed
+    // @todo have it dynamic and hide it back when leaving?
+    if game.node != null {
+        topVariationUncollapsed : *Variation;
+        variation := game.node.parentVariation;
+        while variation != null {
+            if variation.collapsed {
+                variation.collapsed = false;
+                topVariationUncollapsed = variation;
+            }
+            variation = ifx variation.parentNode != null then variation.parentNode.parentVariation else null;
+        }
+
+        if topVariationUncollapsed != null {
+            replace_ply_recursively(topVariationUncollapsed.nodes[0]);
+        }
+    }
+
     if oldNode != null {
-        for *meshNode : oldNode.plyEntity.mesh.nodes {
-            Magma.material_set(meshNode.primitives[0].material, "color", oldNode.plyEntity.moveColor);
+        for *meshNode : oldNode.mesh.nodes {
+            Magma.material_set(meshNode.primitives[0].material, "color", oldNode.moveColor);
         }
     }
 
     startY := 0.0;
     if game.node != null {
-        startY = game.node.plyEntity.transform.translation.y;
+        startY = game.node.transform.translation.y;
 
-        for *meshNode : game.node.plyEntity.mesh.nodes {
-            color := ifx meshNode == game.node.plyEntity.commentMeshNode then instance.config.moves.selectedCommentColor
+        for *meshNode : game.node.mesh.nodes {
+            color := ifx meshNode == game.node.commentMeshNode then instance.config.moves.selectedCommentColor
                                                                          else instance.config.moves.selectedColor;
             Magma.material_set(meshNode.primitives[0].material, "color", color);
         }
@@ -166,7 +201,7 @@ CommentLocation :: struct {
     spaced : bool; // The preflushed comment should be spaced from the previous one.
 }
 
-_detect_comment_location :: (node : *Variation.Node) -> CommentLocation {
+_detect_comment_location :: (node : *PlyEntity) -> CommentLocation {
     variation := node.parentVariation;
 
     commentLocation : CommentLocation;
@@ -179,9 +214,9 @@ _detect_comment_location :: (node : *Variation.Node) -> CommentLocation {
         return commentLocation;
     }
 
-    commentLocation.style = _detect_comment_style(node.comment);
-    nextCommentStyle := ifx node.index != variation.nodes.count - 1 then _detect_comment_style(variation.nodes[node.index + 1].comment) else .None;
-    previousCommentStyle := ifx node.index != 0 then _detect_comment_style(variation.nodes[node.index - 1].comment) else .None;
+    commentLocation.style = _detect_comment_style(node.position.comment);
+    nextCommentStyle := ifx node.index != variation.nodes.count - 1 then _detect_comment_style(variation.nodes[node.index + 1].position.comment) else .None;
+    previousCommentStyle := ifx node.index != 0 then _detect_comment_style(variation.nodes[node.index - 1].position.comment) else .None;
 
     // Promotion of white half comment to a long style comment if next black is expected to be full.
     if commentLocation.style == .Half && commentLocation.color == .White &&
@@ -217,7 +252,7 @@ _detect_comment_location :: (node : *Variation.Node) -> CommentLocation {
             if _is_style_spaced_after(previousCommentStyle) {
                 commentLocation.spaced = true;
             } else if commentLocation.color == .White && node.index >= 2 && variation.nodes[node.index - 2].variations.count == 0 {
-                previousPreviousCommentStyle := _detect_comment_style(variation.nodes[node.index - 2].comment);
+                previousPreviousCommentStyle := _detect_comment_style(variation.nodes[node.index - 2].position.comment);
                 commentLocation.spaced = _is_style_spaced_after(previousPreviousCommentStyle);
             }
         }
@@ -238,77 +273,76 @@ _is_style_spaced_after :: (commentStyle : CommentStyle) -> bool {
     return commentStyle == .Half || commentStyle == .SidedFull || commentStyle == .Full;
 }
 
-_init_ply_entity :: (node : *Variation.Node) {
+_init_ply_entity :: (node : *PlyEntity) {
     height : float;
 
     // ----- Move
 
     if node.index != 0 {
-        Basic.array_add(*node.plyEntity.mesh.nodes, .{});
-        Basic.array_add(*Basic.peek_pointer(node.plyEntity.mesh.nodes).primitives, create_text_mesh());
-        node.plyEntity.moveMeshNode = Basic.peek_pointer(node.plyEntity.mesh.nodes);
+        Basic.array_add(*node.mesh.nodes, .{});
+        Basic.array_add(*Basic.peek_pointer(node.mesh.nodes).primitives, create_text_mesh());
+        node.moveMeshNode = Basic.peek_pointer(node.mesh.nodes);
 
         moveIndex := (node.position.moveIndex + 1) / 2;
         moveText := Basic.tprint("%.% %", moveIndex, ifx node.position.moveIndex % 2 then "" else ".. ", position_last_move_to_san(node.position, annotations = true));
-        fontId := ifx node.plyEntity.depth == 0 then "mainBold" else "mainLight";
-        charInfos := text_mesh_update(node.plyEntity.moveMeshNode.primitives[0], moveText, fontId, node.plyEntity.moveColor);
-        node.plyEntity.moveTextWidth = Basic.peek(charInfos).effective.xEnd;
+        fontId := ifx node.depth == 0 then "mainBold" else "mainLight";
+        charInfos := text_mesh_update(node.moveMeshNode.primitives[0], moveText, fontId, node.moveColor);
+        node.moveTextWidth = Basic.peek(charInfos).effective.xEnd;
         Basic.array_free(charInfos);
     } else if (node.parentVariation.parentNode != null) {
-        Basic.array_add(*node.plyEntity.mesh.nodes, .{});
-        Basic.array_add(*Basic.peek_pointer(node.plyEntity.mesh.nodes).primitives, _make_decorum_mesh(UiConstants.WidthDecorumVariation));
-        node.plyEntity.decorumMeshNode = Basic.peek_pointer(node.plyEntity.mesh.nodes);
-        node.plyEntity.decorumMeshNode.transform.translation.x -= UiConstants.PaddingHorizontalVariation / 2.0;
+        node.decorum = _make_decorum();
+        node.decorum.transform.translation.x = -UiConstants.PaddingHorizontalVariation / 2.0;
+        Sill.entity_set_parent(node.decorum, node);
     }
 
     // ----- Comment
 
-    Basic.array_add(*node.plyEntity.mesh.nodes, .{});
-    Basic.array_add(*Basic.peek_pointer(node.plyEntity.mesh.nodes).primitives, create_text_mesh());
-    node.plyEntity.commentMeshNode = Basic.peek_pointer(node.plyEntity.mesh.nodes);
-    node.plyEntity.charInfos = text_mesh_update(node.plyEntity.commentMeshNode.primitives[0], node.comment, "mainLight", instance.config.moves.mainColor);
-    Basic.array_add(*node.plyEntity.collider.boxShapes, .{});
+    Basic.array_add(*node.mesh.nodes, .{});
+    Basic.array_add(*Basic.peek_pointer(node.mesh.nodes).primitives, create_text_mesh());
+    node.commentMeshNode = Basic.peek_pointer(node.mesh.nodes);
+    node.charInfos = text_mesh_update(node.commentMeshNode.primitives[0], node.position.comment, "mainLight", instance.config.moves.mainColor);
+    Basic.array_add(*node.collider.boxShapes, .{});
 
-    Sill.ui_on_trigger(*node.plyEntity.ui, (trigger : Sill.UiTrigger, node : *Variation.Node) {
-        if node.plyEntity.moveHovered {
+    Sill.ui_on_trigger(*node.ui, (trigger : Sill.UiTrigger, node : *PlyEntity) {
+        if node.moveHovered {
             game_update_to(*instance.game, node);
         }
 
-        Sill.ui_set_focused(*node.plyEntity.ui);
+        Sill.ui_set_focused(*node.ui);
         _set_text_cursor_position_from_mouse(node);
         _update_text_cursor(node);
     }, Sill.UiCallbackFlags.Click, node);
 
-    Sill.ui_on_trigger(*node.plyEntity.ui, (trigger : Sill.UiTrigger, node : *Variation.Node) {
+    Sill.ui_on_trigger(*node.ui, (trigger : Sill.UiTrigger, node : *PlyEntity) {
         _show_text_cursor(!(trigger.flags & .NoFocus));
     }, Sill.UiCallbackFlags.Focus | .NoFocus, node);
 
-    Sill.ui_on_trigger(*node.plyEntity.ui, (trigger : Sill.UiTrigger, node : *Variation.Node) {
+    Sill.ui_on_trigger(*node.ui, (trigger : Sill.UiTrigger, node : *PlyEntity) {
         textChanged := false;
         <<trigger.stopPropagation = true;
 
         if trigger.event.kind == .TextEntered {
-            Chamber.insert_after_byte(*node.comment, node.plyEntity.textCursorPosition, trigger.event.text.str);
-            node.plyEntity.textCursorPosition += cast(u32) trigger.event.text.str.count;
+            Chamber.insert_after_byte(*node.position.comment, node.textCursorPosition, trigger.event.text.str);
+            node.textCursorPosition += cast(u32) trigger.event.text.str.count;
             textChanged = true;
         } else if trigger.event.kind == .KeyPressed {
             if trigger.event.key.which == .Escape {
-                Sill.ui_set_focused(*node.plyEntity.ui, false);
+                Sill.ui_set_focused(*node.ui, false);
             } else if trigger.event.key.which == .Delete {
-                deletedBytes := Chamber.delete_after_byte(*node.comment, node.plyEntity.textCursorPosition);
+                deletedBytes := Chamber.delete_after_byte(*node.position.comment, node.textCursorPosition);
                 if deletedBytes == 0 then return;
                 textChanged = true;
             } else if trigger.event.key.which == .Backspace {
-                deletedBytes := Chamber.delete_before_byte(*node.comment, node.plyEntity.textCursorPosition);
+                deletedBytes := Chamber.delete_before_byte(*node.position.comment, node.textCursorPosition);
                 if deletedBytes == 0 then return;
-                node.plyEntity.textCursorPosition -= deletedBytes;
+                node.textCursorPosition -= deletedBytes;
                 textChanged = true;
             } else if trigger.event.key.which == .Left {
-                if node.plyEntity.textCursorPosition == 0 then return;
-                node.plyEntity.textCursorPosition -= Chamber.utf8_word_length_before_byte(node.comment, node.plyEntity.textCursorPosition);
+                if node.textCursorPosition == 0 then return;
+                node.textCursorPosition -= Chamber.utf8_word_length_before_byte(node.position.comment, node.textCursorPosition);
             } else if trigger.event.key.which == .Right {
-                if node.plyEntity.textCursorPosition == node.comment.count then return;
-                node.plyEntity.textCursorPosition += Chamber.utf8_word_length_after_byte(node.comment, node.plyEntity.textCursorPosition);
+                if node.textCursorPosition == node.position.comment.count then return;
+                node.textCursorPosition += Chamber.utf8_word_length_after_byte(node.position.comment, node.textCursorPosition);
             } else {
                 return;
             }
@@ -319,15 +353,15 @@ _init_ply_entity :: (node : *Variation.Node) {
 
         // @todo Do a clever diff instead of regenerating everything?
         if textChanged then {
-            Basic.array_free(node.plyEntity.charInfos);
-            node.plyEntity.charInfos = text_mesh_update(node.plyEntity.commentMeshNode.primitives[0], node.comment, "mainLight", instance.config.moves.mainColor);
+            Basic.array_free(node.charInfos);
+            node.charInfos = text_mesh_update(node.commentMeshNode.primitives[0], node.position.comment, "mainLight", instance.config.moves.mainColor);
             _place_ply_entity(node, propagate = true);
         }
 
         _update_text_cursor(node);
     }, Sill.UiCallbackFlags.Text | .Key | .NoHover, node);
 
-    Sill.ui_check_hovered_handler(*node.plyEntity.ui, (hovered : bool, plyEntity : *PlyEntity) -> bool {
+    Sill.ui_check_hovered_handler(*node.ui, (hovered : bool, plyEntity : *PlyEntity) -> bool {
         ray : Ray = ---;
         ray.origin.x = cast(float) instance.engine.window.mousePosition.x - instance.engine.options.windowExtent.width / 2.0;
         ray.origin.y = cast(float) instance.engine.window.mousePosition.y - instance.engine.options.windowExtent.height / 2.0;
@@ -355,13 +389,13 @@ _init_ply_entity :: (node : *Variation.Node) {
         }
 
         return false;
-    }, node.plyEntity);
+    }, node);
 }
 
-_place_comment_from_char_infos :: (node : *Variation.Node) {
-    mesh := node.plyEntity.commentMeshNode.primitives[0];
+_place_comment_from_char_infos :: (node : *PlyEntity) {
+    mesh := node.commentMeshNode.primitives[0];
 
-    if node.plyEntity.charInfos.count == 0 {
+    if node.charInfos.count == 0 {
         mesh.disabled = true;
         return;
     }
@@ -371,7 +405,7 @@ _place_comment_from_char_infos :: (node : *Variation.Node) {
 
     mesh.disabled = false;
     index := 0;
-    for *charInfo : node.plyEntity.charInfos {
+    for *charInfo : node.charInfos {
         if charInfo.glyphBlank then continue;
 
         if charInfo.effective.xStart < minBounds.x then minBounds.x = charInfo.effective.xStart;
@@ -393,70 +427,87 @@ _place_comment_from_char_infos :: (node : *Variation.Node) {
 
     Magma.mesh_commit_vertices(mesh);
 
-    node.plyEntity.collider.boxShapes[0].transform.translation = node.plyEntity.commentMeshNode.transform.translation;
-    node.plyEntity.collider.boxShapes[0].transform.rotation = node.plyEntity.commentMeshNode.transform.rotation;
-    node.plyEntity.collider.boxShapes[0].transform.translation.xy.std += (maxBounds + minBounds) / 2.0;
-    node.plyEntity.collider.boxShapes[0].extent.xy.std = maxBounds - minBounds;
-    node.plyEntity.collider.boxShapes[0].extent.z = 1.0;
+    node.collider.boxShapes[0].transform.translation = node.commentMeshNode.transform.translation;
+    node.collider.boxShapes[0].transform.rotation = node.commentMeshNode.transform.rotation;
+    node.collider.boxShapes[0].transform.translation.xy.std += (maxBounds + minBounds) / 2.0;
+    node.collider.boxShapes[0].extent.xy.std = maxBounds - minBounds;
+    node.collider.boxShapes[0].extent.z = 1.0;
 
-    Sill.collider_commit_shapes(*node.plyEntity.collider);
+    Sill.collider_commit_shapes(*node.collider);
 }
 
 // The ply entity mesh position (0,0) means the top left of the move text.
 // Which means that the comment mesh node might be offseted to the left
 // for black moves.
-_place_ply_entity :: (node : *Variation.Node, propagate := false) {
-    variationOffset := node.plyEntity.depth * UiConstants.PaddingHorizontalVariation;
+_place_ply_entity :: (node : *PlyEntity, propagate := false, hidden := false) {
+    variationOffset := node.depth * UiConstants.PaddingHorizontalVariation;
     maxWidth := instance.list.ui.extent.width - variationOffset;
     offsetToBlack := (maxWidth + UiConstants.PaddingHorizontalSplit) / 2;
+    parentVariationCollapsed := node.parentVariation.collapsed;
 
-    node.plyEntity.ui.anchor = .TopLeft;
-    node.plyEntity.ui.extent.width = maxWidth;
+    node.ui.anchor = .TopLeft;
+    node.ui.extent.width = maxWidth;
 
     // Detect the comment location, and re-structure it as needed.
     commentLocation := _detect_comment_location(node);
-    node.plyEntity.commentLocation = commentLocation;
+    node.commentLocation = commentLocation;
 
     commentWidth := maxWidth;
-    if commentLocation.style == .Half {
+    if hidden || parentVariationCollapsed {
+        commentWidth = Math.FLOAT32_INFINITY;
+    } else if commentLocation.style == .Half {
         commentWidth = (maxWidth - UiConstants.PaddingHorizontalSplit) / 2;
     } else if commentLocation.style == .SidedFull {
         commentWidth = maxWidth * instance.config.moves.comments.fullStyleWidth;
     } else if commentLocation.style == .Inline {
-        commentWidth = maxWidth / 2.0 - node.plyEntity.moveTextWidth - UiConstants.PaddingCommentInline;
+        commentWidth = maxWidth / 2.0 - node.moveTextWidth - UiConstants.PaddingCommentInline;
     }
 
     // Position the comment mesh based on its location.
     // Make the text fit the specified size.
-    commentHeight := justify_char_infos(node.plyEntity.charInfos, commentWidth, 0.0);
+    commentHeight := justify_char_infos(node.charInfos, commentWidth, 0.0);
 
-    node.plyEntity.commentMeshNode.transform.translation = .{};
+    node.commentMeshNode.transform.translation = .{};
     if node.index != 0 {
-        if commentLocation.style == .Inline || node.comment.count == 0 {
-            node.plyEntity.commentMeshNode.transform.translation.x += node.plyEntity.moveTextWidth + UiConstants.PaddingCommentInline;
-            node.plyEntity.commentMeshNode.transform.translation.y = 0.0;
-            node.plyEntity.ui.extent.height = Basic.max(UiConstants.HeightLine, commentHeight);
+        if commentLocation.style == .Inline || node.position.comment.count == 0 {
+            node.commentMeshNode.transform.translation.x += node.moveTextWidth + UiConstants.PaddingCommentInline;
+            node.commentMeshNode.transform.translation.y = 0.0;
+            node.ui.extent.height = Basic.max(UiConstants.HeightLine, commentHeight);
         } else {
-            node.plyEntity.commentMeshNode.transform.translation.y = UiConstants.HeightLine;
-            node.plyEntity.ui.extent.height = UiConstants.HeightLine + commentHeight;
+            node.commentMeshNode.transform.translation.y = UiConstants.HeightLine;
+            node.ui.extent.height = UiConstants.HeightLine + commentHeight;
         }
 
         if commentLocation.color == .Black &&
            (commentLocation.style == .SidedFull || commentLocation.style == .Full) {
-            node.plyEntity.commentMeshNode.transform.translation.x = (maxWidth - commentWidth - offsetToBlack);
+            node.commentMeshNode.transform.translation.x = (maxWidth - commentWidth - offsetToBlack);
         }
     } else {
-        node.plyEntity.ui.extent.height = commentHeight;
+        node.ui.extent.height = commentHeight;
     }
 
     // @note Waiting for the comment mesh node to be positioned so that we can place the collider accordingly.
     _place_comment_from_char_infos(node);
 
+    if node.moveMeshNode then node.moveMeshNode.primitives[0].disabled = (hidden || parentVariationCollapsed);
+    if node.commentMeshNode then node.commentMeshNode.primitives[0].disabled = (hidden || parentVariationCollapsed);
+
+    if hidden || parentVariationCollapsed {
+        if !hidden && node.index == 1 {
+            node.ui.extent.height = Basic.max(UiConstants.HeightLine, commentHeight);
+            node.moveMeshNode.primitives[0].disabled = false;
+        } else if hidden || node.index != 0 {
+            node.ui.extent.height = 0.0;
+        } else {
+            node.ui.extent.height = 0.0;
+        }
+    }
+
     // Position the entity based on the above comment and the comment location.
     position : Chamber.vec2;
     position.x = variationOffset;
 
-    aboveNode : *Variation.Node;
+    aboveNode : *PlyEntity;
     if node.index > 0 {
         if commentLocation.color == .Black then position.x += offsetToBlack;
 
@@ -478,14 +529,14 @@ _place_ply_entity :: (node : *Variation.Node, propagate := false) {
     }
 
     if aboveNode != null {
-        abovePlyEntity := aboveNode.plyEntity;
+        abovePlyEntity := aboveNode;
         position.y += abovePlyEntity.transform.translation.y;
         if commentLocation.preflushed {
             // We want to preflush but if the previous one is a half black,
             // we need to take the max between this one and the corresponding half white.
             height := abovePlyEntity.ui.extent.height;
             if abovePlyEntity.commentLocation.color == .Black && !abovePlyEntity.commentLocation.preflushed {
-                correspondingAbovePlyEntity := aboveNode.parentVariation.nodes[aboveNode.index - 1].plyEntity;
+                correspondingAbovePlyEntity := aboveNode.parentVariation.nodes[aboveNode.index - 1];
                 height = Basic.max(height, correspondingAbovePlyEntity.ui.extent.height);
             }
             position.y += height;
@@ -496,40 +547,45 @@ _place_ply_entity :: (node : *Variation.Node, propagate := false) {
         position.y += 20;
     }
 
-    node.plyEntity.transform.translation.xy = position;
-    Sill.transform_commit(*node.plyEntity.transform);
+    node.transform.translation.xy = position;
+    Sill.transform_commit(*node.transform);
 
     // If propagate, we replace also all downstream nodes.
     // @todo Do that only on commentLocation or height change?
     if propagate {
-        _place_ply_entities(node.parentVariation, node.index);
+        _place_ply_entities(node.parentVariation, node.index, hidden = hidden);
         _rebuild_decorums(*instance.game.mainVariation);
     }
 }
 
-_place_ply_entities :: (variation : *Variation, nodeIndex : u16, upstream := true) {
+_place_ply_entities :: (variation : *Variation, nodeIndex : u16, upstream := true, hidden := false) {
     // Downstream
     for i : nodeIndex .. variation.nodes.count - 1 {
         node := variation.nodes[i];
-        _place_ply_entity(node);
+        _place_ply_entity(node, hidden = hidden);
 
         for subVariation : node.variations {
-            _place_ply_entities(subVariation, 0, false);
+            _place_ply_entities(subVariation, 0, upstream = false, hidden || variation.collapsed);
         }
     }
 
     // Upstream
     if upstream && variation.parentNode != null {
-        // Same-level variations.
         for i : variation.index + 1 .. variation.parentNode.variations.count - 1 {
-            _place_ply_entities(variation.parentNode.variations[variation.index + 1], 0, false);
+            _place_ply_entities(variation.parentNode.variations[i], 0, upstream = false);
         }
 
         _place_ply_entities(variation.parentNode.parentVariation, variation.parentNode.index + 1);
     }
 }
 
-_rebuild_decorums :: (variation : *Variation) {
+_rebuild_decorums :: (variation : *Variation, hidden := false) {
+    // @fixme What isn't the decorum on the variation?
+    // If it's because it's not an entity, that's not a good excuse, long term.
+    if variation.nodes[0].decorum != null {
+        variation.nodes[0].decorum.mesh.nodes[0].primitives[0].disabled = hidden;
+    }
+
     for node : variation.nodes {
         for subVariation : node.variations {
             firstNode := subVariation.nodes[0];
@@ -539,17 +595,17 @@ _rebuild_decorums :: (variation : *Variation) {
                 lastNode = Basic.peek(Basic.peek(lastNode.variations).nodes);
             }
 
-            position := firstNode.plyEntity.transform.translation;
-            height := lastNode.plyEntity.transform.translation.y + lastNode.plyEntity.ui.extent.height - position.y;
-            _update_decorum_mesh(firstNode.plyEntity.decorumMeshNode.primitives[0], height);
+            position := firstNode.transform.translation;
+            height := lastNode.transform.translation.y + lastNode.ui.extent.height - position.y;
+            _update_decorum(firstNode.decorum, height, subVariation.collapsed);
 
-            _rebuild_decorums(subVariation);
+            _rebuild_decorums(subVariation, hidden || variation.collapsed);
         }
     }
 }
 
-_set_text_cursor_position_from_mouse :: (node : *Variation.Node) {
-    plyEntity := node.plyEntity;
+_set_text_cursor_position_from_mouse :: (node : *PlyEntity) {
+    plyEntity := node;
     relativePosition := Sill.ui_relative_mouse_pointer_position(*plyEntity.ui);
     relativePosition.std -= plyEntity.commentMeshNode.transform.translation.xy;
 
@@ -566,12 +622,12 @@ _set_text_cursor_position_from_mouse :: (node : *Variation.Node) {
         if xStart <= relativePosition.x && charInfo.effective.xEnd > relativePosition.x &&
            charInfo.effective.yStart <= relativePosition.y && charInfo.effective.yEnd > relativePosition.y {
             if relativePosition.x - xStart > charInfo.effective.xEnd - relativePosition.x {
-                byteIndex += Chamber.utf8_word_length_after_byte(node.comment, byteIndex);
+                byteIndex += Chamber.utf8_word_length_after_byte(node.position.comment, byteIndex);
             }
             break;
         }
 
-        byteIndex += Chamber.utf8_word_length_after_byte(node.comment, byteIndex);
+        byteIndex += Chamber.utf8_word_length_after_byte(node.position.comment, byteIndex);
         xStart = charInfo.effective.xEnd;
         lastYStart = charInfo.effective.yStart;
     }
@@ -579,8 +635,8 @@ _set_text_cursor_position_from_mouse :: (node : *Variation.Node) {
     plyEntity.textCursorPosition = byteIndex;
 }
 
-_update_text_cursor :: (node : *Variation.Node) {
-    plyEntity := node.plyEntity;
+_update_text_cursor :: (node : *PlyEntity) {
+    plyEntity := node;
     textCursor := *instance.list.textCursor;
     commentMesh := plyEntity.commentMeshNode.primitives[0];
 
@@ -598,7 +654,7 @@ _update_text_cursor :: (node : *Variation.Node) {
     } else {
         byteIndex : u32;
         for i : 0 .. plyEntity.charInfos.count - 1 {
-            byteIndex += Chamber.utf8_word_length_after_byte(node.comment, byteIndex);
+            byteIndex += Chamber.utf8_word_length_after_byte(node.position.comment, byteIndex);
 
             if plyEntity.textCursorPosition <= byteIndex {
                 textCursor.transform.translation.x += Math.floor(plyEntity.charInfos[i].effective.xEndWithAdvance + 0.5);
@@ -615,44 +671,63 @@ _show_text_cursor :: (show := true) {
     instance.list.textCursor.mesh.nodes[0].primitives[0].disabled = !show;
 }
 
-_make_decorum_mesh :: (width : float) -> *Magma.Mesh {
-    mesh := Magma.create_mesh(instance.engine.scene);
+_make_decorum :: () -> *DecorumEntity {
+    decorum := SillMeta.create_decorum_entity(instance.engine);
+    decorum.ui.anchor = .TopLeft;
 
-    Basic.array_resize(*mesh.vertices, 4);
-    Basic.array_resize(*mesh.indices, 6);
+    mesh := Magma.create_mesh(instance.engine.scene);
+    create_rect_mesh(existingMesh = mesh);
 
     mesh.vertices[0].position.x = 0.0;
     mesh.vertices[0].position.y = 0.0;
     mesh.vertices[1].position.x = 0.0;
     mesh.vertices[1].position.y = 1.0; // Will be height
-    mesh.vertices[2].position.x = width;
-    mesh.vertices[2].position.y = 1.0 ;// Will be height
-    mesh.vertices[3].position.x = width;
+    mesh.vertices[2].position.x = 1.0; // Will be width
+    mesh.vertices[2].position.y = 1.0; // Will be height
+    mesh.vertices[3].position.x = 1.0; // Will be width
     mesh.vertices[3].position.y = 0.0;
 
-    mesh.indices[0] = 0;
-    mesh.indices[1] = 1;
-    mesh.indices[2] = 2;
-    mesh.indices[3] = 2;
-    mesh.indices[4] = 3;
-    mesh.indices[5] = 0;
-
-    mesh.material = Magma.create_material(instance.shaders.monochrome);
+    mesh.material = Magma.create_material(instance.shaders.decorum);
     Magma.material_set(mesh.material, "color", instance.config.moves.mainColor);
-
     Magma.mesh_commit_vertices(mesh);
-    Magma.mesh_commit_indices(mesh);
 
-    return mesh;
+    Basic.array_add(*decorum.mesh.nodes, .{});
+    Basic.array_add(*Basic.peek_pointer(decorum.mesh.nodes).primitives, mesh);
+
+    Sill.ui_on_trigger(*decorum.ui, (trigger : Sill.UiTrigger, decorum : *DecorumEntity) {
+        if trigger.flags == .Click {
+            variation_collapse((cast(*PlyEntity) decorum.parent).parentVariation);
+        } else {
+            pointerStyle := ifx trigger.flags == .Hover then Crater.PointerStyle.HandPointer else .Default;
+            color := ifx trigger.flags == .Hover then instance.config.moves.selectedColor else instance.config.moves.mainColor;
+            Magma.material_set(decorum.mesh.nodes[0].primitives[0].material, "color", color);
+            Crater.window_pointer_style(instance.engine.window, pointerStyle);
+        }
+    }, Sill.UiCallbackFlags.Hover | .NoHover | .Click, decorum);
+
+    return decorum;
 }
 
-_update_decorum_mesh :: (mesh : *Magma.Mesh, height : float) {
-    DECORUM_VERTICAL_PADDING := 2.0;
+_update_decorum :: (decorum : *DecorumEntity, height : float, collapsed := false) {
+    mesh := decorum.mesh.nodes[0].primitives[0];
 
-    mesh.vertices[0].position.y = DECORUM_VERTICAL_PADDING;
-    mesh.vertices[1].position.y = height - DECORUM_VERTICAL_PADDING;
-    mesh.vertices[2].position.y = height - DECORUM_VERTICAL_PADDING;
-    mesh.vertices[3].position.y = DECORUM_VERTICAL_PADDING;
+    height = Basic.max(height, UiConstants.HeightLine);
+
+    decorum.ui.extent.width = UiConstants.WidthDecorumVariation + 1;
+    decorum.ui.extent.height = height;
+    decorum.ui.anchor = .TopLeft;
+
+    mesh.vertices[0].position.x = 0.0;
+    mesh.vertices[1].position.x = 0.0;
+    mesh.vertices[2].position.x = UiConstants.WidthDecorumVariation;
+    mesh.vertices[3].position.x = UiConstants.WidthDecorumVariation;
+    mesh.vertices[0].position.y = UiConstants.PaddingVerticalDecorumVariation;
+    mesh.vertices[1].position.y = height - UiConstants.PaddingVerticalDecorumVariation;
+    mesh.vertices[2].position.y = height - UiConstants.PaddingVerticalDecorumVariation;
+    mesh.vertices[3].position.y = UiConstants.PaddingVerticalDecorumVariation;
+
+    Magma.material_set(mesh.material, "collapsed", collapsed);
+    Magma.material_set(mesh.material, "height", height);
 
     Magma.mesh_commit_vertices(mesh);
 }

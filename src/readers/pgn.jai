@@ -130,7 +130,7 @@ save_pgn :: (filename : string) {
 
 _write_variation :: (builder : *Basic.String_Builder, variation : *Variation) {
     for node, index : variation.nodes {
-        if index == 0 && node.comment.count == 0 && node.variations.count == 0 then continue;
+        if index == 0 && node.position.comment.count == 0 && node.variations.count == 0 then continue;
 
         if index != 0 {
             moveIndex := (node.position.moveIndex + 1) / 2;
@@ -138,11 +138,11 @@ _write_variation :: (builder : *Basic.String_Builder, variation : *Variation) {
             _write_nags(builder, *node.position);
         }
 
-        if node.comment.count != 0 {
+        if node.position.comment.count != 0 {
             if index != 0 {
                 Basic.append(builder, " ");
             }
-            _write_escaped_comment(builder, node.comment);
+            _write_escaped_comment(builder, node.position.comment);
         }
 
         if node.position.highlights.squares.count != 0 {
@@ -168,7 +168,7 @@ _write_variation :: (builder : *Basic.String_Builder, variation : *Variation) {
         }
 
         if node.variations.count != 0 {
-            if index != 0 || node.comment.count != 0 {
+            if index != 0 || node.position.comment.count != 0 {
                 Basic.append(builder, " ");
             }
             for subVariation, subVariationIndex : node.variations {
@@ -750,7 +750,7 @@ _parse_potential_comments :: (bytes : *string, variation : *Variation) {
         }
     }
 
-    Basic.peek(variation.nodes).comment = Basic.copy_string(fullComment);
+    Basic.peek(variation.nodes).position.comment = Basic.copy_string(fullComment);
 }
 
 _parse_potential_variation :: (bytes : *string, parentVariation : *Variation, color : Color) -> bool {

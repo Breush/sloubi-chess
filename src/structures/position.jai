@@ -13,7 +13,7 @@
 Position :: struct {
     board : [CoordCount]Piece;
 
-    // @fixme Clarify: why comment is not there? Or why do we have so much info here?
+    comment : string;
     moveIndex : u16; // @note Therefore contains the color to play: even = white, odd = black.
     lastMove : Move;
     annotation : PositionAnnotation;

@@ -21,11 +21,10 @@ Game :: struct {
         extra : [..]struct { name : string; value : string; };
     }
 
-    node : *Variation.Node; // Current node.
+    node : *PlyEntity; // Current node.
 
     // @note In order to never invalidate pointers but still
     // have efficient memory layout, we use pools.
-    nodePool : Bucket_Array.Bucket_Array(Variation.Node, 128);
     variationPool : Bucket_Array.Bucket_Array(Variation, 32);
 
     Result :: enum {
@@ -39,24 +38,14 @@ Game :: struct {
 Variation :: struct {
     // @note nodes[0].position is the initial position.
     // And it should not get any variation in it.
-    nodes : [..]*Node; // @note Do not flatten this, the struct might be needed for extra info about a variation.
+    // @fixme Forget the name "Node"?
+    nodes : [..]*PlyEntity; // @note Do not flatten this, the struct might be needed for extra info about a variation.
 
-    parentNode : *Node; // Can be null for the main variation.
+    parentNode : *PlyEntity; // Can be null for the main variation.
     index : u16; // Index of the variation in the parent node.
 
     depth : u16;
-
-    // @todo Rename ply?
-    Node :: struct {
-        position : Position;
-        variations : [..]*Variation;
-        comment : string;
-
-        parentVariation : *Variation;
-        index : u16; // Index of the node in the parent variation.
-
-        plyEntity : *PlyEntity; // Managed by list.
-    }
+    collapsed : bool;
 }
 
 game_show :: (game : *Game) {
@@ -67,11 +56,10 @@ game_show :: (game : *Game) {
     game_update_to(game, game.mainVariation.nodes[0]);
 }
 
-game_cleanup :: (game : *Game, resetUi := false) {
+game_cleanup :: (game : *Game) {
     game.node = null;
-    variation_cleanup(*game.mainVariation, resetUi);
+    variation_cleanup(*game.mainVariation);
 
-    Bucket_Array.bucket_array_reset(*game.nodePool);
     Bucket_Array.bucket_array_reset(*game.variationPool);
 
     Basic.free(game.pgnFileName);
@@ -79,27 +67,26 @@ game_cleanup :: (game : *Game, resetUi := false) {
     (<<game) = .{};
 }
 
-variation_cleanup :: (variation : *Variation, resetUi := false) {
+variation_cleanup :: (variation : *Variation) {
     for node : variation.nodes {
-        node_cleanup(node, resetUi);
+        node_cleanup(node);
     }
     Basic.array_free(variation.nodes);
 }
 
-node_cleanup :: (node : *Variation.Node, resetUi := false) {
-    if resetUi {
-        list_reset_ui(node);
-    }
-
-    Basic.free(node.comment);
+// @fixme Move all that on_cleanup?
+node_cleanup :: (node : *PlyEntity) {
     for variation : node.variations {
-        variation_cleanup(variation, resetUi);
+        variation_cleanup(variation);
     }
     Basic.array_free(node.variations);
+
+    Sill.destroy_entity(node);
 }
 
-game_add_variation :: (game : *Game, parentNode : *Variation.Node) -> *Variation {
+game_add_variation :: (game : *Game, parentNode : *PlyEntity) -> *Variation {
     variation := Bucket_Array.find_and_occupy_empty_slot(*game.variationPool);
+    variation.collapsed = instance.config.moves.variationsCollapsed;
     Basic.array_add(*parentNode.variations, variation);
 
     variation.parentNode = parentNode;
@@ -108,8 +95,8 @@ game_add_variation :: (game : *Game, parentNode : *Variation.Node) -> *Variation
     return variation;
 }
 
-game_add_variation_node :: (game : *Game, parentVariation : *Variation) -> *Variation.Node {
-    node := Bucket_Array.find_and_occupy_empty_slot(*game.nodePool);
+game_add_variation_node :: (game : *Game, parentVariation : *Variation) -> *PlyEntity {
+    node := SillMeta.create_ply_entity(instance.engine);
     Basic.array_add(*parentVariation.nodes, node);
 
     node.parentVariation = parentVariation;
@@ -117,7 +104,7 @@ game_add_variation_node :: (game : *Game, parentVariation : *Variation) -> *Vari
     return node;
 }
 
-game_update_to :: (game : *Game, node : *Variation.Node) {
+game_update_to :: (game : *Game, node : *PlyEntity) {
     oldNode := game.node;
     game.node = node;
 
@@ -200,6 +187,11 @@ game_debug_dump :: (game : Game) {
     variation_debug_dump(game.mainVariation, 0);
 }
 
+variation_collapse :: (variation : *Variation) {
+    variation.collapsed = !variation.collapsed;
+    replace_ply_recursively(variation.nodes[0]);
+}
+
 variation_debug_dump :: (variation : Variation, depth : u8) {
     prefix := "| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ";
     prefix.count = depth * 2;
@@ -207,11 +199,11 @@ variation_debug_dump :: (variation : Variation, depth : u8) {
     for node, nodeIndex : variation.nodes {
         if nodeIndex == 0 {
             prefix.count -= 1;
-            Chamber.debug(prefix, "> {", node.comment, "}");
+            Chamber.debug(prefix, "> {", node.position.comment, "}");
             prefix.count += 1;
         } else {
             fullMoveIndex := (node.position.moveIndex + 1) / 2;
-            Chamber.debug(prefix, fullMoveIndex, ifx node.position.moveIndex % 2 then ". " else "… ", position_last_move_to_san(node.position), " {", node.comment, "}");
+            Chamber.debug(prefix, fullMoveIndex, ifx node.position.moveIndex % 2 then ". " else "… ", position_last_move_to_san(node.position), " {", node.position.comment, "}");
         }
 
         for variation : node.variations {

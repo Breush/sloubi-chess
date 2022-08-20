@@ -45,6 +45,7 @@ Config :: struct {
         selectedColor : Chamber.vec3;
         selectedCommentColor : Chamber.vec3;
         pieceAsSymbol : bool;
+        variationsCollapsed : bool;
         comments : struct {
             shortStyle : CommentStyle;
             normalStyle : CommentStyle;
