@@ -126,9 +126,11 @@ _event_handler :: (event : Crater.Event) {
         Magma.forward_renderer_extent(cast(*Magma.ForwardRenderer) instance.engine.renderer, instance.engine.options.windowExtent);
         setup_orthographic_camera();
         reflow();
-    }
-    else if event.kind == Crater.Event.Kind.KeyPressed &&
-            event.key.which == Crater.Key.Escape {
+    } else if event.kind == Crater.Event.Kind.KeyPressed &&
+              event.key.which == Crater.Key.F10 {
+        instance.engine.options.logFps = !instance.engine.options.logFps;
+    } else if event.kind == Crater.Event.Kind.KeyPressed &&
+              event.key.which == Crater.Key.Escape {
         instance.engine.closingMainWindow = true;
     }
 }

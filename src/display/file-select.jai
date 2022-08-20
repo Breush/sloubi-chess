@@ -25,6 +25,7 @@ Entries :: struct {
 EntryEntity :: struct {
     using #as entity : Sill.Entity;
 
+    // @fixme Crash if moving mesh to the top of this list
     ui : Sill.UiComponent;
     transform : Sill.TransformComponent;
     mesh : Sill.MeshComponent;
