@@ -1,6 +1,7 @@
 Basic :: #import "Basic";
 Compiler :: #import "Compiler";
 File :: #import "File";
+FileUtilities :: #import "File_Utilities";
 String :: #import "String";
 MetaprogramPlugins :: #import "Metaprogram_Plugins";
 
@@ -38,6 +39,10 @@ dummy_ide_check_message :: (message : *Compiler.Message) {
         // And also remove the need for the WinMain...
         // (From https://stackoverflow.com/a/5260237)
         options.additional_linker_arguments = .["/subsystem:windows ", "/entry:mainCRTStartup"];
+
+        if !FileUtilities.file_exists("./bin/libshaderc.dll") then FileUtilities.copy_file("./lava/bindings/Shaderc/libshaderc.dll", "./bin/libshaderc.dll");
+        if !FileUtilities.file_exists("./bin/libstbtruetype.dll") then FileUtilities.copy_file("./lava/bindings/StbTrueType/libstbtruetype.dll", "./bin/libstbtruetype.dll");
+        if !FileUtilities.file_exists("./bin/libvulkan.dll") then FileUtilities.copy_file("./lava/bindings/Vulkan/libvulkan.dll", "./bin/libvulkan.dll");
     } else {
         arguments: [..] string;
         Basic.array_add(*arguments, "-rpath='$ORIGIN/lib'");
