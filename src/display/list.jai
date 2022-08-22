@@ -67,7 +67,7 @@ TextCursorEntity :: struct {
 }
 
 replace_ply_recursively :: (ply : *PlyEntity) {
-    _place_ply_entity(ply, propagate = true);
+    _place_ply(ply, propagate = true);
 }
 
 list_init :: () {
@@ -108,7 +108,7 @@ list_reflow :: () {
     Sill.transform_commit(*list.transform);
 
     if instance.game.mainVariation.plies.count > 0 {
-        _place_ply_entity(instance.game.mainVariation.plies[0], propagate = true);
+        _place_ply(instance.game.mainVariation.plies[0], propagate = true);
     }
 }
 
@@ -120,19 +120,22 @@ list_show :: (game : Game) {
 list_show_variation :: (variation : *Variation, depth : u8 = 0) {
     list := instance.list;
 
-    for plyIndex : 0..variation.plies.count-1 {
+    for plyIndex : 0 .. variation.plies.count - 1 {
         ply := variation.plies[plyIndex];
 
         ply.moveColor = annotation_color(ply.position.lastMove.annotation);
         ply.depth = depth;
 
         Sill.entity_set_parent(ply, *list.scroll);
-        _init_ply_entity(ply);
-        _place_ply_entity(ply, propagate = false);
+        _init_ply(ply);
 
         for variation : ply.variations {
             list_show_variation(variation, depth + 1);
         }
+    }
+
+    if depth == 0 {
+        _place_ply(instance.game.mainVariation.plies[0], propagate = true);
     }
 }
 
@@ -161,26 +164,64 @@ list_update_to_current_move :: (game : *Game, oldPly : *PlyEntity) {
         for *meshNode : oldPly.mesh.nodes {
             Magma.material_set(meshNode.primitives[0].material, "color", oldPly.moveColor);
         }
-    }
-
-    startY := 0.0;
-    if game.ply != null {
-        startY = game.ply.transform.translation.y;
-
-        for *meshNode : game.ply.mesh.nodes {
-            color := ifx meshNode == game.ply.commentMeshNode then instance.config.moves.selectedCommentColor
-                                                                         else instance.config.moves.selectedColor;
-            Magma.material_set(meshNode.primitives[0].material, "color", color);
+        if oldPly.decorum {
+            Magma.material_set(oldPly.decorum.mesh.nodes[0].primitives[0].material, "color", instance.config.moves.mainColor);
         }
     }
 
-    // @fixme Clever scrolling (i.e. don't if it's visible).
-    list_scroll(-list.scroll.transform.translation.y - startY);
+    plyY := 0.0;
+    plyHeight := 0.0;
+    if game.ply != null {
+        plyY = game.ply.transform.translation.y;
+        plyHeight = game.ply.ui.extent.height;
+
+        for *meshNode : game.ply.mesh.nodes {
+            color := ifx meshNode == game.ply.commentMeshNode then instance.config.moves.selectedCommentColor
+                                                              else instance.config.moves.selectedColor;
+            Magma.material_set(meshNode.primitives[0].material, "color", color);
+        }
+        if game.ply.decorum {
+            Magma.material_set(game.ply.decorum.mesh.nodes[0].primitives[0].material, "color", instance.config.moves.selectedColor);
+        }
+    }
+
+    // Clever scrolling, don't scroll if all the node is already visible
+    if list.scroll.transform.translation.y + plyY > 0 &&
+        list.scroll.transform.translation.y + plyY + plyHeight < list.ui.extent.height {
+        return;
+    }
+
+    // We need to fit the ply at the screen. To do so, either move the list down or up
+    // given which side is the closest. This makes navigating the moves downwards more
+    // natural by having them appearing at the bottom.
+    deltaToFitAtTop := 0 - list.scroll.transform.translation.y - plyY;
+    deltaToFitAtBottom := list.ui.extent.height - list.scroll.transform.translation.y - (plyY + plyHeight);
+    delta := ifx Math.abs(deltaToFitAtTop) < Math.abs(deltaToFitAtBottom) then deltaToFitAtTop else deltaToFitAtBottom;
+
+    list_scroll(delta);
 }
 
 list_scroll :: (scrollDelta : float) {
     list := instance.list;
+
     list.scroll.transform.translation.y += Math.floor(scrollDelta);
+
+    // Clever scrolling, don't go outside the limits
+    // Find the last ply, to know the size of the total displayed list
+    ply := Basic.peek(instance.game.mainVariation.plies);
+    while ply.variations.count != 0 {
+        ply = Basic.peek(Basic.peek(ply.variations).plies);
+    }
+
+    maxY := (ply.transform.translation.y + ply.ui.extent.height) - list.ui.extent.height / 2;
+    maxY = Basic.max(maxY, 0);
+
+    if list.scroll.transform.translation.y > 0 {
+        list.scroll.transform.translation.y = 0;
+    } else if list.scroll.transform.translation.y < -maxY {
+        list.scroll.transform.translation.y = -maxY;
+    }
+
     Sill.transform_commit(*list.scroll.transform);
 }
 
@@ -273,7 +314,7 @@ _is_style_spaced_after :: (commentStyle : CommentStyle) -> bool {
     return commentStyle == .Half || commentStyle == .SidedFull || commentStyle == .Full;
 }
 
-_init_ply_entity :: (ply : *PlyEntity) {
+_init_ply :: (ply : *PlyEntity) {
     height : float;
 
     // ----- Move
@@ -355,7 +396,7 @@ _init_ply_entity :: (ply : *PlyEntity) {
         if textChanged then {
             Basic.array_free(ply.charInfos);
             ply.charInfos = text_mesh_update(ply.commentMeshNode.primitives[0], ply.position.comment, "mainLight", instance.config.moves.mainColor);
-            _place_ply_entity(ply, propagate = true);
+            _place_ply(ply, propagate = true);
         }
 
         _update_text_cursor(ply);
@@ -439,7 +480,7 @@ _place_comment_from_char_infos :: (ply : *PlyEntity) {
 // The ply entity mesh position (0,0) means the top left of the move text.
 // Which means that the comment mesh ply might be offseted to the left
 // for black moves.
-_place_ply_entity :: (ply : *PlyEntity, propagate := false, hidden := false) {
+_place_ply :: (ply : *PlyEntity, propagate := false, hidden := false) {
     variationOffset := ply.depth * UiConstants.PaddingHorizontalVariation;
     maxWidth := instance.list.ui.extent.width - variationOffset;
     offsetToBlack := (maxWidth + UiConstants.PaddingHorizontalSplit) / 2;
@@ -496,8 +537,6 @@ _place_ply_entity :: (ply : *PlyEntity, propagate := false, hidden := false) {
         if !hidden && ply.index == 1 {
             ply.ui.extent.height = Basic.max(UiConstants.HeightLine, commentHeight);
             ply.moveMeshNode.primitives[0].disabled = false;
-        } else if hidden || ply.index != 0 {
-            ply.ui.extent.height = 0.0;
         } else {
             ply.ui.extent.height = 0.0;
         }
@@ -517,7 +556,6 @@ _place_ply_entity :: (ply : *PlyEntity, propagate := false, hidden := false) {
         while abovePly.variations.count != 0 {
             abovePly = Basic.peek(Basic.peek(abovePly.variations).plies);
         }
-
     } else {
         abovePly = ply.parentVariation.parentPly;
         if abovePly != null && ply.parentVariation.index > 0 {
@@ -525,6 +563,11 @@ _place_ply_entity :: (ply : *PlyEntity, propagate := false, hidden := false) {
             while abovePly.variations.count != 0 {
                 abovePly = Basic.peek(Basic.peek(abovePly.variations).plies);
             }
+        }
+
+        // Move the collapsed decorum dots next to the black move
+        if commentLocation.color == .White && !hidden && parentVariationCollapsed {
+            position.x += offsetToBlack;
         }
     }
 
@@ -543,7 +586,7 @@ _place_ply_entity :: (ply : *PlyEntity, propagate := false, hidden := false) {
     }
 
     if commentLocation.spaced {
-        position.y += 20;
+        position.y += ifx hidden || parentVariationCollapsed then 5 else 15;
     }
 
     ply.transform.translation.xy = position;
@@ -552,29 +595,29 @@ _place_ply_entity :: (ply : *PlyEntity, propagate := false, hidden := false) {
     // If propagate, we replace also all downstream plys.
     // @todo Do that only on commentLocation or height change?
     if propagate {
-        _place_ply_entities(ply.parentVariation, ply.index, hidden = hidden);
+        _place_variation_plies(ply.parentVariation, ply.index, hidden = hidden);
         _rebuild_decorums(*instance.game.mainVariation);
     }
 }
 
-_place_ply_entities :: (variation : *Variation, plyIndex : u16, upstream := true, hidden := false) {
+_place_variation_plies :: (variation : *Variation, plyIndex : u16, upstream := true, hidden := false) {
     // Downstream
     for i : plyIndex .. variation.plies.count - 1 {
         ply := variation.plies[i];
-        _place_ply_entity(ply, hidden = hidden);
+        _place_ply(ply, hidden = hidden);
 
         for subVariation : ply.variations {
-            _place_ply_entities(subVariation, 0, upstream = false, hidden || variation.collapsed);
+            _place_variation_plies(subVariation, 0, upstream = false, hidden || variation.collapsed);
         }
     }
 
     // Upstream
     if upstream && variation.parentPly != null {
         for i : variation.index + 1 .. variation.parentPly.variations.count - 1 {
-            _place_ply_entities(variation.parentPly.variations[i], 0, upstream = false);
+            _place_variation_plies(variation.parentPly.variations[i], 0, upstream = false);
         }
 
-        _place_ply_entities(variation.parentPly.parentVariation, variation.parentPly.index + 1);
+        _place_variation_plies(variation.parentPly.parentVariation, variation.parentPly.index + 1);
     }
 }
 
