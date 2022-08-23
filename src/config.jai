@@ -31,6 +31,7 @@ Config :: struct {
         previousPly : Crater.Key;
         firstPly : Crater.Key;
         lastPly : Crater.Key;
+        editPlyComment : Crater.Key;
         nextVariation : Crater.Key;
         previousVariation : Crater.Key;
     }

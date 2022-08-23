@@ -79,7 +79,7 @@ list_init :: () {
     textCursorMesh := Sill.mesh_make_primitive(*list.textCursor.mesh);
     create_rect_mesh(1, UiConstants.HeightLine, existingMesh = textCursorMesh);
     textCursorMesh.material = Magma.create_material(instance.shaders.monochrome);
-    textCursorMesh.disabled = true;
+    Sill.entity_set_disabled(*list.textCursor, true);
     Magma.material_set(textCursorMesh.material, "color", Chamber.vec3.{1, 1, 1});
 
     list_reflow();
@@ -225,6 +225,14 @@ list_scroll :: (scrollDelta : float) {
     Sill.transform_commit(*list.scroll.transform);
 }
 
+ply_edit_comment :: (ply : *PlyEntity, textCursorAtMouse := false) {
+    Sill.ui_set_focused(*ply.ui);
+    if textCursorAtMouse {
+        _set_text_cursor_position_from_mouse(ply);
+    }
+    _update_text_cursor(ply);
+}
+
 CommentStyle :: enum {
     None :: 0;
     Inline;
@@ -345,13 +353,12 @@ _init_ply :: (ply : *PlyEntity) {
     Basic.array_add(*ply.collider.boxShapes, .{});
 
     Sill.ui_on_trigger(*ply.ui, (trigger : Sill.UiTrigger, ply : *PlyEntity) {
-        if ply.moveHovered {
+        // Either select the ply, or start editing the comment if already selected
+        if instance.game.ply != ply {
             game_update_to(*instance.game, ply);
+        } else {
+            ply_edit_comment(ply, textCursorAtMouse = true);
         }
-
-        Sill.ui_set_focused(*ply.ui);
-        _set_text_cursor_position_from_mouse(ply);
-        _update_text_cursor(ply);
     }, Sill.UiCallbackFlags.Click, ply);
 
     Sill.ui_on_trigger(*ply.ui, (trigger : Sill.UiTrigger, ply : *PlyEntity) {
@@ -424,7 +431,8 @@ _init_ply :: (ply : *PlyEntity) {
         if ply.commentMeshNode {
             distance := Sill.collider_distance_from(*ply.collider, ray);
             if distance > 0.0 {
-                Crater.window_pointer_style(instance.engine.window, .Text);
+                pointerStyle := ifx instance.game.ply == ply then Crater.PointerStyle.Text else .HandPointer;
+                Crater.window_pointer_style(instance.engine.window, pointerStyle);
                 return true;
             }
         }
@@ -437,14 +445,14 @@ _place_comment_from_char_infos :: (ply : *PlyEntity) {
     mesh := ply.commentMeshNode.primitives[0];
 
     if ply.charInfos.count == 0 {
-        mesh.disabled = true;
+        mesh.disabled |= .Application;
         return;
     }
 
-    minBounds := Chamber.vec2.{50000.0, 50000.0};
-    maxBounds := Chamber.vec2.{-50000.0, -50000.0};
+    minBounds := Chamber.vec2.{Math.FLOAT32_INFINITY, Math.FLOAT32_INFINITY};
+    maxBounds := Chamber.vec2.{-Math.FLOAT32_INFINITY, -Math.FLOAT32_INFINITY};
 
-    mesh.disabled = false;
+    mesh.disabled &= ~.Application;
     index := 0;
     for *charInfo : ply.charInfos {
         if charInfo.glyphBlank then continue;
@@ -530,13 +538,24 @@ _place_ply :: (ply : *PlyEntity, propagate := false, hidden := false) {
     // @note Waiting for the comment mesh ply to be positioned so that we can place the collider accordingly.
     _place_comment_from_char_infos(ply);
 
-    if ply.moveMeshNode then ply.moveMeshNode.primitives[0].disabled = (hidden || parentVariationCollapsed);
-    if ply.commentMeshNode then ply.commentMeshNode.primitives[0].disabled = (hidden || parentVariationCollapsed);
+    if ply.commentMeshNode != null {
+        ply.commentMeshNode.primitives[0].disabled &= ~.Application;
+        Basic.peek_pointer(ply.collider.boxShapes).disabled = false;
+    }
+    Sill.entity_set_disabled(ply, hidden || parentVariationCollapsed);
 
     if hidden || parentVariationCollapsed {
         if !hidden && ply.index == 1 {
             ply.ui.extent.height = Basic.max(UiConstants.HeightLine, commentHeight);
-            ply.moveMeshNode.primitives[0].disabled = false;
+
+            // Show only the first move mesh in collapsed thingy
+            // @todo If move and comment were two separated entities,
+            // it would make that thing easier.
+            Sill.entity_set_disabled(ply, false);
+            if ply.commentMeshNode != null {
+                ply.commentMeshNode.primitives[0].disabled |= .Application;
+                Basic.peek_pointer(ply.collider.boxShapes).disabled = true;
+            }
         } else {
             ply.ui.extent.height = 0.0;
         }
@@ -625,7 +644,7 @@ _rebuild_decorums :: (variation : *Variation, hidden := false) {
     // @fixme What isn't the decorum on the variation?
     // If it's because it's not an entity, that's not a good excuse, long term.
     if variation.plies[0].decorum != null {
-        variation.plies[0].decorum.mesh.nodes[0].primitives[0].disabled = hidden;
+        Sill.entity_set_disabled(variation.plies[0].decorum, hidden);
     }
 
     for ply : variation.plies {
@@ -708,7 +727,7 @@ _update_text_cursor :: (ply : *PlyEntity) {
 }
 
 _show_text_cursor :: (show := true) {
-    instance.list.textCursor.mesh.nodes[0].primitives[0].disabled = !show;
+    Sill.entity_set_disabled(*instance.list.textCursor, !show);
 }
 
 _make_decorum :: () -> *DecorumEntity {

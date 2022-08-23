@@ -28,6 +28,7 @@ controller_init :: () {
     Sill.input_action_bind(engine, "game.ply.next", config.controls.nextPly);
     Sill.input_action_bind(engine, "game.ply.first", config.controls.firstPly);
     Sill.input_action_bind(engine, "game.ply.last", config.controls.lastPly);
+    Sill.input_action_bind(engine, "game.ply.comment.edit", config.controls.editPlyComment);
     Sill.input_action_bind(engine, "game.variation.previous", config.controls.previousVariation);
     Sill.input_action_bind(engine, "game.variation.next", config.controls.nextVariation);
 
@@ -40,6 +41,7 @@ controller_init :: () {
         if Sill.input_action_just_activated(engine, "game.ply.next", true)             then game_go_to_next_move(*game);
         if Sill.input_action_just_activated(engine, "game.ply.first", true)            then game_go_to_first_ply(*game);
         if Sill.input_action_just_activated(engine, "game.ply.last", true)             then game_go_to_last_ply(*game);
+        if Sill.input_action_just_activated(engine, "game.ply.comment.edit", true)     then game_edit_ply_comment(*game);
         if Sill.input_action_just_activated(engine, "game.variation.previous", true)   then game_go_to_previous_variation(*game);
         if Sill.input_action_just_activated(engine, "game.variation.next", true)       then game_go_to_next_variation(*game);
 

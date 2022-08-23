@@ -173,6 +173,11 @@ game_go_to_next_variation :: (game : *Game) {
     }
 }
 
+game_edit_ply_comment :: (game : *Game) {
+    if game.ply == null then return;
+    ply_edit_comment(game.ply);
+}
+
 game_result_to_string :: (result : Game.Result) -> string {
     if #complete result == {
         case .Unknown; return "*";

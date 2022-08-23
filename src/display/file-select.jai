@@ -146,16 +146,16 @@ _make_entry :: (name : string, isDirectory : bool) -> *EntryEntity {
     squareMesh.vertices[2].position = .{400, UiConstants.HeightLine - 4, 5};
     squareMesh.vertices[3].position = .{400, 0, 5};
     squareMesh.material = Magma.create_material(instance.shaders.monochrome);
-    squareMesh.disabled = true;
+    squareMesh.disabled |= .Application;
     Magma.material_set(squareMesh.material, "color", instance.config.env.selectionBackgroundColor);
     Basic.array_add(*entryEntity.mesh.nodes[0].primitives, squareMesh);
 
     Sill.ui_on_trigger(*entryEntity.ui, (trigger : Sill.UiTrigger, entryEntity : *EntryEntity) {
         if trigger.flags & .Hover {
-            entryEntity.mesh.nodes[0].primitives[1].disabled = false;
+            entryEntity.mesh.nodes[0].primitives[1].disabled &= ~.Application;
             Crater.window_pointer_style(instance.engine.window, .HandPointer);
         } else if trigger.flags & .NoHover {
-            entryEntity.mesh.nodes[0].primitives[1].disabled = true;
+            entryEntity.mesh.nodes[0].primitives[1].disabled |= .Application;
             Crater.window_pointer_style(instance.engine.window, .Default);
         } else if trigger.flags & .Click {
             if !instance.fileSelect then return;

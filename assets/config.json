@@ -33,6 +33,7 @@
         "previousPly": "Left",
         "firstPly": "Home", // Chess websites usually map these to "Up" and "Down"
         "lastPly": "End",
+        "editPlyComment": "Return",
         // Go to an alternative on the current ply.
         "nextVariation": "Down",
         "previousVariation": "Up"

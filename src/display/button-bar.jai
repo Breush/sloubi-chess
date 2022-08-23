@@ -120,7 +120,5 @@ _make_button :: (text : string) -> *ButtonEntity {
 #scope_file
 
 _button_show :: (button : *ButtonEntity, visible : bool) {
-    button.ui.disabled = !visible;
-    button.mesh.nodes[0].primitives[0].disabled = !visible;
-    button.mesh.nodes[1].primitives[0].disabled = !visible;
+    Sill.entity_set_disabled(button, !visible);
 }
