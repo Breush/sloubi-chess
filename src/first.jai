@@ -56,9 +56,9 @@ ship :: () {
 
     #if OS == .WINDOWS {
         FileUtilities.copy_file("bin/sloubi-chess.exe", Basic.tprint("%/sloubi-chess.exe", folder));
-        FileUtilities.copy_file("lava/bindings/Shaderc/libshaderc.so", Basic.tprint("%/libshaderc.dll", folder));
-        FileUtilities.copy_file("lava/bindings/StbTrueType/libstbtruetype.so",  Basic.tprint("%/libstbtruetype.dll", folder));
-        FileUtilities.copy_file("lava/bindings/Vulkan/libvulkan.so",  Basic.tprint("%/libvulkan.dll", folder));
+        FileUtilities.copy_file("lava/bindings/Shaderc/libshaderc.dll", Basic.tprint("%/libshaderc.dll", folder));
+        FileUtilities.copy_file("lava/bindings/StbTrueType/libstbtruetype.dll",  Basic.tprint("%/libstbtruetype.dll", folder));
+        FileUtilities.copy_file("lava/bindings/Vulkan/libvulkan.dll",  Basic.tprint("%/libvulkan.dll", folder));
     } else {
         POSIX :: #import "POSIX";
         File.make_directory_if_it_does_not_exist(Basic.tprint("%/lib", folder));

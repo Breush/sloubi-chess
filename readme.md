@@ -4,12 +4,12 @@
 - *variations* made to look *good* and *readable*, as most chess desktop apps are ugly ;
 - *training* by repeating your lines (next big feature, not yet implemented).
 
-![](./docs/images/alpha-0.0.4.png)
+![](./docs/images/alpha-0.0.5.png)
 <p align="center">
-<em>alpha-0.0.4</em>
+<em>alpha-0.0.5</em>
 </p>
 
-It is **not** (yet?):
+It is **not** (and probably won't ever be):
 - a database store of all GMs games ;
 - a chess engine, nor a way to interface with chess engines ;
 - a way to play chess against someone or something.

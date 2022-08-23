@@ -7,29 +7,29 @@
 [Result "*"]
 [BoardOrientation "Black"]
 
-{ Welcome to the wonderful world of the Benko Gambit. We'll begin with a quick
-run through of the opening moves so that everything is nice and clear. } 1. d4
-{ White uses his first move to stake a claim for the c5 and e5 squares. } 1...
-Nf6 { In reply Black develops and gains control of e4. } 2. c4 { Unable to
-play 2. e4, White settles for the second best way to build pawn centre and
-takes hold of the d5 square. } (2. Nf3 { we'd have reacted the same way } 2...
-c5 3. d5 b5 { More will be said of this variation at the end of the next
-chapter. }) 2... c5 { The first direct confrontation after an initially
-peaceful carve up of centre territory. This pawn stab amounts to a challenge
-to White's hold on d4, as well as c5 and e5 - three dark squares in the centre.
-} 3. d5 { White concedes a loosening of his dark squares, but on the other hand
-he now has a space advantage and intends to build upon it by setting up a
+{Welcome to the wonderful world of the Benko Gambit. We'll begin with a quick
+run through of the opening moves so that everything is nice and clear.} 1. d4
+{White uses his first move to stake a claim for the c5 and e5 squares.} 1... Nf6
+{In reply Black develops and gains control of e4.} 2. c4 {Unable to play 2. e4,
+White settles for the second best way to build pawn centre and takes hold of the
+d5 square.} (2. Nf3 {we'd have reacted the same way} 2... c5 3. d5 3... b5 {More
+will be said of this variation at the end of the next chapter.} {[%csl Rc4]}
+{[%cal Rb5c4]}) 2... c5 {The first direct confrontation after an initially
+peaceful carve up of centre territory. This pawn stab amounts to a challenge to
+White's hold on d4, as well as c5 and e5 - three dark squares in the centre. }
+3. d5 {White concedes a loosening of his dark squares, but on the other hand he
+now has a space advantage and intends to build upon it by setting up a
 formidable light square pawn chain in the centre. Everything else being equal,
 an advantage in terrain confers greater mobility on a player's pieces and
-therefore gives him more chances to find or carry out a strong plan. } (3.
-dxc5? e6 { Black regains the pawn with Bxc5 when he has a lead in development.
-} { [%cal Gf8c5] })  (3. Nf3 { A fairly common alternative avoiding the Benko.
-} 3... cxd4 4. Nxd4 { a line of the English }) 3... b5 { As White is so keen to
-prevent b5 in the modern Benoni, what happens if Black plays it straightaway?
-If you asked a player of the 1920s what he thought about this move, he would
-have replied simply 'it loses a pawn'. If you had asked David Bronstein in the
-1950s, he would have muttered something about the Volga Gambit and a bad
-endgame. Today, however, the reply would probably be 'you mean the Benko
-Gambit? A very interesting opening'. Yes, we have arrived at the subject of our
-book: the Benko Gambit. With 3... b5 Black gets in his favourite pawn move
-before it can be restrained by Nc3. } 4. cxb5 *
+therefore gives him more chances to find or carry out a strong plan.} (3. dxc5
+$2 3... e6 {Black regains the pawn with Bxc5 when he has a lead in development.
+} {[%cal Gf8c5]}) (3. Nf3 {A fairly common alternative avoiding the Benko. }
+3... cxd4 4. Nxd4 {a line of the English}) 3... b5 {As White is so keen to
+prevent b5 in the modern Benoni, what happens if Black plays it straightaway? If
+you asked a player of the 1920s what he thought about this move, he would have
+replied simply 'it loses a pawn'. If you had asked David Bronstein in the 1950s,
+he would have muttered something about the Volga Gambit and a bad endgame.
+Today, however, the reply would probably be 'you mean the Benko Gambit? A very
+interesting opening'. Yes, we have arrived at the subject of our book: the Benko
+Gambit. With 3... b5 Black gets in his favourite pawn move before it can be
+restrained by Nc3.} 4. cxb5 *

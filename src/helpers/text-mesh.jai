@@ -24,8 +24,10 @@ create_text_mesh :: () -> *Magma.Mesh {
 
 text_mesh_update :: (mesh : *Magma.Mesh, text : string, fontId : string, color : Chamber.vec3, depth := 0.0) -> []CharInfo #must {
     mesh.disabled &= ~.Application;
-    if text.count == 0 then mesh.disabled |= .Application;
-    if mesh.disabled then return .[];
+    if text.count == 0 {
+        mesh.disabled |= .Application;
+        return .[];
+    }
 
     glyphInfos := Sill.fonts_glyph_infos(instance.engine, fontId, text);
     defer Basic.array_free(glyphInfos);
