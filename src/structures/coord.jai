@@ -2,14 +2,14 @@
 // RE and CE are error bits, the corresponding row/col is invalid when they are on.
 // So numbers between 0 and 63 are valid, and all above are invalid.
 Coord :: u8;
-CoordCount :: 64;
+CoordCount : Coord : 64;
 
-coord :: (row : u8, col : u8) -> Coord {
+coord :: (row : $T1, col : $T2) -> Coord {
     coord : Coord;
     if row >= 8 then coord |= 0b10_000_000;
-    else coord |= row << 3;
+    else coord |= (cast(u8) row) << 3;
     if col >= 8 then coord |= 0b01_000_000;
-    else coord |= col;
+    else coord |= cast(u8) col;
     return coord;
 }
 
@@ -56,9 +56,14 @@ coord_to_algebraic :: (coord : Coord, silentOnInvalid := false) -> string {
 }
 
 algebraic_to_coord :: (s : string) -> Coord {
+    row, col := inline algebraic_to_row_col(s);
+    return coord(row, col);
+}
+
+algebraic_to_row_col :: (s : string) -> u8, u8 {
     col := s[0] - #char "a";
     row := s[1] - #char "1";
-    return coord(row, col);
+    return row, col;
 }
 
 coords_direction :: (fromCoord : Coord, toCoord : Coord) -> Chamber.vec2 {

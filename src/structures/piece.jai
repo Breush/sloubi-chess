@@ -1,3 +1,4 @@
+// @note With bit fields, this could be reduced down to 8 bits, thus storing boards nicely
 Piece :: struct {
     using kind : PieceKind;
     color : Color;
@@ -8,7 +9,7 @@ operator== :: (piece1 : Piece, piece2 : Piece) -> bool {
            (piece1.kind == .Empty || piece1.color == piece2.color);
 }
 
-PieceKind :: enum {
+PieceKind :: enum u8 {
     Empty :: 0;
     Bishop; B :: Bishop;
     King;   K :: King;
@@ -24,11 +25,23 @@ PieceKindCount :: 7;
 // WB; WK; WN; WP; WQ; WR;
 // BB; BK; BN; BP; BQ; BR;
 PieceId :: u8;
-PieceIdCount :: 13;
+PieceIdCount : PieceId : 13;
+
+make_piece :: (kind : PieceKind, color : Color) -> Piece {
+    piece : Piece = ---;
+    piece.kind = kind;
+    piece.color = color;
+    return piece;
+}
 
 piece_id :: (piece : Piece) -> PieceId {
     if (piece.kind == .Empty) return 0;
     return 6 * cast(u8) piece.color + cast(u8) piece.kind;
+}
+
+piece_id :: (kind : PieceKind, color : Color) -> PieceId {
+    if (kind == .Empty) return 0;
+    return 6 * cast(u8) color + cast(u8) kind;
 }
 
 piece_to_utf8 :: (piece : Piece) -> string {

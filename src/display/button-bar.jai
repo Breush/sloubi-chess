@@ -22,7 +22,9 @@ button_bar_init :: () {
         button_bar_show(false);
         game_cleanup(*instance.game);
         file_select_show(".pgn", (selectedFile : string) {
-            load_pgn(selectedFile);
+            if load_pgn(selectedFile) {
+                game_show(*instance.game);
+            }
         });
     }, .Click, backButton);
 

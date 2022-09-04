@@ -25,17 +25,25 @@ load_fen :: (fen : string) -> Position {
     if s[0] == #char "b" then position.moveIndex = 1;
     Basic.advance(*s, 2);
 
-    // @todo Castling rights
+    // Castling rights
     while s[0] != #char " " {
+        position.flags |= fen_castling_to_position_flag(s[0]);
         Basic.advance(*s, 1);
     }
     Basic.advance(*s, 1);
 
-    // @todo En passant square
-    while s[0] != #char " " {
-        Basic.advance(*s, 1);
+    // En-passant square
+    // @note We don't store the square in our position,
+    // but the last move. So we deduce what it was here if there's an en-passant square.
+    if s[0] != #char "-" {
+        row, col := algebraic_to_row_col(s);
+        pawnDirection := ifx position.moveIndex == 1 then 1 else -1;
+        position.lastMove.sourceCoord = coord(row - pawnDirection, col);
+        position.lastMove.targetCoord = coord(row + pawnDirection, col);
+        Basic.advance(*s, 3);
+    } else {
+        Basic.advance(*s, 2);
     }
-    Basic.advance(*s, 1);
 
     // @todo Halfmove clock
     while s[0] != #char " " {
@@ -79,13 +87,23 @@ position_to_fen :: (position : Position) -> string {
     }
 
     // Color to play
-    Basic.append(*builder, ifx position.moveIndex % 2 == 0 then " w" else " b");
+    Basic.append(*builder, ifx position_color_to_play(*position) == .White then " w" else " b");
 
-    // @todo Castling rights
-    Basic.append(*builder, " KQkq");
+    // Castling rights
+    Basic.append(*builder, " ");
+    if position.flags & .CastlingAllowedMask {
+        if position.flags & .WhiteKingsideCastlingAllowed then Basic.append(*builder, "K");
+        if position.flags & .WhiteQueensideCastlingAllowed then Basic.append(*builder, "Q");
+        if position.flags & .BlackKingsideCastlingAllowed then Basic.append(*builder, "k");
+        if position.flags & .BlackQueensideCastlingAllowed then Basic.append(*builder, "q");
+    } else {
+        Basic.append(*builder, "-");
+    }
 
-    // @todo En passant square
-    Basic.append(*builder, " -");
+    // En-passant square
+    enPassantCoord := position_en_passant_coord(*position);
+    Basic.append(*builder, " ");
+    Basic.append(*builder, ifx enPassantCoord != 0xFF then coord_to_algebraic(enPassantCoord) else "-");
 
     // @todo Halfmove clock for the 50 move rule
     Basic.append(*builder, " 0");
@@ -94,6 +112,14 @@ position_to_fen :: (position : Position) -> string {
     Basic.print_to_builder(*builder, " %", (position.moveIndex + 2) / 2);
 
     return Basic.builder_to_string(*builder);
+}
+
+fen_castling_to_position_flag :: (c : u8) -> PositionFlags {
+    if c == #char "K" then return .WhiteKingsideCastlingAllowed;
+    if c == #char "Q" then return .WhiteQueensideCastlingAllowed;
+    if c == #char "k" then return .BlackKingsideCastlingAllowed;
+    if c == #char "q" then return .BlackQueensideCastlingAllowed;
+    return .None;
 }
 
 fen_piece_to_string :: (piece : Piece) -> string {

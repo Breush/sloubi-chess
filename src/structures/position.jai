@@ -24,18 +24,26 @@ Position :: struct {
         arrows : [..]ArrowHighlight;
     }
 
-    movesSinceLastCaptureOrPawnMove : u8;
+    movesSinceLastCaptureOrPawnMove : u8; // @fixme Never updated in position_play_move...
 
     blackClock := "";
     whiteClock := "";
 
-    // Extra-info about current position
-    // @todo Castling rights
-    check : bool;
-    mate : bool;
+    flags : PositionFlags;
 }
 
-Color :: enum {
+PositionFlags :: enum_flags u8 {
+    None                            :: 0x00;
+    Check                           :: 0x01;
+    Mate                            :: 0x02;
+    WhiteKingsideCastlingAllowed    :: 0x04;
+    WhiteQueensideCastlingAllowed   :: 0x08;
+    BlackKingsideCastlingAllowed    :: 0x10;
+    BlackQueensideCastlingAllowed   :: 0x20;
+    CastlingAllowedMask             :: WhiteKingsideCastlingAllowed | WhiteQueensideCastlingAllowed | BlackKingsideCastlingAllowed | BlackQueensideCastlingAllowed;
+}
+
+Color :: enum u8 {
     White :: 0;
     Black;
 }
@@ -238,6 +246,8 @@ get_starting_position :: () -> Position {
     <<peek_piece_pointer(*position, 7, 6) = .{ .N, .Black };
     <<peek_piece_pointer(*position, 7, 7) = .{ .R, .Black };
 
+    position.flags |= .CastlingAllowedMask;
+
     return position;
 }
 
@@ -280,6 +290,19 @@ position_debug_dump :: (position : Position) {
     }
 
     Basic.log(Basic.builder_to_string(*sb));
+}
+
+position_copy_state_from :: (position : *Position, sourcePosition : Position) {
+    position.board = sourcePosition.board;
+    position.lastMove.sourceCoord = sourcePosition.lastMove.sourceCoord;
+    position.lastMove.targetCoord = sourcePosition.lastMove.targetCoord;
+    position.lastMove.capture = sourcePosition.lastMove.capture;
+    position.lastMove.promotion = sourcePosition.lastMove.promotion;
+    position.moveIndex = sourcePosition.moveIndex;
+    position.movesSinceLastCaptureOrPawnMove = sourcePosition.movesSinceLastCaptureOrPawnMove;
+    position.whiteClock = sourcePosition.whiteClock;
+    position.blackClock = sourcePosition.blackClock;
+    position.flags = sourcePosition.flags;
 }
 
 position_find_piece_in_direction :: (position : Position,
@@ -344,7 +367,7 @@ position_last_move_to_san :: (position : Position, annotations := false) -> stri
     targetRow, targetCol := row_col(position.lastMove.targetCoord);
     sourceRow, sourceCol := row_col(position.lastMove.sourceCoord);
 
-    check := ifx position.mate then "#" else ifx position.check then "+" else "";
+    check := ifx position.flags & .Mate then "#" else ifx position.flags & .Check then "+" else "";
     capture := ifx position.lastMove.capture then "x" else "";
 
     promotion := "";
@@ -478,4 +501,22 @@ position_add_arrow_highlight :: (position : *Position, arrowHighlight : ArrowHig
     }
 
     Basic.array_add(*position.highlights.arrows, arrowHighlight);
+}
+
+// By analyzing the last move, determine if a pawn just advanced of two squares,
+// and if so return the square behind the pawn.
+position_en_passant_coord :: (using position : *Position) -> Coord {
+    piece := board[lastMove.targetCoord];
+    if piece.kind != .Pawn then return 0xFF;
+
+    targetRow, targetCol := row_col(lastMove.targetCoord);
+    sourceRow, sourceCol := row_col(lastMove.sourceCoord);
+    if Math.abs(cast(s8) targetRow - cast(s8) sourceRow) != 2 then return 0xFF;
+
+    pawnDirection := ifx position_color_to_play(position) == .White then cast(s8) -1 else 1;
+    return coord(cast(s8) sourceRow + pawnDirection, targetCol);
+}
+
+position_color_to_play :: (using position : *Position) -> Color {
+    return ifx moveIndex % 2 == 0 then Color.White else .Black;
 }

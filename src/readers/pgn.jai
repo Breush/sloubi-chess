@@ -4,12 +4,8 @@ load_pgn :: (filename : string) -> bool {
     Chamber._CHECK(readOk, Basic.tprint("Unable to read PGN file: %", filename)); // @todo Hard quitting is probably a bad idea.
     defer Basic.free(fileBytes);
 
-    game := *instance.game; // Filling the global game for now.
-    rootPly := game_add_variation_ply(game, *game.mainVariation);
-    rootPly.position = get_starting_position();
-
-    // Parsing tags
     bytes := fileBytes;
+    _skip_bom(*bytes);
     _skip_blanks(*bytes);
 
     read_tag :: inline (bytes : *string) -> string {
@@ -18,44 +14,54 @@ load_pgn :: (filename : string) -> bool {
         return Basic.copy_string(tag);
     }
 
-    while bytes[0] == #char "[" {
-        Basic.advance(*bytes);
-        tagName := _parse_word(*bytes);
-        Basic.advance(*bytes);
-        Basic.advance(*bytes); // Skipping the quote.
+    // Parsing each game
+    while bytes.count > 0 && bytes[0] == #char "[" {
+        game := *instance.game; // Filling the global game for now.
+        game_cleanup(game);
+        rootPly := game_add_variation_ply(game, *game.mainVariation);
+        rootPly.position = get_starting_position();
 
-        if tagName == "FEN" {
-            rootPly.position = load_fen(bytes);
-        } else if tagName == "BoardOrientation" {
-            game.boardOrientation = ifx bytes[0] == #char "W" then Color.White else Color.Black;
-        } else if tagName == "Event" { game.tags.event = read_tag(*bytes);
-        } else if tagName == "Site"  { game.tags.site  = read_tag(*bytes);
-        } else if tagName == "Date"  { game.tags.date  = read_tag(*bytes);
-        } else if tagName == "Round" { game.tags.round = read_tag(*bytes);
-        } else if tagName == "White" { game.tags.white = read_tag(*bytes);
-        } else if tagName == "Black" { game.tags.black = read_tag(*bytes);
-        } else if tagName == "WhiteElo" { game.tags.whiteElo = cast(u16) Basic.to_integer(_parse_to_end_of_string(*bytes));
-        } else if tagName == "BlackElo" { game.tags.blackElo = cast(u16) Basic.to_integer(_parse_to_end_of_string(*bytes));
-        } else if tagName == "Result" { // Ignored, but silently.
-        } else if tagName == "SetUp" { // Ignored too. (Kind of duplicate with FEN.)
-        } else {
-            tag := Basic.array_add(*game.tags.extra);
-            tag.name = Basic.copy_string(tagName);
-            tag.value = read_tag(*bytes);
+        // Parsing tags
+        while bytes[0] == #char "[" {
+            Basic.advance(*bytes);
+            tagName := _parse_word(*bytes);
+            Basic.advance(*bytes);
+            Basic.advance(*bytes); // Skipping the quote.
+
+            if tagName == "FEN" {
+                rootPly.position = load_fen(bytes);
+            } else if tagName == "BoardOrientation" {
+                game.boardOrientation = ifx bytes[0] == #char "W" then Color.White else Color.Black;
+            } else if tagName == "Event" { game.tags.event = read_tag(*bytes);
+            } else if tagName == "Site"  { game.tags.site  = read_tag(*bytes);
+            } else if tagName == "Date"  { game.tags.date  = read_tag(*bytes);
+            } else if tagName == "Round" { game.tags.round = read_tag(*bytes);
+            } else if tagName == "White" { game.tags.white = read_tag(*bytes);
+            } else if tagName == "Black" { game.tags.black = read_tag(*bytes);
+            } else if tagName == "WhiteElo" { game.tags.whiteElo = cast(u16) Basic.to_integer(_parse_to_end_of_string(*bytes));
+            } else if tagName == "BlackElo" { game.tags.blackElo = cast(u16) Basic.to_integer(_parse_to_end_of_string(*bytes));
+            } else if tagName == "Result" { // Ignored, but silently.
+            } else if tagName == "SetUp" { // Ignored too. (Kind of duplicate with FEN.)
+            } else {
+                tag := Basic.array_add(*game.tags.extra);
+                tag.name = Basic.copy_string(tagName);
+                tag.value = read_tag(*bytes);
+            }
+
+            _skip_to_end_of_tag(*bytes);
+            _skip_blanks(*bytes);
         }
 
-        _skip_to_end_of_tag(*bytes);
+        // Parsing main variation (and therefore its subvariations)
+        _parse_variation(*bytes, *game.mainVariation, position_color_to_play(*rootPly.position));
         _skip_blanks(*bytes);
     }
 
-    // Parsing main variation (and therefore its subvariations)
-    _parse_variation(*bytes, *game.mainVariation);
-    _skip_blanks(*bytes);
-
+    bytes.count = Basic.min(bytes.count, 200);
     Chamber._CHECK(bytes.count == 0, Basic.tprint("Leftovers: %", bytes));
 
     instance.game.pgnFileName = Basic.copy_string(filename);
-    game_show(*instance.game);
+    // game_show(*instance.game);
 
     return true;
 }
@@ -410,6 +416,13 @@ _annotation_to_nag :: (observationAnnotation : ObservationAnnotation) -> Nag {
     return .None;
 }
 
+_skip_bom :: (bytes : *string) {
+    // UTF-8
+    if (<<bytes)[0] == 0xEF && (<<bytes)[1] == 0xBB && (<<bytes)[2] == 0xBF {
+        Basic.advance(bytes, 3);
+    }
+}
+
 _skip_blanks :: (bytes : *string) {
     while bytes.count > 0 &&
           ((<<bytes)[0] == #char " " || (<<bytes)[0] == #char "\t" ||
@@ -466,20 +479,25 @@ _parse_potential_move_number :: (bytes : *string) -> bool {
     if (<<bytes)[0] < #char "0" || (<<bytes)[0] > #char "9" {
         return false;
     }
+    if (<<bytes)[1] == #char "-" || (<<bytes)[1] == #char "/" { // Don't parse a result as if it was a move number.
+        return false;
+    }
 
     _parse_move_number(bytes);
     return true;
 }
 
-_parse_move :: (bytes : *string, variation : *Variation, color : Color) {
+_parse_potential_move :: (bytes : *string, variation : *Variation, color : Color) -> bool {
+    if (<<bytes)[0] != #char "O" && (<<bytes)[0] != #char "B" && (<<bytes)[0] != #char "K" &&
+       (<<bytes)[0] != #char "N" && (<<bytes)[0] != #char "R" && (<<bytes)[0] != #char "Q" &&
+       ((<<bytes)[0] < #char "a" || (<<bytes)[0] > #char "h") {
+        return false;
+    }
+
     lastPosition := *Basic.peek(variation.plies).position;
 
     position : Position;
-    position.board = lastPosition.board;
-    position.moveIndex = lastPosition.moveIndex;
-    position.movesSinceLastCaptureOrPawnMove = lastPosition.movesSinceLastCaptureOrPawnMove;
-    position.whiteClock = lastPosition.whiteClock;
-    position.blackClock = lastPosition.blackClock;
+    position_copy_state_from(*position, lastPosition);
 
     capture : bool;
     sourceCoord, targetCoord : Coord = 0xFF, 0xFF;
@@ -502,7 +520,7 @@ _parse_move :: (bytes : *string, variation : *Variation, color : Color) {
 
         // Find the source square of the piece
         rowDirection := ifx color == .White then cast(s8) -1 else cast(s8) 1;
-        sourceCoord = position_find_piece_in_direction(lastPosition, piece, 0xFF, sourceHintCoord, rowDirection, 0 , 2);
+        sourceCoord = position_find_piece_in_direction(lastPosition, piece, 0xFF, sourceHintCoord, rowDirection, 0, 2);
 
         // Checking for promotion
         promotionPieceKind = _parse_potential_promotion(bytes);
@@ -534,8 +552,8 @@ _parse_move :: (bytes : *string, variation : *Variation, color : Color) {
     }
 
     // @todo :AutoCheck Should not be our job to update position with this info.
-    position.check = _parse_potential_check(bytes);
-    position.mate = _parse_potential_mate(bytes);
+    if _parse_potential_check(bytes) then position.flags |= .Check;
+    if _parse_potential_mate(bytes) then position.flags |= PositionFlags.Check | .Mate;
     _skip_blanks(bytes);
 
     // Updating the game
@@ -545,6 +563,8 @@ _parse_move :: (bytes : *string, variation : *Variation, color : Color) {
         ply := game_add_variation_ply(*instance.game, variation);
         ply.position = position;
     }
+
+    return true;
 }
 
 _parse_potential_col :: (bytes : *string) -> u8 {
@@ -761,7 +781,8 @@ _parse_potential_variation :: (bytes : *string, parentVariation : *Variation, co
     variation := game_add_variation(*instance.game, lastPly);
 
     ply := game_add_variation_ply(*instance.game, variation);
-    ply.position = parentVariation.plies[parentVariation.plies.count - 2].position;
+
+    position_copy_state_from(*ply.position, parentVariation.plies[parentVariation.plies.count - 2].position);
 
     _skip_blanks(bytes);
     _parse_variation(bytes, variation, color);
@@ -776,7 +797,9 @@ _parse_variation :: (bytes : *string, variation : *Variation, firstColor := Colo
     _parse_potential_comments(bytes, variation);
 
     firstLoop := true;
-    while bytes.count > 0 {
+    lastBytesCount := 0;
+    while bytes.count > 0 && bytes.count != lastBytesCount {
+        lastBytesCount = bytes.count;
         if !firstLoop || firstColor == .White {
             while _parse_potential_variation(bytes, variation, .Black) {}
             if (<<bytes)[0] == #char ")" then break; // End of variation
@@ -796,12 +819,13 @@ _parse_potential_annotated_move :: (bytes : *string, variation : *Variation, col
     // position_debug_dump(Basic.peek(variation.plies).position);
 
     _parse_potential_move_number(bytes);
-    _parse_move(bytes, variation, color);
-    while _parse_potential_annotation(bytes, variation) {}
-    _parse_potential_comments(bytes, variation);
+    if _parse_potential_move(bytes, variation, color) {
+        while _parse_potential_annotation(bytes, variation) {}
+        _parse_potential_comments(bytes, variation);
 
-    if bytes.count == 0 then return false;
-    if (<<bytes)[0] == #char ")" then return false;
+        if bytes.count == 0 then return false;
+        if (<<bytes)[0] == #char ")" then return false;
+    }
 
     foundResult, result := _parse_potential_result(bytes);
     if foundResult then {
@@ -902,7 +926,7 @@ _parse_clock :: (bytes : *string, position : *Position) {
 
     clock := _parse_until(bytes, .[#char "]", #char " "]);
 
-    if position.moveIndex % 2 == 0 {
+    if position_color_to_play(position) == .White {
         position.blackClock = Basic.copy_string(clock);
     } else {
         position.whiteClock = Basic.copy_string(clock);

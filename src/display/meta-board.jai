@@ -105,7 +105,6 @@ meta_board_update_to_position :: (position : Position) {
     if position.whiteClock.count != 0 {
         Sill.entity_set_disabled(*whiteClock, false);
         charInfos := text_mesh_update(whiteClock.mesh.nodes[0].primitives[0], position.whiteClock, "mono", instance.config.env.textColor);
-        Chamber.debug(position.whiteClock, " ", charInfos);
         whiteClock.mesh.nodes[0].transform.translation.x = -Basic.peek(charInfos).effective.xStart - Basic.peek(charInfos).glyphAdvance;
         Basic.array_free(charInfos);
     }

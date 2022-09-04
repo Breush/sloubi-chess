@@ -87,11 +87,15 @@ main :: () {
     button_bar_init();
 
     if setArgs.pgn {
-        load_pgn(args.pgn);
+        if load_pgn(args.pgn) {
+            game_show(*instance.game);
+        }
         // game_debug_dump(instance.game);
     } else {
         file_select_show(".pgn", (selectedFile : string) {
-            load_pgn(selectedFile);
+            if load_pgn(selectedFile) {
+                game_show(*instance.game);
+            }
         });
     }
 
