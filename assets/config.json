@@ -18,6 +18,20 @@
             "green": [0.33, 0.81, 0.33, 0.9],
             "red": [0.81, 0.33, 0.33, 0.9],
             "yellow": [0.81, 0.81, 0.33, 0.9]
+        },
+        "promotionSelecterColor": [0.335, 0.573, 0.703, 0.9], // RGBA color, 0 to 1 values
+        "highlightValidSquares": true, // Display valid squares when moving a piece (dragAndDrop or clickClick).
+        "dragAndDropMove": {
+            "enabled": true,    // Allow dragging a piece to play a move.
+            "ghostOpacity": 0.2 // When dragging a piece, opacity of the piece on its starting square.
+        },
+        "clickClickMove": {
+            "enabled": true    // Allow clicking on the starting square then on the destination square to play a move.
+        },
+        "destinationSquareMove": {
+            "enabled": true,    // Allow clicking on a destination square to play a move, if there is only one piece that can go there.
+            "disambiguateWithLastMovedPiece": true, // Choose the last piece that moved if there are multiple choices.
+            "mouseButton": "Middle" // "Left", "Middle" or "Right".
         }
     },
     "analysis": {

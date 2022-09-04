@@ -106,7 +106,7 @@ _make_button :: (text : string) -> *ButtonEntity {
 
         if trigger.flags & .Hover {
             Magma.material_set(button.mesh.nodes[0].primitives[0].material, "color", instance.config.env.selectionBackgroundColor);
-            Crater.window_pointer_style(instance.engine.window, .HandPointer);
+            Crater.window_pointer_style(instance.engine.window, .HandPointing);
         } else if trigger.flags & .NoHover {
             Magma.material_set(button.mesh.nodes[0].primitives[0].material, "color", instance.config.env.secondaryBackgroundColor);
             Crater.window_pointer_style(instance.engine.window, .Default);

@@ -153,7 +153,7 @@ _make_entry :: (name : string, isDirectory : bool) -> *EntryEntity {
     Sill.ui_on_trigger(*entryEntity.ui, (trigger : Sill.UiTrigger, entryEntity : *EntryEntity) {
         if trigger.flags & .Hover {
             entryEntity.mesh.nodes[0].primitives[1].disabled &= ~.Application;
-            Crater.window_pointer_style(instance.engine.window, .HandPointer);
+            Crater.window_pointer_style(instance.engine.window, .HandPointing);
         } else if trigger.flags & .NoHover {
             entryEntity.mesh.nodes[0].primitives[1].disabled |= .Application;
             Crater.window_pointer_style(instance.engine.window, .Default);

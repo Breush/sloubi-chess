@@ -347,6 +347,7 @@ position_find_piece_source :: (position : Position, piece : Piece, sourceHintCoo
 position_find_piece_sources :: (position : Position, piece : Piece, sourceHintCoord : Coord, targetCoord : Coord) -> []Coord {
     Basic.assert(piece.kind != .Pawn);
 
+    Basic.push_allocator(Basic.temp);
     sources : [..]Coord;
     for direction : PIECES_MOVEMENT[piece.kind].directions {
         sourceCoord := position_find_piece_in_direction(position, piece, sourceHintCoord, targetCoord, direction[0], direction[1], PIECES_MOVEMENT[piece.kind].range);
@@ -356,6 +357,110 @@ position_find_piece_sources :: (position : Position, piece : Piece, sourceHintCo
     }
 
     return sources;
+}
+
+// This supposes that the input position is legal, and its flags are correct.
+// The returned array is allocated on temporary storage.
+position_find_piece_targets :: (position : Position, sourceCoord : Coord) -> []Coord {
+    if !coord_is_valid(sourceCoord) then return .[];
+
+    piece := position.board[sourceCoord];
+    if piece.kind == .Empty then return .[];
+
+    Basic.push_allocator(Basic.temp);
+    targets : [..]Coord;
+    pieceMovement := *PIECES_MOVEMENT[piece.kind];
+
+    colorToPlay := piece.color;
+    colorNotToPlay := ifx colorToPlay == .White then Color.Black else .White;
+
+    row, col := row_col(sourceCoord);
+
+    add_target_if_legal :: inline (targets : *[..]Coord, position : Position, sourceCoord : Coord, targetCoord : Coord) {
+        if position_move_checkwise_legal(position, sourceCoord, targetCoord) {
+            Basic.array_add(targets, targetCoord);
+        }
+    }
+
+    if piece.kind == .Pawn {
+        pawnDirection := ifx colorToPlay == .White then cast(s8) 1 else -1;
+
+        // Can advance one square if empty
+        advanceOneCoord := coord(cast(s8) row + pawnDirection, col);
+        if position.board[advanceOneCoord].kind == .Empty {
+            add_target_if_legal(*targets, position, sourceCoord, advanceOneCoord);
+
+            // And can advance two squares if empty and on starting row
+            pawnStartingRow := ifx colorToPlay == .White then cast(u8) 1 else 6;
+            if row == pawnStartingRow {
+                advanceTwoCoord := coord(cast(s8) row + 2 * pawnDirection, col);
+                if position.board[advanceTwoCoord].kind == .Empty {
+                    add_target_if_legal(*targets, position, sourceCoord, advanceTwoCoord);
+                }
+            }
+        }
+
+        // Can capture if an enemy piece is there or if its the en-passant coord
+        enPassantCoord := position_en_passant_coord(*position);
+        if col > 0 {
+            captureCoord := coord(cast(s8) row + pawnDirection, col - 1);
+            targetPiece := position.board[captureCoord];
+            if captureCoord == enPassantCoord ||
+               (targetPiece.kind != .Empty && targetPiece.color != colorToPlay) {
+                add_target_if_legal(*targets, position, sourceCoord, captureCoord);
+            }
+        }
+        if col < 7 {
+            captureCoord := coord(cast(s8) row + pawnDirection, col + 1);
+            targetPiece := position.board[captureCoord];
+            if captureCoord == enPassantCoord ||
+               (targetPiece.kind != .Empty && targetPiece.color != colorToPlay) {
+                add_target_if_legal(*targets, position, sourceCoord, captureCoord);
+            }
+        }
+    } else {
+        for direction : pieceMovement.directions {
+            row, col := row_col(sourceCoord);
+            for 1 .. pieceMovement.range {
+                col = cast,no_check(u8) (cast(s8) col + direction[1]);
+                row = cast,no_check(u8) (cast(s8) row + direction[0]);
+                if col >= 8 || row >= 8 then break;
+
+                targetCoord := coord(row, col);
+                if position.board[targetCoord].kind == .Empty {
+                    add_target_if_legal(*targets, position, sourceCoord, targetCoord);
+                } else if position.board[targetCoord].color == colorNotToPlay {
+                    add_target_if_legal(*targets, position, sourceCoord, targetCoord);
+                    break;
+                } else {
+                    break;
+                }
+            }
+        }
+
+        // Castling
+        if piece.kind == .King {
+            // Can't castle if in check
+            if !position_square_controlled(position, sourceCoord, colorNotToPlay) {
+                kingsideFlag := ifx colorToPlay == .White then PositionFlags.WhiteKingsideCastlingAllowed else .BlackKingsideCastlingAllowed;
+                queensideFlag := ifx colorToPlay == .White then PositionFlags.WhiteQueensideCastlingAllowed else .BlackQueensideCastlingAllowed;
+                if position.flags & kingsideFlag &&
+                    !position_square_controlled(position, coord(row, 5), colorNotToPlay) &&
+                    !position_square_controlled(position, coord(row, 6), colorNotToPlay) {
+                    add_target_if_legal(*targets, position, sourceCoord, coord(row, 6));
+                }
+                if position.flags & queensideFlag &&
+                    !position_square_controlled(position, coord(row, 3), colorNotToPlay) &&
+                    !position_square_controlled(position, coord(row, 2), colorNotToPlay) &&
+                    !position_square_controlled(position, coord(row, 1), colorNotToPlay) {
+                    add_target_if_legal(*targets, position, sourceCoord, coord(row, 2));
+                }
+            }
+        }
+    }
+
+
+    return targets;
 }
 
 // SAN: Standard Algebraic Notation
@@ -424,6 +529,45 @@ position_last_move_to_san :: (position : Position, annotations := false) -> stri
                                         promotion, check, annotationsStr);
 }
 
+position_move_legal :: (position : *Position, sourceCoord : Coord, targetCoord : Coord, promotionPieceKind : PieceKind) -> bool {
+    if sourceCoord == targetCoord || !coord_is_valid(sourceCoord) || !coord_is_valid(targetCoord) then return false;
+
+    knownTargetCoords := position_find_piece_targets(position, sourceCoord);
+    if !Basic.array_find(knownTargetCoords, targetCoord) then return false;
+
+    // Is the promotion valid?
+    targetRow, targetCol := row_col(targetCoord);
+    if position.board[sourceCoord].kind == .Pawn && (targetRow == 0 || targetRow == 7) {
+        if promotionPieceKind == .Empty || promotionPieceKind == .Pawn || promotionPieceKind == .King then return false;
+    } else if promotionPieceKind != .Empty {
+        return false;
+    }
+
+    return true;
+}
+
+position_move_checkwise_legal :: (position : Position, sourceCoord : Coord, targetCoord : Coord) -> bool {
+    newPosition : Position;
+    position_copy_state_from(*newPosition, position);
+    position_play_move(*newPosition, sourceCoord, targetCoord, .Empty);
+
+    colorToPlay := position_color_to_play(*position);
+    colorNotToPlay := ifx colorToPlay == .White then Color.Black else .White;
+
+    // Find the king(s), just being future variants proof by not stopping at the first king we met.
+    for coord : 0 .. CoordCount - 1 {
+        if newPosition.board[coord].kind == .King && newPosition.board[coord].color == colorToPlay {
+            if position_square_controlled(*newPosition, coord, colorNotToPlay) {
+                return false;
+            }
+        }
+    }
+
+    return true;
+}
+
+// This does not validate that the move is legal, it just plays it.
+// Which may lead to illegal positions if the move is not proven legal.
 position_play_move :: (position : *Position, sourceCoord : Coord, targetCoord : Coord, promotionPieceKind : PieceKind) {
     fullMoveNumber := 1 + position.moveIndex / 2;
     if !coord_is_valid(targetCoord) {
@@ -449,15 +593,26 @@ position_play_move :: (position : *Position, sourceCoord : Coord, targetCoord : 
     } else if piece.kind == .King {
         sourceRow, sourceCol := row_col(sourceCoord);
         targetRow, targetCol := row_col(targetCoord);
+        colorToPlay := position_color_to_play(position);
 
         // Castling, move the rook also.
         if sourceCol == targetCol + 2 {
             position.board[coord(targetRow, 3)] = position.board[coord(sourceRow, 0)];
             position.board[coord(sourceRow, 0)].kind = .Empty;
+            if colorToPlay == .White then position.flags &= ~.WhiteKingsideCastlingAllowed;
+            else position.flags &= ~.BlackKingsideCastlingAllowed;
         } else if sourceCol == targetCol - 2 {
             position.board[coord(targetRow, 5)] = position.board[coord(sourceRow, 7)];
             position.board[coord(sourceRow, 7)].kind = .Empty;
+            if colorToPlay == .White then position.flags &= ~.WhiteQueensideCastlingAllowed;
+            else position.flags &= ~.BlackQueensideCastlingAllowed;
         }
+    } else if piece.kind == .Rook {
+        // Disable castling if the rook from its starting square
+        if sourceCoord == coord(0, 0) then position.flags &= ~.WhiteQueensideCastlingAllowed;
+        else if sourceCoord == coord(0, 7) then position.flags &= ~.WhiteKingsideCastlingAllowed;
+        else if sourceCoord == coord(7, 0) then position.flags &= ~.BlackQueensideCastlingAllowed;
+        else if sourceCoord == coord(7, 7) then position.flags &= ~.BlackKingsideCastlingAllowed;
     }
 
     position.moveIndex += 1;
@@ -470,6 +625,112 @@ position_play_move :: (position : *Position, sourceCoord : Coord, targetCoord : 
     position.board[sourceCoord].kind = .Empty;
 
     // @todo :AutoCheck Detect if check, checkmate automatically!
+}
+
+// Check if the specified coord is capturable by a piece of the specified color.
+position_square_controlled :: (position : Position, squareCoord : Coord, color : Color) -> bool {
+    if position_find_piece_source(position, make_piece(.Bishop, color), 0xFF, squareCoord) != 0xFF then return true;
+    if position_find_piece_source(position, make_piece(.King, color), 0xFF, squareCoord) != 0xFF then return true;
+    if position_find_piece_source(position, make_piece(.Knight, color), 0xFF, squareCoord) != 0xFF then return true;
+    if position_find_piece_source(position, make_piece(.Queen, color), 0xFF, squareCoord) != 0xFF then return true;
+    if position_find_piece_source(position, make_piece(.Rook, color), 0xFF, squareCoord) != 0xFF then return true;
+
+    // Pawn captures
+    pawnDirection := ifx color == .White then cast(u8) 1 else -1;
+    row, col := row_col(squareCoord);
+    if col > 0 {
+        piece := position.board[coord(row - pawnDirection, col - 1)];
+        if piece.kind == .Pawn && piece.color == color return true;
+    }
+    if col < 7 {
+        piece := position.board[coord(row - pawnDirection, col + 1)];
+        if piece.kind == .Pawn && piece.color == color return true;
+    }
+
+    return false;
+}
+
+position_square_source_pieces :: (position : Position, squareCoord : Coord, color : Color) -> []Coord {
+    Basic.push_allocator(Basic.temp);
+
+    coords : [..]Coord;
+
+    for coord : position_find_piece_sources(position, make_piece(.Bishop, color), 0xFF, squareCoord) {
+        Basic.array_add(*coords, coord);
+    }
+    for coord : position_find_piece_sources(position, make_piece(.King, color), 0xFF, squareCoord) {
+        Basic.array_add(*coords, coord);
+    }
+    for coord : position_find_piece_sources(position, make_piece(.Knight, color), 0xFF, squareCoord) {
+        Basic.array_add(*coords, coord);
+    }
+    for coord : position_find_piece_sources(position, make_piece(.Queen, color), 0xFF, squareCoord) {
+        Basic.array_add(*coords, coord);
+    }
+    for coord : position_find_piece_sources(position, make_piece(.Rook, color), 0xFF, squareCoord) {
+        Basic.array_add(*coords, coord);
+    }
+
+    row, col := row_col(squareCoord);
+
+    // Pawns
+    pawnDirection := ifx color == .White then cast(u8) 1 else -1;
+    pawnStartingRow := ifx color == .White then cast(u8) 1 else 6;
+    if row != pawnStartingRow && row != pawnStartingRow - pawnDirection {
+        // Advance if the target square is empty
+        if position.board[squareCoord].kind == .Empty {
+            advanceOneCoord := coord(row - pawnDirection, col);
+            piece := position.board[advanceOneCoord];
+            if piece.kind == .Pawn && piece.color == color {
+                Basic.array_add(*coords, advanceOneCoord);
+            }
+            // Big advance if from the starting square and the intermediate square is empty
+            if row - 2 * pawnDirection == pawnStartingRow && piece.kind == .Empty {
+                advanceTwoCoord := coord(row - 2 * pawnDirection, col);
+                piece := position.board[advanceTwoCoord];
+                if piece.kind == .Pawn && piece.color == color {
+                    Basic.array_add(*coords, advanceTwoCoord);
+                }
+            }
+        }
+        // Capture if the target square is not empty or en-passant
+        enPassantCoord := position_en_passant_coord(*position);
+        if position.board[squareCoord].kind != .Empty || enPassantCoord == squareCoord {
+            if col > 0 {
+                captureCoord := coord(row - pawnDirection, col - 1);
+                piece := position.board[captureCoord];
+                if piece.kind == .Pawn && piece.color == color {
+                    Basic.array_add(*coords, captureCoord);
+                }
+            }
+            if col < 7 {
+                captureCoord := coord(row - pawnDirection, col + 1);
+                piece := position.board[captureCoord];
+                if piece.kind == .Pawn && piece.color == color {
+                    Basic.array_add(*coords, captureCoord);
+                }
+            }
+        }
+    }
+
+    // Castling
+    castlingRow := ifx color == .White then 0 else 7;
+    if row == castlingRow && position.board[squareCoord].kind == .Empty {
+        kingsideFlag := ifx color == .White then PositionFlags.WhiteKingsideCastlingAllowed else .BlackKingsideCastlingAllowed;
+        queensideFlag := ifx color == .White then PositionFlags.WhiteQueensideCastlingAllowed else .BlackQueensideCastlingAllowed;
+        if (col == 6 && position.flags & kingsideFlag && position.board[coord(row, 5)].kind == .Empty) ||
+           (col == 2 && position.flags & queensideFlag && position.board[coord(row, 3)].kind == .Empty && position.board[coord(row, 1)].kind == .Empty) {
+            Basic.array_add(*coords, coord(row, 4));
+        }
+    }
+
+    for coord : coords {
+        if !position_move_checkwise_legal(position, coord, squareCoord) {
+            remove coord;
+        }
+    }
+
+    return coords;
 }
 
 // Removes the highlight if already existing with the same color.

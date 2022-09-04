@@ -173,6 +173,37 @@ game_go_to_next_variation :: (game : *Game) {
     }
 }
 
+game_play_move :: (game : *Game, sourceCoord : Coord, targetCoord : Coord, promotionPieceKind : PieceKind) {
+    // Check if the move already exists, and if so, just select it
+    for nextPly : ply_next_plies(game.ply) {
+        if nextPly.position.lastMove.sourceCoord == sourceCoord &&
+           nextPly.position.lastMove.targetCoord == targetCoord &&
+           (!nextPly.position.lastMove.promotion || nextPly.position.board[targetCoord].kind == promotionPieceKind) {
+            game_update_to(game, nextPly);
+            return;
+        }
+    }
+
+    // The position does not exists yet, so:
+    //  - if a next ply already exists, create a new variation
+    //  - if there's no next ply, add to the current variation
+    variation := game.ply.parentVariation;
+    nextPly := ply_next_ply(game.ply);
+    if nextPly != null {
+        variation = game_add_variation(game, nextPly);
+        basePly := game_add_variation_ply(game, variation); // @todo Better to just store the starting position within the variation?
+        position_copy_state_from(*basePly.position, game.ply.position);
+        ply_init(basePly);
+    }
+
+    ply := game_add_variation_ply(game, variation);
+    position_copy_state_from(*ply.position, game.ply.position);
+    position_play_move(*ply.position, sourceCoord, targetCoord, promotionPieceKind);
+
+    ply_init(ply);
+    game_update_to(game, ply);
+}
+
 game_edit_ply_comment :: (game : *Game) {
     if game.ply == null then return;
     ply_edit_comment(game.ply);
@@ -189,6 +220,11 @@ game_result_to_string :: (result : Game.Result) -> string {
 
 game_debug_dump :: (game : Game) {
     variation_debug_dump(game.mainVariation, 0);
+}
+
+piece_at_coord :: (coord : Coord) -> Piece {
+    if instance.game.ply == null then return .{}; // Empty
+    return instance.game.ply.position.board[coord];
 }
 
 variation_collapse :: (variation : *Variation) {
@@ -214,4 +250,41 @@ variation_debug_dump :: (variation : Variation, depth : u8) {
             variation_debug_dump(<<variation, depth + 1);
         }
     }
+}
+
+ply_previous_ply :: (ply : *PlyEntity) -> *PlyEntity {
+    if ply.index == 0 {
+        parentPly := ply.parentVariation.parentPly;
+        if parentPly == null || parentPly.index < 2 then return null;
+        return parentPly.parentVariation.plies[parentPly.index - 2];
+    }
+    return ply.parentVariation.plies[ply.index - 1];
+}
+
+ply_next_ply :: (ply : *PlyEntity) -> *PlyEntity {
+    if ply.index == ply.parentVariation.plies.count - 1 then return null;
+
+    // If we're the first ply in our variation, we're not real,
+    // so better get the real ply!
+    if ply.index == 0 && ply.parentVariation.parentPly != null {
+        return ply.parentVariation.parentPly;
+    }
+
+    return ply.parentVariation.plies[ply.index + 1];
+}
+
+// List of all plies after this one that already exist in the current game.
+ply_next_plies :: (ply : *PlyEntity) -> []*PlyEntity {
+    nextPly := ply_next_ply(ply);
+    if nextPly == null then return .[];
+
+    Basic.push_allocator(Basic.temp);
+    nextPlies : [..]*PlyEntity;
+
+    Basic.array_add(*nextPlies, nextPly);
+    for nextPlyVariation : nextPly.variations {
+        Basic.array_add(*nextPlies, nextPlyVariation.plies[1]);
+    }
+
+    return nextPlies;
 }

@@ -25,6 +25,20 @@ Config :: struct {
             red : Chamber.vec4;
             yellow : Chamber.vec4;
         }
+        promotionSelecterColor : Chamber.vec4;
+        highlightValidSquares : bool;
+        dragAndDropMove : struct {
+            enabled : bool;
+            ghostOpacity : float;
+        }
+        clickClickMove : struct {
+            enabled : bool;
+        }
+        destinationSquareMove : struct {
+            enabled : bool;
+            disambiguateWithLastMovedPiece : bool;
+            mouseButton : Crater.MouseButton;
+        }
     }
     controls : struct {
         nextPly : Crater.Key;

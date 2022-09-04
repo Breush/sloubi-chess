@@ -117,25 +117,18 @@ list_show :: (game : Game) {
     _rebuild_decorums(*game.mainVariation);
 }
 
-list_show_variation :: (variation : *Variation, depth : u8 = 0) {
-    list := instance.list;
-
+list_show_variation :: (variation : *Variation, firstOne := true) {
     for plyIndex : 0 .. variation.plies.count - 1 {
         ply := variation.plies[plyIndex];
-
-        ply.moveColor = annotation_color(ply.position.lastMove.annotation);
-        ply.depth = depth;
-
-        Sill.entity_set_parent(ply, *list.scroll);
-        _init_ply(ply);
+        ply_init(ply, place = false);
 
         for variation : ply.variations {
-            list_show_variation(variation, depth + 1);
+            list_show_variation(variation, firstOne = false);
         }
     }
 
-    if depth == 0 {
-        _place_ply(instance.game.mainVariation.plies[0], propagate = true);
+    if firstOne {
+        _place_ply(variation.plies[0], propagate = true);
     }
 }
 
@@ -233,6 +226,139 @@ ply_edit_comment :: (ply : *PlyEntity, textCursorAtMouse := false) {
     _update_text_cursor(ply);
 }
 
+ply_init :: (ply : *PlyEntity, place := true) {
+    height : float;
+
+    ply.moveColor = annotation_color(ply.position.lastMove.annotation);
+    if ply.parentVariation.parentPly != null {
+        ply.depth = ply.parentVariation.parentPly.depth + 1;
+    } else {
+        ply.depth = 0;
+    }
+
+    Sill.entity_set_parent(ply, *instance.list.scroll);
+
+    // ----- Move
+
+    if ply.index != 0 {
+        Basic.array_add(*ply.mesh.nodes, .{});
+        Basic.array_add(*Basic.peek_pointer(ply.mesh.nodes).primitives, create_text_mesh());
+        ply.moveMeshNode = Basic.peek_pointer(ply.mesh.nodes);
+
+        moveIndex := (ply.position.moveIndex + 1) / 2;
+        moveText := Basic.tprint("%.% %", moveIndex, ifx ply.position.moveIndex % 2 then "" else ".. ", position_last_move_to_san(ply.position, annotations = true));
+        fontId := ifx ply.depth == 0 then "mainBold" else "mainLight";
+        charInfos := text_mesh_update(ply.moveMeshNode.primitives[0], moveText, fontId, ply.moveColor);
+        ply.moveTextWidth = Basic.peek(charInfos).effective.xEnd;
+        Basic.array_free(charInfos);
+    } else if (ply.parentVariation.parentPly != null) {
+        ply.decorum = _make_decorum();
+        ply.decorum.transform.translation.x = -UiConstants.PaddingHorizontalVariation / 2.0;
+        Sill.entity_set_parent(ply.decorum, ply);
+    }
+
+    // ----- Comment
+
+    Basic.array_add(*ply.mesh.nodes, .{});
+    Basic.array_add(*Basic.peek_pointer(ply.mesh.nodes).primitives, create_text_mesh());
+    ply.commentMeshNode = Basic.peek_pointer(ply.mesh.nodes);
+    ply.charInfos = text_mesh_update(ply.commentMeshNode.primitives[0], ply.position.comment, "mainLight", instance.config.moves.mainColor);
+    Basic.array_add(*ply.collider.boxShapes, .{});
+
+    Sill.ui_on_trigger(*ply.ui, (trigger : Sill.UiTrigger, ply : *PlyEntity) {
+        // Either select the ply, or start editing the comment if already selected
+        if instance.game.ply != ply {
+            game_update_to(*instance.game, ply);
+        } else {
+            ply_edit_comment(ply, textCursorAtMouse = true);
+        }
+    }, Sill.UiCallbackFlags.Click, ply);
+
+    Sill.ui_on_trigger(*ply.ui, (trigger : Sill.UiTrigger, ply : *PlyEntity) {
+        _show_text_cursor(!(trigger.flags & .NoFocus));
+    }, Sill.UiCallbackFlags.Focus | .NoFocus, ply);
+
+    Sill.ui_on_trigger(*ply.ui, (trigger : Sill.UiTrigger, ply : *PlyEntity) {
+        textChanged := false;
+        <<trigger.stopPropagation = true;
+
+        if trigger.event.kind == .TextEntered {
+            // :RelativePointerIssue
+            Chamber.insert_after_byte(*ply.position.comment, ply.textCursorPosition, Basic.to_string(trigger.event.text.utf8));
+            ply.textCursorPosition += cast(u32) Basic.to_string(trigger.event.text.utf8).count;
+            textChanged = true;
+        } else if trigger.event.kind == .KeyPressed {
+            if trigger.event.key.which == .Escape {
+                Sill.ui_set_focused(*ply.ui, false);
+            } else if trigger.event.key.which == .Delete {
+                deletedBytes := Chamber.delete_after_byte(*ply.position.comment, ply.textCursorPosition);
+                if deletedBytes == 0 then return;
+                textChanged = true;
+            } else if trigger.event.key.which == .Backspace {
+                deletedBytes := Chamber.delete_before_byte(*ply.position.comment, ply.textCursorPosition);
+                if deletedBytes == 0 then return;
+                ply.textCursorPosition -= deletedBytes;
+                textChanged = true;
+            } else if trigger.event.key.which == .Left {
+                if ply.textCursorPosition == 0 then return;
+                ply.textCursorPosition -= Chamber.utf8_word_length_before_byte(ply.position.comment, ply.textCursorPosition);
+            } else if trigger.event.key.which == .Right {
+                if ply.textCursorPosition == ply.position.comment.count then return;
+                ply.textCursorPosition += Chamber.utf8_word_length_after_byte(ply.position.comment, ply.textCursorPosition);
+            } else {
+                return;
+            }
+        } else {
+            Crater.window_pointer_style(instance.engine.window, .Default);
+            return;
+        }
+
+        // @todo Do a clever diff instead of regenerating everything?
+        if textChanged then {
+            Basic.array_free(ply.charInfos);
+            ply.charInfos = text_mesh_update(ply.commentMeshNode.primitives[0], ply.position.comment, "mainLight", instance.config.moves.mainColor);
+            _place_ply(ply, propagate = true);
+        }
+
+        _update_text_cursor(ply);
+    }, Sill.UiCallbackFlags.Text | .Key | .NoHover, ply);
+
+    Sill.ui_check_hovered_handler(*ply.ui, (hovered : bool, ply : *PlyEntity) -> bool {
+        ray : Ray = ---;
+        ray.origin.x = cast(float) instance.engine.window.mousePosition.x - instance.engine.options.windowExtent.width / 2.0;
+        ray.origin.y = cast(float) instance.engine.window.mousePosition.y - instance.engine.options.windowExtent.height / 2.0;
+        ray.origin.z = -40;
+        ray.direction = .{0, 0, 1};
+
+        ply.moveHovered = false;
+
+        if hovered && ply.moveMeshNode {
+            mesh := ply.moveMeshNode.primitives[0];
+            distance := Magma.mesh_distance_from(mesh, ray, .MeshFirstHit);
+            if distance > 0.0 {
+                ply.moveHovered = true;
+                Crater.window_pointer_style(instance.engine.window, .HandPointing);
+                return true;
+            }
+        }
+
+        if ply.commentMeshNode {
+            distance := Sill.collider_distance_from(*ply.collider, ray);
+            if distance > 0.0 {
+                pointerStyle := ifx instance.game.ply == ply then Crater.PointerStyle.Text else .HandPointing;
+                Crater.window_pointer_style(instance.engine.window, pointerStyle);
+                return true;
+            }
+        }
+
+        return false;
+    }, ply);
+
+    if place {
+        _place_ply(ply, propagate = true);
+    }
+}
+
 CommentStyle :: enum {
     None :: 0;
     Inline;
@@ -320,125 +446,6 @@ _detect_comment_style :: (comment : string) -> CommentStyle {
 
 _is_style_spaced_after :: (commentStyle : CommentStyle) -> bool {
     return commentStyle == .Half || commentStyle == .SidedFull || commentStyle == .Full;
-}
-
-_init_ply :: (ply : *PlyEntity) {
-    height : float;
-
-    // ----- Move
-
-    if ply.index != 0 {
-        Basic.array_add(*ply.mesh.nodes, .{});
-        Basic.array_add(*Basic.peek_pointer(ply.mesh.nodes).primitives, create_text_mesh());
-        ply.moveMeshNode = Basic.peek_pointer(ply.mesh.nodes);
-
-        moveIndex := (ply.position.moveIndex + 1) / 2;
-        moveText := Basic.tprint("%.% %", moveIndex, ifx ply.position.moveIndex % 2 then "" else ".. ", position_last_move_to_san(ply.position, annotations = true));
-        fontId := ifx ply.depth == 0 then "mainBold" else "mainLight";
-        charInfos := text_mesh_update(ply.moveMeshNode.primitives[0], moveText, fontId, ply.moveColor);
-        ply.moveTextWidth = Basic.peek(charInfos).effective.xEnd;
-        Basic.array_free(charInfos);
-    } else if (ply.parentVariation.parentPly != null) {
-        ply.decorum = _make_decorum();
-        ply.decorum.transform.translation.x = -UiConstants.PaddingHorizontalVariation / 2.0;
-        Sill.entity_set_parent(ply.decorum, ply);
-    }
-
-    // ----- Comment
-
-    Basic.array_add(*ply.mesh.nodes, .{});
-    Basic.array_add(*Basic.peek_pointer(ply.mesh.nodes).primitives, create_text_mesh());
-    ply.commentMeshNode = Basic.peek_pointer(ply.mesh.nodes);
-    ply.charInfos = text_mesh_update(ply.commentMeshNode.primitives[0], ply.position.comment, "mainLight", instance.config.moves.mainColor);
-    Basic.array_add(*ply.collider.boxShapes, .{});
-
-    Sill.ui_on_trigger(*ply.ui, (trigger : Sill.UiTrigger, ply : *PlyEntity) {
-        // Either select the ply, or start editing the comment if already selected
-        if instance.game.ply != ply {
-            game_update_to(*instance.game, ply);
-        } else {
-            ply_edit_comment(ply, textCursorAtMouse = true);
-        }
-    }, Sill.UiCallbackFlags.Click, ply);
-
-    Sill.ui_on_trigger(*ply.ui, (trigger : Sill.UiTrigger, ply : *PlyEntity) {
-        _show_text_cursor(!(trigger.flags & .NoFocus));
-    }, Sill.UiCallbackFlags.Focus | .NoFocus, ply);
-
-    Sill.ui_on_trigger(*ply.ui, (trigger : Sill.UiTrigger, ply : *PlyEntity) {
-        textChanged := false;
-        <<trigger.stopPropagation = true;
-
-        if trigger.event.kind == .TextEntered {
-            Chamber.insert_after_byte(*ply.position.comment, ply.textCursorPosition, trigger.event.text.str);
-            ply.textCursorPosition += cast(u32) trigger.event.text.str.count;
-            textChanged = true;
-        } else if trigger.event.kind == .KeyPressed {
-            if trigger.event.key.which == .Escape {
-                Sill.ui_set_focused(*ply.ui, false);
-            } else if trigger.event.key.which == .Delete {
-                deletedBytes := Chamber.delete_after_byte(*ply.position.comment, ply.textCursorPosition);
-                if deletedBytes == 0 then return;
-                textChanged = true;
-            } else if trigger.event.key.which == .Backspace {
-                deletedBytes := Chamber.delete_before_byte(*ply.position.comment, ply.textCursorPosition);
-                if deletedBytes == 0 then return;
-                ply.textCursorPosition -= deletedBytes;
-                textChanged = true;
-            } else if trigger.event.key.which == .Left {
-                if ply.textCursorPosition == 0 then return;
-                ply.textCursorPosition -= Chamber.utf8_word_length_before_byte(ply.position.comment, ply.textCursorPosition);
-            } else if trigger.event.key.which == .Right {
-                if ply.textCursorPosition == ply.position.comment.count then return;
-                ply.textCursorPosition += Chamber.utf8_word_length_after_byte(ply.position.comment, ply.textCursorPosition);
-            } else {
-                return;
-            }
-        } else {
-            Crater.window_pointer_style(instance.engine.window, .Default);
-            return;
-        }
-
-        // @todo Do a clever diff instead of regenerating everything?
-        if textChanged then {
-            Basic.array_free(ply.charInfos);
-            ply.charInfos = text_mesh_update(ply.commentMeshNode.primitives[0], ply.position.comment, "mainLight", instance.config.moves.mainColor);
-            _place_ply(ply, propagate = true);
-        }
-
-        _update_text_cursor(ply);
-    }, Sill.UiCallbackFlags.Text | .Key | .NoHover, ply);
-
-    Sill.ui_check_hovered_handler(*ply.ui, (hovered : bool, ply : *PlyEntity) -> bool {
-        ray : Ray = ---;
-        ray.origin.x = cast(float) instance.engine.window.mousePosition.x - instance.engine.options.windowExtent.width / 2.0;
-        ray.origin.y = cast(float) instance.engine.window.mousePosition.y - instance.engine.options.windowExtent.height / 2.0;
-        ray.origin.z = -40;
-        ray.direction = .{0, 0, 1};
-
-        ply.moveHovered = false;
-
-        if hovered && ply.moveMeshNode {
-            mesh := ply.moveMeshNode.primitives[0];
-            distance := Magma.mesh_distance_from(mesh, ray, .MeshFirstHit);
-            if distance > 0.0 {
-                ply.moveHovered = true;
-                Crater.window_pointer_style(instance.engine.window, .HandPointer);
-                return true;
-            }
-        }
-
-        if ply.commentMeshNode {
-            distance := Sill.collider_distance_from(*ply.collider, ray);
-            if distance > 0.0 {
-                pointerStyle := ifx instance.game.ply == ply then Crater.PointerStyle.Text else .HandPointer;
-                Crater.window_pointer_style(instance.engine.window, pointerStyle);
-                return true;
-            }
-        }
-
-        return false;
-    }, ply);
 }
 
 _place_comment_from_char_infos :: (ply : *PlyEntity) {
@@ -754,15 +761,15 @@ _make_decorum :: () -> *DecorumEntity {
     Basic.array_add(*Basic.peek_pointer(decorum.mesh.nodes).primitives, mesh);
 
     Sill.ui_on_trigger(*decorum.ui, (trigger : Sill.UiTrigger, decorum : *DecorumEntity) {
-        if trigger.flags == .Click {
+        if trigger.flags == .ClickStart {
             variation_collapse((cast(*PlyEntity) decorum.parent).parentVariation);
         } else {
-            pointerStyle := ifx trigger.flags == .Hover then Crater.PointerStyle.HandPointer else .Default;
+            pointerStyle := ifx trigger.flags == .Hover then Crater.PointerStyle.HandPointing else .Default;
             color := ifx trigger.flags == .Hover then instance.config.moves.selectedColor else instance.config.moves.mainColor;
             Magma.material_set(decorum.mesh.nodes[0].primitives[0].material, "color", color);
             Crater.window_pointer_style(instance.engine.window, pointerStyle);
         }
-    }, Sill.UiCallbackFlags.Hover | .NoHover | .Click, decorum);
+    }, Sill.UiCallbackFlags.Hover | .NoHover | .ClickStart, decorum);
 
     return decorum;
 }
