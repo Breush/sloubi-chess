@@ -49,6 +49,8 @@ MeshEntity :: struct {
 
 board_init :: (using board : *BoardEntity) {
     ui.draggable = true;
+    ui.extent.width = 8;
+    ui.extent.height = 8;
 
     _init_resources(board);
     _init_meshes(board);
@@ -103,8 +105,7 @@ board_init :: (using board : *BoardEntity) {
         } else if trigger.flags & .Dragging {
             if pieceDragging {
                 relativeMousePointerPosition := Sill.ui_relative_mouse_pointer_position(*ui);
-                movingPiece.transform.translation.x = relativeMousePointerPosition.x / board.transform.factor;
-                movingPiece.transform.translation.y = relativeMousePointerPosition.y / board.transform.factor;
+                movingPiece.transform.translation.xy = relativeMousePointerPosition;
                 Sill.transform_commit(*movingPiece.transform);
             }
         } else if trigger.flags & .DragStop {
@@ -142,13 +143,6 @@ board_init :: (using board : *BoardEntity) {
 }
 
 board_update_to_size :: (using board : *BoardEntity, size : float) {
-    ui.extent.width, ui.extent.height = size, size; // @fixme Should UI be affected by the scale?
-
-    for button : board.pawnPromotionSelecter.buttons {
-        button.ui.extent.width = size / 8.0;
-        button.ui.extent.height = size / 8.0;
-    }
-
     // Each square mesh is created of extent (1,1) so we scale them here.
     transform.factor = size / 8.0;
     Sill.transform_commit(*transform);

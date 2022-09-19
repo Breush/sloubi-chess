@@ -445,11 +445,16 @@ position_find_piece_targets :: (position : Position, sourceCoord : Coord) -> []C
                 kingsideFlag := ifx colorToPlay == .White then PositionFlags.WhiteKingsideCastlingAllowed else .BlackKingsideCastlingAllowed;
                 queensideFlag := ifx colorToPlay == .White then PositionFlags.WhiteQueensideCastlingAllowed else .BlackQueensideCastlingAllowed;
                 if position.flags & kingsideFlag &&
+                    position.board[coord(row, 5)].kind == .Empty &&
+                    position.board[coord(row, 6)].kind == .Empty &&
                     !position_square_controlled(position, coord(row, 5), colorNotToPlay) &&
                     !position_square_controlled(position, coord(row, 6), colorNotToPlay) {
                     add_target_if_legal(*targets, position, sourceCoord, coord(row, 6));
                 }
                 if position.flags & queensideFlag &&
+                    position.board[coord(row, 3)].kind == .Empty &&
+                    position.board[coord(row, 2)].kind == .Empty &&
+                    position.board[coord(row, 1)].kind == .Empty &&
                     !position_square_controlled(position, coord(row, 3), colorNotToPlay) &&
                     !position_square_controlled(position, coord(row, 2), colorNotToPlay) &&
                     !position_square_controlled(position, coord(row, 1), colorNotToPlay) {

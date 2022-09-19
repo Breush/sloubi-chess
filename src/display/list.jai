@@ -284,8 +284,9 @@ ply_init :: (ply : *PlyEntity, place := true) {
 
         if trigger.event.kind == .TextEntered {
             // :RelativePointerIssue
-            Chamber.insert_after_byte(*ply.position.comment, ply.textCursorPosition, Basic.to_string(trigger.event.text.utf8));
-            ply.textCursorPosition += cast(u32) Basic.to_string(trigger.event.text.utf8).count;
+            length := Basic.c_style_strlen(*trigger.event.text.utf8[0]);
+            Chamber.insert_after_byte(*ply.position.comment, ply.textCursorPosition, Basic.to_string(*trigger.event.text.utf8[0], length));
+            ply.textCursorPosition += cast(u32) length;
             textChanged = true;
         } else if trigger.event.kind == .KeyPressed {
             if trigger.event.key.which == .Escape {
