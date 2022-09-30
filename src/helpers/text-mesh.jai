@@ -25,7 +25,8 @@ create_text_mesh :: () -> *Magma.Mesh {
 text_mesh_update :: (mesh : *Magma.Mesh, text : string, fontId : string, color : Chamber.vec3, depth := 0.0) -> []CharInfo #must {
     mesh.disabled &= ~.Application;
     if text.count == 0 {
-        mesh.disabled |= .Application;
+        mesh.indices.count = 0;
+        Magma.mesh_commit_indices(mesh);
         return .[];
     }
 

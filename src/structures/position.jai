@@ -274,6 +274,13 @@ get_piece :: (position : Position, row : u8, col : u8) -> Piece {
     return position.board[coord(row, col)];
 }
 
+position_cleanup :: (using position : *Position) {
+    Basic.free(comment);
+    Basic.array_free(observationAnnotations);
+    Basic.array_free(highlights.squares);
+    Basic.array_free(highlights.arrows);
+}
+
 position_debug_dump :: (position : Position) {
     sb : Basic.String_Builder;
     Basic.init_string_builder(*sb);
@@ -309,6 +316,16 @@ position_copy_state_from :: (position : *Position, sourcePosition : Position) {
     position.whiteClock = sourcePosition.whiteClock;
     position.blackClock = sourcePosition.blackClock;
     position.flags = sourcePosition.flags;
+}
+
+position_find_piece :: (position : Position, kind : PieceKind, color : Color) -> Coord {
+    for coord : 0 .. CoordCount - 1 {
+        piece := position.board[coord];
+        if piece.kind == kind && piece.color == color {
+            return coord;
+        }
+    }
+    return 0xFF;
 }
 
 position_find_piece_in_direction :: (position : Position,
@@ -560,7 +577,7 @@ position_move_legal :: (position : *Position, sourceCoord : Coord, targetCoord :
 position_move_checkwise_legal :: (position : Position, sourceCoord : Coord, targetCoord : Coord) -> bool {
     newPosition : Position;
     position_copy_state_from(*newPosition, position);
-    position_play_move(*newPosition, sourceCoord, targetCoord, .Empty);
+    position_play_move(*newPosition, sourceCoord, targetCoord, .Empty, updateFlags = false);
 
     colorToPlay := position_color_to_play(*position);
     colorNotToPlay := ifx colorToPlay == .White then Color.Black else .White;
@@ -579,7 +596,7 @@ position_move_checkwise_legal :: (position : Position, sourceCoord : Coord, targ
 
 // This does not validate that the move is legal, it just plays it.
 // Which may lead to illegal positions if the move is not proven legal.
-position_play_move :: (position : *Position, sourceCoord : Coord, targetCoord : Coord, promotionPieceKind : PieceKind) {
+position_play_move :: (position : *Position, sourceCoord : Coord, targetCoord : Coord, promotionPieceKind : PieceKind, updateFlags := true) {
     fullMoveNumber := 1 + position.moveIndex / 2;
     if !coord_is_valid(targetCoord) {
         Basic.log("%. Playing move: invalid target coord.", fullMoveNumber, flags = .ERROR);
@@ -615,15 +632,19 @@ position_play_move :: (position : *Position, sourceCoord : Coord, targetCoord : 
         if sourceCol == targetCol + 2 {
             position.board[coord(targetRow, 3)] = position.board[coord(sourceRow, 0)];
             position.board[coord(sourceRow, 0)].kind = .Empty;
-            if colorToPlay == .White then position.flags &= ~.WhiteKingsideCastlingAllowed;
-            else position.flags &= ~.BlackKingsideCastlingAllowed;
+            if updateFlags {
+                if colorToPlay == .White then position.flags &= ~.WhiteKingsideCastlingAllowed;
+                else position.flags &= ~.BlackKingsideCastlingAllowed;
+            }
         } else if sourceCol == targetCol - 2 {
             position.board[coord(targetRow, 5)] = position.board[coord(sourceRow, 7)];
             position.board[coord(sourceRow, 7)].kind = .Empty;
-            if colorToPlay == .White then position.flags &= ~.WhiteQueensideCastlingAllowed;
-            else position.flags &= ~.BlackQueensideCastlingAllowed;
+            if updateFlags {
+                if colorToPlay == .White then position.flags &= ~.WhiteQueensideCastlingAllowed;
+                else position.flags &= ~.BlackQueensideCastlingAllowed;
+            }
         }
-    } else if piece.kind == .Rook {
+    } else if piece.kind == .Rook && updateFlags {
         // Disable castling if the rook from its starting square
         if sourceCoord == coord(0, 0) then position.flags &= ~.WhiteQueensideCastlingAllowed;
         else if sourceCoord == coord(0, 7) then position.flags &= ~.WhiteKingsideCastlingAllowed;
@@ -640,7 +661,22 @@ position_play_move :: (position : *Position, sourceCoord : Coord, targetCoord : 
     position.board[targetCoord].color = piece.color;
     position.board[sourceCoord].kind = .Empty;
 
-    // @todo :AutoCheck Detect if check, checkmate automatically!
+    if updateFlags {
+        // Detect if check and/or checkmate.
+        position.flags &= ~.Check;
+        position.flags &= ~.Mate;
+
+        colorNotToPlay := ifx piece.color == .White then Color.Black else .White;
+        kingCoord := position_find_piece(position, .King, colorNotToPlay);
+        if kingCoord != 0xFF && position_square_controlled(position, kingCoord, piece.color) {
+            position.flags |= .Check;
+            if position_legal_moves(position).count == 0 {
+                position.flags |= .Mate;
+            }
+        }
+
+        // @todo Detect stalemate.
+    }
 }
 
 // Check if the specified coord is capturable by a piece of the specified color.
@@ -664,6 +700,28 @@ position_square_controlled :: (position : Position, squareCoord : Coord, color :
     }
 
     return false;
+}
+
+position_legal_moves :: (position : *Position) -> []Move {
+    Basic.push_allocator(Basic.temp);
+    legalMoves : [..]Move;
+
+    colorToPlay := position_color_to_play(position);
+    for coord : 0 .. CoordCount - 1 {
+        piece := position.board[coord];
+        if piece.kind != .Empty && piece.color == colorToPlay {
+            targetCoords := position_find_piece_targets(position, coord);
+
+            move : Move;
+            move.sourceCoord = coord;
+            for targetCoord : targetCoords {
+                move.targetCoord = targetCoord;
+                Basic.array_add(*legalMoves, move);
+            }
+        }
+    }
+
+    return legalMoves;
 }
 
 position_square_source_pieces :: (position : Position, squareCoord : Coord, color : Color) -> []Coord {

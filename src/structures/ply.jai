@@ -30,7 +30,7 @@ PlyEntity :: struct {
     moveTextWidth : float;
 
     on_cleanup :: (using this : *PlyEntity) {
-        Basic.free(position.comment);
+        position_cleanup(*position);
         Basic.array_free(charInfos);
     }
 }
@@ -409,15 +409,19 @@ _detect_comment_location :: (ply : *PlyEntity) -> CommentLocation {
     commentLocation.color = ifx ply.position.moveIndex % 2 != 0 then Color.White else .Black;
 
     if ply.index == 0 {
-        commentLocation.style = .Full;
+        commentLocation.style = ifx variation.depth == 0 then .Full else _detect_comment_style(ply.position.comment);
         commentLocation.preflushed = true;
-        commentLocation.spaced = (ply.parentVariation.depth == 1);
+        commentLocation.spaced = (variation.depth == 1);
         return commentLocation;
     }
 
     commentLocation.style = _detect_comment_style(ply.position.comment);
     nextCommentStyle := ifx ply.index != variation.plies.count - 1 then _detect_comment_style(variation.plies[ply.index + 1].position.comment) else .None;
-    previousCommentStyle := ifx ply.index != 0 then _detect_comment_style(variation.plies[ply.index - 1].position.comment) else .None;
+    previousCommentStyle := _detect_comment_style(variation.plies[ply.index - 1].position.comment);
+
+    if ply.index == 1 && variation.depth == 0 {
+        previousCommentStyle = .Full;
+    }
 
     // Promotion of white half comment to a long style comment if next black is expected to be full.
     if commentLocation.style == .Half && commentLocation.color == .White &&
@@ -436,9 +440,9 @@ _detect_comment_location :: (ply : *PlyEntity) -> CommentLocation {
     }
 
     // Always preflush if after a variation list or if at the start of a variation.
-    if ply.index != 0 && variation.plies[ply.index - 1].variations.count > 0 {
+    if variation.plies[ply.index - 1].variations.count > 0 {
         commentLocation.preflushed = true;
-        commentLocation.spaced = (ply.parentVariation.depth == 0);
+        commentLocation.spaced = (variation.depth == 0);
     } else if commentLocation.color == .White || commentLocation.style == .Full || commentLocation.style == .SidedFull ||
               previousCommentStyle == .Full || previousCommentStyle == .SidedFull {
         commentLocation.preflushed = true;
@@ -449,7 +453,7 @@ _detect_comment_location :: (ply : *PlyEntity) -> CommentLocation {
             commentLocation.preflushed = false;
         }
 
-        if commentLocation.preflushed && ply.parentVariation.depth == 0  {
+        if commentLocation.preflushed && variation.depth == 0  {
             if _is_style_spaced_after(previousCommentStyle) {
                 commentLocation.spaced = true;
             } else if commentLocation.color == .White && ply.index >= 2 && variation.plies[ply.index - 2].variations.count == 0 {

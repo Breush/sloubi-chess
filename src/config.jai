@@ -77,6 +77,17 @@ Persistence :: struct {
     }
 }
 
+config_cleanup :: (config : *Config) {
+    Basic.free(config.env.fontFamily);
+    Basic.free(config.env.monoFontFamily);
+    Basic.free(config.analysis.externalSite);
+    Basic.free(config.board.pieces);
+}
+
+persistence_cleanup :: (persistence : *Persistence) {
+    Basic.free(persistence.fileSelect.lastPath);
+}
+
 // @todo Move to Chamber
 read_json_as :: (data : *$T, filename : string, silentOnError := false) -> bool {
     typeInfo := type_info(T);

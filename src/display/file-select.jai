@@ -175,6 +175,9 @@ _make_entry :: (fileSelect : *FileSelectEntity, name : string, isDirectory : boo
             if entryEntity.isDirectory {
                 _go_into_directory(fileSelect, entryEntity.fileOrDirectoryName);
             } else if String.ends_with(entryEntity.fileOrDirectoryName, ".pgn") {
+                if instance.persistence.fileSelect.lastPath.count != 0 {
+                    Basic.free(instance.persistence.fileSelect.lastPath);
+                }
                 instance.persistence.fileSelect.lastPath = Basic.copy_string(fileSelect.currentPath);
                 persistence_commit();
 

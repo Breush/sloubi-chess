@@ -43,6 +43,17 @@ game_cleanup :: (game : *Game) {
     if game.mainVariation != null then variation_cleanup(game.mainVariation);
 
     Basic.free(game.pgnFileName);
+    Basic.free(game.tags.event);
+    Basic.free(game.tags.site);
+    Basic.free(game.tags.date);
+    Basic.free(game.tags.round);
+    Basic.free(game.tags.white);
+    Basic.free(game.tags.black);
+    for extraTag : game.tags.extra {
+        Basic.free(extraTag.name);
+        Basic.free(extraTag.value);
+    }
+    Basic.array_free(game.tags.extra);
 
     (<<game) = .{};
 }
@@ -145,7 +156,7 @@ game_play_move :: (game : *Game, sourceCoord : Coord, targetCoord : Coord, promo
         variation = game_add_variation(game, nextPly);
         basePly := variation_add_ply(variation); // @todo Better to just store the starting position within the variation?
         position_copy_state_from(*basePly.position, game.ply.position);
-        ply_init(basePly);
+        variation_init(variation);
     }
 
     ply := variation_add_ply(variation);

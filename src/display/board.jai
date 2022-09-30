@@ -15,6 +15,10 @@ BoardEntity :: struct {
     pawnPromotionSelecter : PawnPromotionSelecterEntity;
 
     #as state : BoardState;
+
+    on_cleanup :: (using board : *BoardEntity) {
+        Basic.array_free(arrows);
+    }
 }
 
 PawnPromotionSelecterEntity :: struct {

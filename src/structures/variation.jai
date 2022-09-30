@@ -39,7 +39,6 @@ variation_init :: (variation : *VariationEntity, firstOne := true) {
 
     if firstOne {
         ply_place(variation.plies[0], propagate = true);
-        _rebuild_decorums(variation);
     }
 }
 
@@ -74,6 +73,7 @@ variation_place_plies :: (variation : *VariationEntity, plyIndex : u16, upstream
 
         for subVariation : ply.variations {
             variation_place_plies(subVariation, 0, upstream = false, hidden = hidden || variation.collapsed, firstOne = false);
+            send(.VariationContentChanged, subVariation);
         }
     }
 
@@ -81,13 +81,15 @@ variation_place_plies :: (variation : *VariationEntity, plyIndex : u16, upstream
     if upstream && variation.parentPly != null {
         for i : variation.index + 1 .. variation.parentPly.variations.count - 1 {
             variation_place_plies(variation.parentPly.variations[i], 0, upstream = false, firstOne = false);
+            send(.VariationContentChanged, variation.parentPly.variations[i]);
         }
 
         variation_place_plies(variation.parentPly.parentVariation, variation.parentPly.index + 1, firstOne = false);
+        send(.VariationContentChanged, variation.parentPly.parentVariation);
     }
 
     if firstOne {
-        _rebuild_decorums(variation);
+        send(.VariationContentChanged, variation);
     }
 }
 
@@ -121,6 +123,10 @@ _on_message :: (variation : *VariationEntity, message : *Message) {
             Magma.material_set(variation.mesh.nodes[0].primitives[0].material, "color", instance.config.moves.mainColor);
         } else if instance.game.ply == variation.plies[0] && variation.mesh.nodes.count != 0 {
             Magma.material_set(variation.mesh.nodes[0].primitives[0].material, "color", instance.config.moves.selectedColor);
+        }
+    case .VariationContentChanged;
+        if variation == message.variation {
+            _rebuild_decorum(variation);
         }
     }
 }
@@ -161,19 +167,18 @@ _init_decorum :: (variation : *VariationEntity) {
     variation.transform.translation.x = -UiConstants.PaddingHorizontalVariation / 2.0;
 }
 
-_rebuild_decorums :: (variation : *VariationEntity, hidden := false) {
-    _rebuild_decorum(variation, hidden);
+_rebuild_decorum :: (variation : *VariationEntity) {
+    if variation.mesh.nodes.count == 0 then return;
 
-    for ply : variation.plies {
-        for subVariation : ply.variations {
-            _rebuild_decorum(subVariation, hidden || variation.collapsed);
-            _rebuild_decorums(subVariation, hidden || variation.collapsed);
+    hidden := false;
+    parentVariation := variation;
+    while parentVariation.parentPly != null {
+        parentVariation = parentVariation.parentPly.parentVariation;
+        if parentVariation.collapsed {
+            hidden = true;
+            break;
         }
     }
-}
-
-_rebuild_decorum :: (variation : *VariationEntity, hidden := false) {
-    if variation.mesh.nodes.count == 0 then return;
 
     Sill.entity_set_disabled(variation, hidden);
     if hidden then return;

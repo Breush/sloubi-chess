@@ -552,9 +552,8 @@ _parse_potential_move :: (bytes : *string, variation : *VariationEntity, color :
         sourceCoord = position_find_piece_source(lastPosition, piece, sourceHintCoord, targetCoord);
     }
 
-    // @todo :AutoCheck Should not be our job to update position with this info.
-    if _parse_potential_check(bytes) then position.flags |= .Check;
-    if _parse_potential_mate(bytes) then position.flags |= PositionFlags.Check | .Mate;
+    _parse_potential_check(bytes);
+    _parse_potential_mate(bytes);
     _skip_blanks(bytes);
 
     // Updating the game

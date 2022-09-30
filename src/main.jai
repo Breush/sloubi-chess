@@ -39,13 +39,9 @@ for_expansion :: Hash.for_expansion;
 #load "controller.jai";
 #load "message.jai";
 
-// Known bugs:
-// @fixme Delete all text in ply comment leaves a character.
-// @fixme First comment of a variation can overlap with the next move, if the
-// next move is for black.
-
-// Features:
+// Feature ideas:
 // @todo Change the selected ply visual to a rect around the ply. (But issues with ply.index == 0?)
+// @todo Read comments to see if squares or moves are cited, and display arrows and such
 
 instance : Instance;
 
@@ -129,13 +125,11 @@ main :: () {
 #scope_file
 
 _cleanup :: () {
-    Sill.destroy_engine(instance.engine);
-
-    Basic.free(instance.config.board.pieces);
-    Basic.free(instance.config.env.fontFamily);
-    Basic.free(instance.persistence.fileSelect.lastPath);
-
     game_cleanup(*instance.game);
+    config_cleanup(*instance.config);
+    persistence_cleanup(*instance.persistence);
+
+    Sill.destroy_engine(instance.engine);
 }
 
 _event_handler :: (event : Crater.Event) {

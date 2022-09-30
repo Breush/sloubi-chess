@@ -31,6 +31,7 @@ MessageKind :: enum u32 {
     PlyTextCursorPositionChanged;               // (ply : *PlyEntity)
     PlyInited;                                  // (ply : *PlyEntity)
     VariationCollapsedChanged;                  // (variation : *VariationEntity)
+    VariationContentChanged;                    // (variation : *VariationEntity)
 }
 
 send :: (kind : MessageKind) {
