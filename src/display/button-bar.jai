@@ -1,84 +1,93 @@
-ButtonBar :: struct {
-    backButton : *ButtonEntity;
-    analysisButton : *ButtonEntity;
-    saveButton : *ButtonEntity;
+ButtonBarEntity :: struct {
+    using #as entity : Sill.Entity;
+
+    transform : Sill.TransformComponent;
+    listener : Sill.ListenerComponent;
+
+    backButton : ButtonEntity;
+    analysisButton : ButtonEntity;
+    saveButton : ButtonEntity;
 }
 
 ButtonEntity :: struct {
-    using #as entity : Sill.Entity;
+    using #as entity : Sill.Entity; @Sill:NoStorage
+
     transform : Sill.TransformComponent;
     mesh : Sill.MeshComponent;
     ui : Sill.UiComponent;
 }
 
-button_bar_init :: () {
-    using *instance.buttonBar;
+button_bar_create :: () -> *ButtonBarEntity {
+    using buttonBar := SillMeta.create_button_bar_entity(instance.engine);
+    Sill.listener_on_message(*listener, _on_message);
 
-    // Back to home button.
-    backButton = _make_button(ForkAwesome.Reply);
+    // Back to home button
+    _make_button(*backButton, ForkAwesome.Reply);
+    Sill.entity_set_parent(*backButton, buttonBar);
+    backButton.transform.translation.x = -backButton.ui.extent.width - 5;
 
     Sill.ui_on_trigger(*backButton.ui, (trigger : Sill.UiTrigger, backButton : *ButtonEntity) {
         // @fixme Have a "not-saved changes" dialog.
-        button_bar_show(false);
         game_cleanup(*instance.game);
         file_select_show(".pgn", (selectedFile : string) {
             if load_pgn(selectedFile) {
                 game_show(*instance.game);
             }
         });
-    }, .Click, backButton);
+    }, .ClickStop, *backButton);
 
     // Open lichess analysis button
-    analysisButton = _make_button(ForkAwesome.Laptop);
+    _make_button(*analysisButton, ForkAwesome.Laptop);
+    Sill.entity_set_parent(*analysisButton, buttonBar);
 
     Sill.ui_on_trigger(*analysisButton.ui, (trigger : Sill.UiTrigger, analysisButton : *ButtonEntity) {
         Basic.log("Opening analysis.");
         Chamber.os_open_browser(Basic.tprint("%1%2", instance.config.analysis.externalSite, position_to_fen(instance.game.ply.position)));
-    }, .Click, analysisButton);
+    }, .ClickStop, *analysisButton);
 
     // Save button
     // @fixme Have user feedback that we saved.
-    saveButton = _make_button(ForkAwesome.FloppyO);
+    _make_button(*saveButton, ForkAwesome.FloppyO);
+    Sill.entity_set_parent(*saveButton, buttonBar);
+    saveButton.transform.translation.x = saveButton.ui.extent.width;
 
     Sill.ui_on_trigger(*saveButton.ui, (trigger : Sill.UiTrigger, saveButton : *ButtonEntity) {
         save_pgn(instance.game.pgnFileName);
-    }, .Click, saveButton);
+    }, .ClickStop, *saveButton);
 
-    button_bar_reflow();
-}
-
-button_bar_reflow :: () {
-    using *instance.buttonBar;
-
-    extent := Crater.window_get_extent(instance.engine.window);
-
-    // @fixme Should UI widgets become components?
-    // @fixme Missing hlayout?
-    backButton.transform.translation.x = extent.width / 2 - 5 * backButton.ui.extent.width / 2 - 5;
-    backButton.transform.translation.y = extent.height / 2 - backButton.ui.extent.height / 2;
-    Sill.transform_commit(*backButton.transform);
-
-    analysisButton.transform.translation.x = extent.width / 2 - 3 * analysisButton.ui.extent.width / 2;
-    analysisButton.transform.translation.y = extent.height / 2 - analysisButton.ui.extent.height / 2;
-    Sill.transform_commit(*analysisButton.transform);
-
-    saveButton.transform.translation.x = extent.width / 2 - saveButton.ui.extent.width / 2;
-    saveButton.transform.translation.y = extent.height / 2 - saveButton.ui.extent.height / 2;
-    Sill.transform_commit(*saveButton.transform);
-}
-
-button_bar_show :: (visible := true) {
-    using *instance.buttonBar;
-
-    _button_show(backButton, visible);
-    _button_show(analysisButton, visible);
-    _button_show(saveButton, visible);
+    return buttonBar;
 }
 
 #scope_file
 
-_make_button :: (text : string) -> *ButtonEntity {
-    button := SillMeta.create_button_entity(instance.engine);
+_on_message :: (buttonBar : *ButtonBarEntity, message : *Message) {
+    if message.kind == {
+    case .SystemReflow;
+        _reflow(buttonBar);
+    case .ModeGameStarted;
+        _show(true);
+    case .ModeGameStopped;
+        _show(false);
+    }
+}
+
+_show :: (visible := true) {
+    using instance.buttonBar;
+
+    _button_show(*backButton, visible);
+    _button_show(*analysisButton, visible);
+    _button_show(*saveButton, visible);
+}
+
+_reflow :: (using buttonBar : *ButtonBarEntity) {
+    extent := Crater.window_get_extent(instance.engine.window);
+
+    transform.translation.x = extent.width / 2.0 - 3 * backButton.ui.extent.width / 2 - 5;
+    transform.translation.y = extent.height / 2 - backButton.ui.extent.height / 2;
+    Sill.transform_commit(*transform);
+}
+
+_make_button :: (button : *ButtonEntity, text : string) -> *ButtonEntity {
     button.ui.extent.width = 30; // @todo Completely arbitrary...
     button.ui.extent.height = UiConstants.HeightLine;
 
@@ -97,21 +106,17 @@ _make_button :: (text : string) -> *ButtonEntity {
     textNode.transform.translation.y = -8; // @todo Hardcoded offset... We should know the max glyph height instead.
     Basic.array_add(*textNode.primitives, textMesh);
 
-    Sill.ui_on_update(*button.ui, (update : Sill.UiUpdate, userData : *void) {
-        <<update.stopPropagation = true;
-    }, .Hover);
-
     Sill.ui_on_trigger(*button.ui, (trigger : Sill.UiTrigger, button : *ButtonEntity) {
         <<trigger.stopPropagation = true;
 
-        if trigger.flags & .Hover {
+        if trigger.flags & .HoverStart {
             Magma.material_set(button.mesh.nodes[0].primitives[0].material, "color", instance.config.env.selectionBackgroundColor);
             Crater.window_pointer_style(instance.engine.window, .HandPointing);
-        } else if trigger.flags & .NoHover {
+        } else if trigger.flags & .HoverStop {
             Magma.material_set(button.mesh.nodes[0].primitives[0].material, "color", instance.config.env.secondaryBackgroundColor);
             Crater.window_pointer_style(instance.engine.window, .Default);
         }
-    }, Sill.UiCallbackFlags.Click | .Hover | .NoHover, button);
+    }, Sill.UiCallbackFlags.ClickStop | .HoverStart | .Hovering | .HoverStop, button);
 
     button.transform.translation.z = -10; // Needed to be selectable in front of things.
 

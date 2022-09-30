@@ -18,7 +18,8 @@ load_pgn :: (filename : string) -> bool {
     while bytes.count > 0 && bytes[0] == #char "[" {
         game := *instance.game; // Filling the global game for now.
         game_cleanup(game);
-        rootPly := game_add_variation_ply(game, *game.mainVariation);
+        game_setup_main_variation(game);
+        rootPly := variation_add_ply(game.mainVariation);
         rootPly.position = get_starting_position();
 
         // Parsing tags
@@ -53,7 +54,7 @@ load_pgn :: (filename : string) -> bool {
         }
 
         // Parsing main variation (and therefore its subvariations)
-        _parse_variation(*bytes, *game.mainVariation, position_color_to_play(*rootPly.position));
+        _parse_variation(*bytes, game.mainVariation, position_color_to_play(*rootPly.position));
         _skip_blanks(*bytes);
     }
 
@@ -110,7 +111,7 @@ save_pgn :: (filename : string) {
 
     // The game itself
     gameBuilder : Basic.String_Builder;
-    _write_variation(*gameBuilder, *instance.game.mainVariation);
+    _write_variation(*gameBuilder, instance.game.mainVariation);
     Basic.print_to_builder(*gameBuilder, " %", game_result_to_string(instance.game.result));
 
     // There is officially a column limit of 80 for PGNs,
@@ -134,7 +135,7 @@ save_pgn :: (filename : string) {
     File.write_entire_file(filename, *builder);
 }
 
-_write_variation :: (builder : *Basic.String_Builder, variation : *Variation) {
+_write_variation :: (builder : *Basic.String_Builder, variation : *VariationEntity) {
     for ply, plyIndex : variation.plies {
         if plyIndex == 0 && ply.position.comment.count == 0 && ply.variations.count == 0 then continue;
 
@@ -487,7 +488,7 @@ _parse_potential_move_number :: (bytes : *string) -> bool {
     return true;
 }
 
-_parse_potential_move :: (bytes : *string, variation : *Variation, color : Color) -> bool {
+_parse_potential_move :: (bytes : *string, variation : *VariationEntity, color : Color) -> bool {
     if (<<bytes)[0] != #char "O" && (<<bytes)[0] != #char "B" && (<<bytes)[0] != #char "K" &&
        (<<bytes)[0] != #char "N" && (<<bytes)[0] != #char "R" && (<<bytes)[0] != #char "Q" &&
        ((<<bytes)[0] < #char "a" || (<<bytes)[0] > #char "h") {
@@ -560,7 +561,7 @@ _parse_potential_move :: (bytes : *string, variation : *Variation, color : Color
     if coord_is_valid(sourceCoord) {
         position_play_move(*position, sourceCoord, targetCoord, promotionPieceKind);
 
-        ply := game_add_variation_ply(*instance.game, variation);
+        ply := variation_add_ply(variation);
         ply.position = position;
     }
 
@@ -752,7 +753,7 @@ _parse_potential_comment :: (bytes : *string, position : *Position) -> (string, 
     return (str, true);
 }
 
-_parse_potential_comments :: (bytes : *string, variation : *Variation) {
+_parse_potential_comments :: (bytes : *string, variation : *VariationEntity) {
     fullComment : string;
 
     Basic.auto_release_temp();
@@ -773,14 +774,14 @@ _parse_potential_comments :: (bytes : *string, variation : *Variation) {
     Basic.peek(variation.plies).position.comment = Basic.copy_string(fullComment);
 }
 
-_parse_potential_variation :: (bytes : *string, parentVariation : *Variation, color : Color) -> bool {
+_parse_potential_variation :: (bytes : *string, parentVariation : *VariationEntity, color : Color) -> bool {
     if (<<bytes)[0] != #char "(" then return false;
     Basic.advance(bytes);
 
     lastPly := Basic.peek(parentVariation.plies);
     variation := game_add_variation(*instance.game, lastPly);
 
-    ply := game_add_variation_ply(*instance.game, variation);
+    ply := variation_add_ply(variation);
 
     position_copy_state_from(*ply.position, parentVariation.plies[parentVariation.plies.count - 2].position);
 
@@ -793,7 +794,7 @@ _parse_potential_variation :: (bytes : *string, parentVariation : *Variation, co
     return true;
 }
 
-_parse_variation :: (bytes : *string, variation : *Variation, firstColor := Color.White) {
+_parse_variation :: (bytes : *string, variation : *VariationEntity, firstColor := Color.White) {
     _parse_potential_comments(bytes, variation);
 
     firstLoop := true;
@@ -815,7 +816,7 @@ _parse_variation :: (bytes : *string, variation : *Variation, firstColor := Colo
 }
 
 // Returns false if this is the last move a variation.
-_parse_potential_annotated_move :: (bytes : *string, variation : *Variation, color : Color) -> bool {
+_parse_potential_annotated_move :: (bytes : *string, variation : *VariationEntity, color : Color) -> bool {
     // position_debug_dump(Basic.peek(variation.plies).position);
 
     _parse_potential_move_number(bytes);
@@ -837,7 +838,7 @@ _parse_potential_annotated_move :: (bytes : *string, variation : *Variation, col
 }
 
 // Ignoring NAG et al. for now
-_parse_potential_annotation :: (bytes : *string, variation : *Variation) -> bool {
+_parse_potential_annotation :: (bytes : *string, variation : *VariationEntity) -> bool {
     if bytes.count == 0 then return false;
 
     nag : Nag;

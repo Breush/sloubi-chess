@@ -20,19 +20,32 @@ for_expansion :: Hash.for_expansion;
 #load "display/file-select.jai";
 #load "display/list.jai";
 #load "display/meta-board.jai";
-#load "helpers/fork-awesome.jai";
 #load "helpers/arrow-mesh.jai";
+#load "helpers/entities.jai";
+#load "helpers/fork-awesome.jai";
 #load "helpers/rect-mesh.jai";
 #load "helpers/text-mesh.jai";
 #load "helpers/ui-constants.jai";
+#load "structures/board-state.jai";
 #load "structures/coord.jai";
 #load "structures/game.jai";
 #load "structures/piece.jai";
+#load "structures/ply.jai";
 #load "structures/position.jai";
+#load "structures/variation.jai";
 #load "readers/fen.jai";
 #load "readers/pgn.jai";
 #load "config.jai";
 #load "controller.jai";
+#load "message.jai";
+
+// Known bugs:
+// @fixme Delete all text in ply comment leaves a character.
+// @fixme First comment of a variation can overlap with the next move, if the
+// next move is for black.
+
+// Features:
+// @todo Change the selected ply visual to a rect around the ply. (But issues with ply.index == 0?)
 
 instance : Instance;
 
@@ -46,20 +59,24 @@ Instance :: struct {
         translucentMonochrome : *Magma.Shader;
     }
 
-    background : Background;
-    metaBoard : *MetaBoardEntity;
-    buttonBar : ButtonBar;
-    config : Config;
-    controller : *ControllerEntity;
-    fileSelect : *FileSelectEntity;
     game : Game;
-    list : *ListEntity;
+    config : Config;
     persistence : Persistence;
+
+    background : *BackgroundEntity;
+    buttonBar : *ButtonBarEntity;
+    controller : *ControllerEntity;
+    list : *ListEntity;
+    metaBoard : *MetaBoardEntity;
 }
 
 Arguments :: struct {
     pgn : string;
     config := "./assets/config.json";
+}
+
+persistence_commit :: () {
+    // @fixme Do save the persistence file.
 }
 
 main :: () {
@@ -72,19 +89,22 @@ main :: () {
     if !success then return;
 
     storagePath := Chamber.os_application_data_storage_path();
-    readJsonAs(*instance.config, args.config);
-    readJsonAs(*instance.persistence, Basic.tprint("%1%2", storagePath, ".sloubi-chess.json"), silentOnError = true);
+    read_json_as(*instance.config, args.config);
+    read_json_as(*instance.persistence, Basic.tprint("%1%2", storagePath, ".sloubi-chess.json"), silentOnError = true);
     Basic.free(storagePath);
 
     instance.engine = Sill.create_engine(SillMeta, .{ eventHandler = _event_handler });
 
     _shaders_init();
     _fonts_init();
-    controller_init();
-    meta_board_init();
-    background_init();
-    list_init();
-    button_bar_init();
+
+    instance.controller = controller_create();
+    instance.background = background_create();
+    instance.buttonBar = button_bar_create();
+    instance.list = list_create();
+    instance.metaBoard = meta_board_create();
+
+    send(.SystemReflow);
 
     if setArgs.pgn {
         if load_pgn(args.pgn) {
@@ -106,14 +126,6 @@ main :: () {
     // Basic.report_memory_leaks();
 }
 
-reflow :: () {
-    background_reflow();
-    button_bar_reflow();
-    file_select_reflow();
-    list_reflow();
-    meta_board_reflow();
-}
-
 #scope_file
 
 _cleanup :: () {
@@ -129,8 +141,7 @@ _cleanup :: () {
 _event_handler :: (event : Crater.Event) {
     if event.kind == Crater.Event.Kind.WindowSizeChanged {
         Magma.forward_renderer_extent(cast(*Magma.ForwardRenderer) instance.engine.renderer, instance.engine.options.windowExtent);
-        setup_orthographic_camera();
-        reflow();
+        send(.SystemReflow);
     } else if event.kind == Crater.Event.Kind.KeyPressed &&
               event.key.which == Crater.Key.F10 {
         instance.engine.options.logFps = !instance.engine.options.logFps;

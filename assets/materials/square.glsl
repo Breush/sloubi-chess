@@ -52,15 +52,18 @@ void main() {
 
     if (material.targetable) {
         float factor = material.hovered ? 0.8 : 0.4;
+        const float blurThickness = 0.02;
 
         if (material.capturable) {
-            if (abs((2 * uv.x - 1) * (2 * uv.y - 1)) >= 0.75) {
-                outColor.rgb = mix(outColor.rgb, vec3(0.4), factor);
+            float value = abs((2 * uv.x - 1) * (2 * uv.y - 1));
+            if (value >= 0.75) {
+                outColor.rgb = mix(outColor.rgb, vec3(0.4), factor * clamp((value - 0.75) / blurThickness, 0.0, 1.0));
             }
         } else {
             vec2 t = (2 * uv - 1) * (2 * uv - 1);
-            if (sqrt(t.x + t.y) < 0.33) {
-                outColor.rgb = mix(outColor.rgb, vec3(0.4), factor);
+            float value = sqrt(t.x + t.y);
+            if (value < 0.33) {
+                outColor.rgb = mix(outColor.rgb, vec3(0.4), factor * clamp((0.33 - value) / blurThickness, 0.0, 1.0));
             }
         }
     }

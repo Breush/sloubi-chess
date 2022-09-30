@@ -78,7 +78,7 @@ Persistence :: struct {
 }
 
 // @todo Move to Chamber
-readJsonAs :: (data : *$T, filename : string, silentOnError := false) -> bool {
+read_json_as :: (data : *$T, filename : string, silentOnError := false) -> bool {
     typeInfo := type_info(T);
     _CHECK(typeInfo.type == .STRUCT, "Type is not a struct.");
 
@@ -89,11 +89,11 @@ readJsonAs :: (data : *$T, filename : string, silentOnError := false) -> bool {
     }
 
     defer Chamber.json_free(json);
-    readJsonStruct(cast(*u8) data, typeInfo, json);
+    read_json_struct(cast(*u8) data, typeInfo, json);
     return true;
 }
 
-readJsonStruct :: (dataBytes : *u8, typeInfo : *Type_Info_Struct, json : Chamber.JsonValue) {
+read_json_struct :: (dataBytes : *u8, typeInfo : *Type_Info_Struct, json : Chamber.JsonValue) {
     // Special handling of known types.
     if typeInfo == type_info(Chamber.vec3) {
         dataFloats := cast(*float) dataBytes;
@@ -127,9 +127,9 @@ readJsonStruct :: (dataBytes : *u8, typeInfo : *Type_Info_Struct, json : Chamber
         } else if member.type.type == .STRING {
             << cast(*string) memberDataBytes = Basic.copy_string(json[member.name].str);
         }  else if member.type.type == .ENUM {
-            readJsonEnum(memberDataBytes, cast(*Type_Info_Enum) member.type, *json[member.name]);
+            read_json_enum(memberDataBytes, cast(*Type_Info_Enum) member.type, *json[member.name]);
         } else if member.type.type == .STRUCT {
-            readJsonStruct(memberDataBytes, cast(*Type_Info_Struct) member.type, *json[member.name]);
+            read_json_struct(memberDataBytes, cast(*Type_Info_Struct) member.type, *json[member.name]);
         } else {
             Basic.log_error("Unsupported type tag: %.", member.type.type);
             Basic.assert(false);
@@ -137,7 +137,7 @@ readJsonStruct :: (dataBytes : *u8, typeInfo : *Type_Info_Struct, json : Chamber
     }
 }
 
-readJsonEnum :: (dataBytes : *u8, typeInfo : *Type_Info_Enum, json : Chamber.JsonValue) {
+read_json_enum :: (dataBytes : *u8, typeInfo : *Type_Info_Enum, json : Chamber.JsonValue) {
     Basic.assert(typeInfo.internal_type.runtime_size == 8);
     for name, index : typeInfo.names {
         if name == json.str {

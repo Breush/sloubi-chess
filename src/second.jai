@@ -19,14 +19,14 @@ dummy_ide_check_message :: (message : *Compiler.Message) {
     options.output_path             = String.join(#filepath, "/../bin/");
     options.optimization_level      = .DEBUG;
     options.text_output_flags       = .OUTPUT_TIMING_INFO; // @note And not the linker lines.
-    options.backend = .LLVM;
+    options.backend = .X64;
 
     arguments := options.compile_time_command_line;
     if arguments.count > 0 && (arguments[0] == "release" || arguments[0] == "ship") {
         Basic.log("Building release...");
         if arguments[0] == "ship" then options.text_output_flags = 0;
         options.optimization_level = .RELEASE;
-        options.backend = .X64;
+        options.backend = .LLVM;
     }
 
     import_path: [..] string;

@@ -1,45 +1,41 @@
-Background :: struct {
-    mesh : *Magma.Mesh;
+BackgroundEntity :: struct {
+    using #as entity : Sill.Entity;
+
+    transform : Sill.TransformComponent;
+    listener : Sill.ListenerComponent;
+    mesh : Sill.MeshComponent;
 }
 
-background_init :: () {
-    using *instance.background;
+background_create :: () -> *BackgroundEntity {
+    using background := SillMeta.create_background_entity(instance.engine);
+    Sill.listener_on_message(*listener, _on_message);
 
-    mesh = Magma.create_mesh(instance.engine.scene);
-    mesh.material = Magma.create_material(instance.shaders.monochrome);
+    primitive := create_rect_mesh();
+    primitive.material = Magma.create_material(instance.shaders.monochrome);
+    Magma.material_set(primitive.material, "color", instance.config.env.backgroundColor);
 
-    Magma.material_set(mesh.material, "color", instance.config.env.backgroundColor);
+    node := Basic.array_add(*mesh.nodes);
+    Basic.array_add(*node.primitives, primitive);
 
-    positions := Chamber.vec3.[
-        .{-0.5, -0.5, 0.5 },
-        .{-0.5,  0.5, 0.5 },
-        .{ 0.5,  0.5, 0.5 },
-        .{ 0.5, -0.5, 0.5 },
-    ];
+    // Sill.transform_rotate(*transform, Math.PI / 2, .{0, 1, 0});
+    transform.translation.z = 40; // Far, far away.
+    Sill.transform_commit(*transform);
 
-    indices := u16.[0,  1,  2,  2,  3,  0];
+    return background;
+}
 
-    Basic.array_resize(*mesh.vertices, positions.count);
-    for *vertex, i : mesh.vertices {
-        vertex.position = positions[i];
+#scope_file
+
+_on_message :: (background : *BackgroundEntity, message : *Message) {
+    if message.kind == {
+    case .SystemReflow;
+        _reflow(background);
     }
-
-    Basic.array_resize(*mesh.indices, indices.count);
-    memcpy(mesh.indices.data, indices.data, size_of(u16) * indices.count);
-
-    mesh.translation.z = 40; // Far, far away.
-
-    Magma.mesh_commit_vertices(mesh);
-    Magma.mesh_commit_indices(mesh);
-
-    background_reflow();
 }
 
-background_reflow :: () {
-    using *instance.background;
-
+_reflow :: (using background : *BackgroundEntity) {
     extent := Crater.window_get_extent(instance.engine.window);
-    mesh.scaling.x = cast(float) extent.width;
-    mesh.scaling.y = cast(float) extent.height;
-    Magma.mesh_commit_instance(mesh);
+    mesh.nodes[0].transform.scaling.x = cast(float) extent.width;
+    mesh.nodes[0].transform.scaling.y = cast(float) extent.height;
+    Sill.mesh_commit_nodes(*mesh, instantly = true);
 }

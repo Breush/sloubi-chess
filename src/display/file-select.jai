@@ -4,6 +4,7 @@ FileSelectEntity :: struct {
     ui : Sill.UiComponent;
     transform : Sill.TransformComponent;
     mesh : Sill.MeshComponent;
+    listener : Sill.ListenerComponent;
 
     currentPath : string;
 
@@ -25,7 +26,6 @@ Entries :: struct {
 EntryEntity :: struct {
     using #as entity : Sill.Entity;
 
-    // @fixme Crash if moving mesh to the top of this list
     ui : Sill.UiComponent;
     transform : Sill.TransformComponent;
     mesh : Sill.MeshComponent;
@@ -40,9 +40,9 @@ EntryEntity :: struct {
 
 file_select_show :: (extensionFilter : string, callback : FileSelectEntity.FileSelectedCallback) {
     fileSelect := SillMeta.create_file_select_entity(instance.engine);
+    Sill.listener_on_message(*fileSelect.listener, _on_message);
     fileSelect.extensionFilter = extensionFilter;
     fileSelect.callback = callback;
-    instance.fileSelect = fileSelect;
 
     mesh := create_text_mesh();
     Basic.array_add(*fileSelect.mesh.nodes, .{});
@@ -51,7 +51,7 @@ file_select_show :: (extensionFilter : string, callback : FileSelectEntity.FileS
     charInfos := text_mesh_update(mesh, Basic.tprint("Select a % file", extensionFilter), "mainBold", *instance.config.env.textColor);
     Basic.array_free(charInfos);
 
-    Sill.ui_on_update(*fileSelect.ui, (update : Sill.UiUpdate, fileSelect : *FileSelectEntity) {
+    Sill.ui_on_trigger(*fileSelect.ui, (trigger : Sill.UiTrigger, fileSelect : *FileSelectEntity) {
         _place_children(fileSelect);
     }, .Child, fileSelect);
 
@@ -61,15 +61,21 @@ file_select_show :: (extensionFilter : string, callback : FileSelectEntity.FileS
     } else {
         path = Chamber.os_user_path();
     }
-    _show_path(path);
+    _show_path(fileSelect, path);
 
-    file_select_reflow();
+    _reflow(fileSelect);
 }
 
-file_select_reflow :: () {
-    fileSelect := instance.fileSelect;
-    if fileSelect == null then return;
+#scope_file
 
+_on_message :: (using fileSelect : *FileSelectEntity, message : *Message) {
+    if message.kind == {
+    case .SystemReflow;
+        _reflow(fileSelect);
+    }
+}
+
+_reflow :: (fileSelect : *FileSelectEntity) {
     extent := Crater.window_get_extent(instance.engine.window);
 
     fileSelect.transform.translation.x = UiConstants.PaddingHorizontal;
@@ -81,53 +87,57 @@ file_select_reflow :: () {
     Sill.transform_commit(*fileSelect.transform);
 }
 
-#scope_file
-
-_go_into_directory :: (directoryName : string) {
-    _show_path(Basic.sprint("%/%", instance.fileSelect.currentPath, directoryName));
+_go_into_directory :: (using fileSelect : *FileSelectEntity, directoryName : string) {
+    _show_path(fileSelect, Basic.sprint("%/%", currentPath, directoryName));
 }
 
-_show_path :: (path : string) {
+_show_path :: (using fileSelect : *FileSelectEntity, path : string) {
     // Removing old entries...
-    for child : instance.fileSelect.children {
+    for child : children {
         Sill.destroy_entity(child, warnParent = false);
     }
-    instance.fileSelect.children.count = 0;
+    children.count = 0;
 
-    Basic.free(instance.fileSelect.currentPath);
-    instance.fileSelect.currentPath = path;
+    Basic.free(currentPath);
+    currentPath = path;
 
-    entries : Entries;
-    defer { Basic.array_free(entries.files); Basic.array_free(entries.directories); }
-    Basic.array_add(*entries.directories, Basic.copy_string(".."));
-    visitor :: (info: *File_Utilities.File_Visit_Info, entries: *Entries) {
+    Data :: struct {
+        fileSelect : *FileSelectEntity;
+        entries : Entries;
+    };
+    data : Data;
+    data.fileSelect = fileSelect;
+
+    defer { Basic.array_free(data.entries.files); Basic.array_free(data.entries.directories); }
+    Basic.array_add(*data.entries.directories, Basic.copy_string(".."));
+    visitor :: (info : *File_Utilities.File_Visit_Info, data : *Data) {
         if OS == .LINUX && info.short_name[0] == #char "." then return;
         if OS == .WINDOWS && info.short_name[0] == #char "$" then return;
 
-        if info.is_directory then Basic.array_add(*entries.directories, Basic.copy_string(info.short_name));
-        else if String.ends_with(info.short_name, instance.fileSelect.extensionFilter) {
-            Basic.array_add(*entries.files, Basic.copy_string(info.short_name));
+        if info.is_directory then Basic.array_add(*data.entries.directories, Basic.copy_string(info.short_name));
+        else if String.ends_with(info.short_name, data.fileSelect.extensionFilter) {
+            Basic.array_add(*data.entries.files, Basic.copy_string(info.short_name));
         }
     }
-    File_Utilities.visit_files(path, false, *entries, visitor, visit_directories = true, follow_symlinks = false);
+    File_Utilities.visit_files(path, false, *data, visitor, visit_directories = true, follow_symlinks = false);
 
-    Sort.quick_sort(entries.directories, String.compare_nocase);
-    Sort.quick_sort(entries.files, String.compare_nocase);
-    for directoryName : entries.directories {
-        entryEntity := _make_entry(directoryName, true);
+    Sort.quick_sort(data.entries.directories, String.compare_nocase);
+    Sort.quick_sort(data.entries.files, String.compare_nocase);
+    for directoryName : data.entries.directories {
+        entryEntity := _make_entry(fileSelect, directoryName, true);
     }
-    for fileName : entries.files {
-        entryEntity := _make_entry(fileName, false);
+    for fileName : data.entries.files {
+        entryEntity := _make_entry(fileSelect, fileName, false);
     }
 }
 
-_make_entry :: (name : string, isDirectory : bool) -> *EntryEntity {
+_make_entry :: (fileSelect : *FileSelectEntity, name : string, isDirectory : bool) -> *EntryEntity {
     entryEntity := SillMeta.create_entry_entity(instance.engine);
     entryEntity.isDirectory = isDirectory;
     entryEntity.fileOrDirectoryName = name;
     entryEntity.name = name;
     entryEntity.ui.anchor = .TopLeft;
-    Sill.entity_add_child(instance.fileSelect, entryEntity);
+    Sill.entity_add_child(fileSelect, entryEntity);
 
     // Text mesh
     textMesh := create_text_mesh();
@@ -151,23 +161,28 @@ _make_entry :: (name : string, isDirectory : bool) -> *EntryEntity {
     Basic.array_add(*entryEntity.mesh.nodes[0].primitives, squareMesh);
 
     Sill.ui_on_trigger(*entryEntity.ui, (trigger : Sill.UiTrigger, entryEntity : *EntryEntity) {
-        if trigger.flags & .Hover {
+        if entryEntity.mesh.nodes.count == 0 then return; // Can happen if the entity is destroyed.
+
+        if trigger.flags & .HoverStart {
             entryEntity.mesh.nodes[0].primitives[1].disabled &= ~.Application;
             Crater.window_pointer_style(instance.engine.window, .HandPointing);
-        } else if trigger.flags & .NoHover {
+        } else if trigger.flags & .HoverStop {
             entryEntity.mesh.nodes[0].primitives[1].disabled |= .Application;
             Crater.window_pointer_style(instance.engine.window, .Default);
-        } else if trigger.flags & .Click {
-            if !instance.fileSelect then return;
+        } else if trigger.flags & .ClickStop {
+            fileSelect := cast(*FileSelectEntity) entryEntity.parent;
+            if !fileSelect then return;
             if entryEntity.isDirectory {
-                _go_into_directory(entryEntity.fileOrDirectoryName);
+                _go_into_directory(fileSelect, entryEntity.fileOrDirectoryName);
             } else if String.ends_with(entryEntity.fileOrDirectoryName, ".pgn") {
-                instance.fileSelect.callback(Basic.tprint("%/%", instance.fileSelect.currentPath, entryEntity.fileOrDirectoryName));
-                Sill.destroy_entity(instance.fileSelect, destroyChildren = true);
-                instance.fileSelect = null;
+                instance.persistence.fileSelect.lastPath = Basic.copy_string(fileSelect.currentPath);
+                persistence_commit();
+
+                fileSelect.callback(Basic.tprint("%/%", fileSelect.currentPath, entryEntity.fileOrDirectoryName));
+                Sill.destroy_entity(fileSelect, destroyChildren = true);
             }
         }
-    }, Sill.UiCallbackFlags.Hover | .NoHover | .Click, entryEntity);
+    }, Sill.UiCallbackFlags.HoverStart | .HoverStop | .ClickStop, entryEntity);
 
     return entryEntity;
 }

@@ -1,6 +1,6 @@
 /* A "Game" can be understood as a collections of variations starting from one position. */
 Game :: struct {
-    mainVariation : Variation;
+    mainVariation : *VariationEntity;
 
     boardOrientation : Color;
     result : Result;
@@ -21,11 +21,7 @@ Game :: struct {
         extra : [..]struct { name : string; value : string; };
     }
 
-    ply : *PlyEntity; // Current ply displayed.
-
-    // @note In order to never invalidate pointers but still
-    // have efficient memory layout, we use pools.
-    variationPool : Bucket_Array.Bucket_Array(Variation, 32);
+    ply : *PlyEntity; // Selected ply.
 
     Result :: enum {
         Unknown :: 0;
@@ -35,56 +31,28 @@ Game :: struct {
     }
 }
 
-Variation :: struct {
-    // @note plies[0].position is the initial position.
-    // And it should not get any variation in it.
-    plies : [..]*PlyEntity; // @note Do not flatten this, the struct might be needed for extra info about a variation.
-
-    parentPly : *PlyEntity; // Can be null for the main variation.
-    index : u16; // Index of the variation in the parent ply.
-
-    depth : u16;
-    collapsed : bool;
-}
-
 game_show :: (game : *Game) {
-    meta_board_show(game);
-    list_show(game);
-    button_bar_show();
-
+    send(.ModeGameStarted);
     game_update_to(game, game.mainVariation.plies[0]);
 }
 
 game_cleanup :: (game : *Game) {
-    game.ply = null;
-    variation_cleanup(*game.mainVariation);
+    send(.ModeGameStopped);
 
-    Bucket_Array.bucket_array_reset(*game.variationPool);
+    game.ply = null;
+    if game.mainVariation != null then variation_cleanup(game.mainVariation);
 
     Basic.free(game.pgnFileName);
 
     (<<game) = .{};
 }
 
-variation_cleanup :: (variation : *Variation) {
-    for ply : variation.plies {
-        ply_cleanup(ply);
-    }
-    Basic.array_free(variation.plies);
+game_setup_main_variation :: (game : *Game) {
+    game.mainVariation = SillMeta.create_variation_entity(instance.engine);
 }
 
-// @fixme Move all that on_cleanup?
-ply_cleanup :: (ply : *PlyEntity) {
-    for variation : ply.variations {
-        variation_cleanup(variation);
-    }
-    Basic.array_free(ply.variations);
-
-    Sill.destroy_entity(ply);
-}
-
-game_add_variation :: (game : *Game, parentPly : *PlyEntity) -> *Variation {
-    variation := Bucket_Array.find_and_occupy_empty_slot(*game.variationPool);
+game_add_variation :: (game : *Game, parentPly : *PlyEntity) -> *VariationEntity {
+    variation := SillMeta.create_variation_entity(instance.engine);
     variation.collapsed = instance.config.moves.variationsCollapsed;
     Basic.array_add(*parentPly.variations, variation);
 
@@ -94,27 +62,11 @@ game_add_variation :: (game : *Game, parentPly : *PlyEntity) -> *Variation {
     return variation;
 }
 
-game_add_variation_ply :: (game : *Game, parentVariation : *Variation) -> *PlyEntity {
-    ply := SillMeta.create_ply_entity(instance.engine);
-    Basic.array_add(*parentVariation.plies, ply);
-
-    ply.parentVariation = parentVariation;
-    ply.index = cast(u16) (parentVariation.plies.count - 1);
-    return ply;
-}
-
 game_update_to :: (game : *Game, ply : *PlyEntity) {
     oldPly := game.ply;
     game.ply = ply;
 
-    variation := game_current_variation(game);
-    meta_board_orient(game.boardOrientation);
-    meta_board_update_to_position(ply.position);
-    list_update_to_current_move(game, oldPly);
-}
-
-game_current_variation :: (game : *Game) -> *Variation {
-    return game.ply.parentVariation;
+    send(.GameSelectedPlyChanged, oldPly);
 }
 
 game_go_to_first_ply :: (game : *Game) {
@@ -126,10 +78,10 @@ game_go_to_last_ply :: (game : *Game) {
 }
 
 game_go_to_previous_move :: (game : *Game) {
-    variation := game_current_variation(game);
+    variation := game.ply.parentVariation;
 
     if game.ply.index == 0 {
-        if game.ply.parentVariation == *game.mainVariation then return;
+        if game.ply.parentVariation == game.mainVariation then return;
         game_go_to_previous_variation(game);
         game_go_to_previous_move(game);
         game_go_to_previous_move(game);
@@ -191,12 +143,12 @@ game_play_move :: (game : *Game, sourceCoord : Coord, targetCoord : Coord, promo
     nextPly := ply_next_ply(game.ply);
     if nextPly != null {
         variation = game_add_variation(game, nextPly);
-        basePly := game_add_variation_ply(game, variation); // @todo Better to just store the starting position within the variation?
+        basePly := variation_add_ply(variation); // @todo Better to just store the starting position within the variation?
         position_copy_state_from(*basePly.position, game.ply.position);
         ply_init(basePly);
     }
 
-    ply := game_add_variation_ply(game, variation);
+    ply := variation_add_ply(variation);
     position_copy_state_from(*ply.position, game.ply.position);
     position_play_move(*ply.position, sourceCoord, targetCoord, promotionPieceKind);
 
@@ -220,71 +172,4 @@ game_result_to_string :: (result : Game.Result) -> string {
 
 game_debug_dump :: (game : Game) {
     variation_debug_dump(game.mainVariation, 0);
-}
-
-piece_at_coord :: (coord : Coord) -> Piece {
-    if instance.game.ply == null then return .{}; // Empty
-    return instance.game.ply.position.board[coord];
-}
-
-variation_collapse :: (variation : *Variation) {
-    variation.collapsed = !variation.collapsed;
-    replace_ply_recursively(variation.plies[0]);
-}
-
-variation_debug_dump :: (variation : Variation, depth : u8) {
-    prefix := "| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ";
-    prefix.count = depth * 2;
-
-    for ply, plyIndex : variation.plies {
-        if plyIndex == 0 {
-            prefix.count -= 1;
-            Chamber.debug(prefix, "> {", ply.position.comment, "}");
-            prefix.count += 1;
-        } else {
-            fullMoveIndex := (ply.position.moveIndex + 1) / 2;
-            Chamber.debug(prefix, fullMoveIndex, ifx ply.position.moveIndex % 2 then ". " else "… ", position_last_move_to_san(ply.position), " {", ply.position.comment, "}");
-        }
-
-        for variation : ply.variations {
-            variation_debug_dump(<<variation, depth + 1);
-        }
-    }
-}
-
-ply_previous_ply :: (ply : *PlyEntity) -> *PlyEntity {
-    if ply.index == 0 {
-        parentPly := ply.parentVariation.parentPly;
-        if parentPly == null || parentPly.index < 2 then return null;
-        return parentPly.parentVariation.plies[parentPly.index - 2];
-    }
-    return ply.parentVariation.plies[ply.index - 1];
-}
-
-ply_next_ply :: (ply : *PlyEntity) -> *PlyEntity {
-    if ply.index == ply.parentVariation.plies.count - 1 then return null;
-
-    // If we're the first ply in our variation, we're not real,
-    // so better get the real ply!
-    if ply.index == 0 && ply.parentVariation.parentPly != null {
-        return ply.parentVariation.parentPly;
-    }
-
-    return ply.parentVariation.plies[ply.index + 1];
-}
-
-// List of all plies after this one that already exist in the current game.
-ply_next_plies :: (ply : *PlyEntity) -> []*PlyEntity {
-    nextPly := ply_next_ply(ply);
-    if nextPly == null then return .[];
-
-    Basic.push_allocator(Basic.temp);
-    nextPlies : [..]*PlyEntity;
-
-    Basic.array_add(*nextPlies, nextPly);
-    for nextPlyVariation : nextPly.variations {
-        Basic.array_add(*nextPlies, nextPlyVariation.plies[1]);
-    }
-
-    return nextPlies;
 }

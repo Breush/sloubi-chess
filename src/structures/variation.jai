@@ -1,0 +1,215 @@
+VariationEntity :: struct {
+    using #as entity : Sill.Entity;
+
+    transform : Sill.TransformComponent;
+    listener : Sill.ListenerComponent;
+    ui : Sill.UiComponent;
+    mesh : Sill.MeshComponent; // A mesh might not exists for the top variation.
+
+    // @note plies[0].position is the initial position.
+    // And it should not get any variation in it.
+    plies : [..]*PlyEntity; // @note Do not flatten this, the struct might be needed for extra info about a variation.
+
+    parentPly : *PlyEntity; // Can be null for the main variation.
+    index : u16; // Index of the variation in the parent ply.
+
+    depth : u16;
+    collapsed : bool;
+}
+
+variation_init :: (variation : *VariationEntity, firstOne := true) {
+    Sill.listener_on_message(*variation.listener, _on_message);
+
+    for plyIndex : 0 .. variation.plies.count - 1 {
+        ply := variation.plies[plyIndex];
+        ply_init(ply, place = false);
+
+        for variation : ply.variations {
+            variation_init(variation, firstOne = false);
+        }
+    }
+
+    if (variation.parentPly != null) {
+        _init_decorum(variation);
+        // @todo It would ease the replace of plies if the plies were children
+        // of the variation, and not the inverse.
+        // It would also ease the computation of the size for the decorum.
+        Sill.entity_set_parent(variation, variation.plies[0]);
+    }
+
+    if firstOne {
+        ply_place(variation.plies[0], propagate = true);
+        _rebuild_decorums(variation);
+    }
+}
+
+variation_cleanup :: (using variation : *VariationEntity) {
+    for ply : plies {
+        ply_cleanup(ply);
+    }
+    Basic.array_free(plies);
+
+    Sill.destroy_entity(variation);
+}
+
+variation_add_ply :: (variation : *VariationEntity) -> *PlyEntity {
+    ply := SillMeta.create_ply_entity(instance.engine);
+    Basic.array_add(*variation.plies, ply);
+
+    ply.parentVariation = variation;
+    ply.index = cast(u16) (variation.plies.count - 1);
+    return ply;
+}
+
+variation_toggle_collapsed :: (variation : *VariationEntity) {
+    variation.collapsed = !variation.collapsed;
+    send(.VariationCollapsedChanged, variation);
+}
+
+variation_place_plies :: (variation : *VariationEntity, plyIndex : u16, upstream := true, hidden := false, firstOne := true) {
+    // Downstream
+    for i : plyIndex .. variation.plies.count - 1 {
+        ply := variation.plies[i];
+        ply_place(ply, hidden = hidden);
+
+        for subVariation : ply.variations {
+            variation_place_plies(subVariation, 0, upstream = false, hidden = hidden || variation.collapsed, firstOne = false);
+        }
+    }
+
+    // Upstream
+    if upstream && variation.parentPly != null {
+        for i : variation.index + 1 .. variation.parentPly.variations.count - 1 {
+            variation_place_plies(variation.parentPly.variations[i], 0, upstream = false, firstOne = false);
+        }
+
+        variation_place_plies(variation.parentPly.parentVariation, variation.parentPly.index + 1, firstOne = false);
+    }
+
+    if firstOne {
+        _rebuild_decorums(variation);
+    }
+}
+
+variation_debug_dump :: (variation : *VariationEntity, depth : u8) {
+    prefix := "| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ";
+    prefix.count = depth * 2;
+
+    for ply, plyIndex : variation.plies {
+        if plyIndex == 0 {
+            prefix.count -= 1;
+            Chamber.debug(prefix, "> {", ply.position.comment, "}");
+            prefix.count += 1;
+        } else {
+            fullMoveIndex := (ply.position.moveIndex + 1) / 2;
+            Chamber.debug(prefix, fullMoveIndex, ifx ply.position.moveIndex % 2 then ". " else "… ", position_last_move_to_san(ply.position), " {", ply.position.comment, "}");
+        }
+
+        for variation : ply.variations {
+            variation_debug_dump(variation, depth + 1);
+        }
+    }
+}
+
+#scope_file
+
+_on_message :: (variation : *VariationEntity, message : *Message) {
+    if message.kind == {
+    case .GameSelectedPlyChanged;
+        if variation.plies.count == 0 then return;
+        if message.oldPly == variation.plies[0] && variation.mesh.nodes.count != 0 {
+            Magma.material_set(variation.mesh.nodes[0].primitives[0].material, "color", instance.config.moves.mainColor);
+        } else if instance.game.ply == variation.plies[0] && variation.mesh.nodes.count != 0 {
+            Magma.material_set(variation.mesh.nodes[0].primitives[0].material, "color", instance.config.moves.selectedColor);
+        }
+    }
+}
+
+_init_decorum :: (variation : *VariationEntity) {
+    variation.ui.anchor = .TopLeft;
+
+    mesh := Magma.create_mesh(instance.engine.scene);
+    create_rect_mesh(existingMesh = mesh);
+
+    mesh.vertices[0].position.x = 0.0;
+    mesh.vertices[0].position.y = 0.0;
+    mesh.vertices[1].position.x = 0.0;
+    mesh.vertices[1].position.y = 1.0; // Will be height
+    mesh.vertices[2].position.x = 1.0; // Will be width
+    mesh.vertices[2].position.y = 1.0; // Will be height
+    mesh.vertices[3].position.x = 1.0; // Will be width
+    mesh.vertices[3].position.y = 0.0;
+
+    mesh.material = Magma.create_material(instance.shaders.decorum);
+    Magma.material_set(mesh.material, "color", instance.config.moves.mainColor);
+    Magma.mesh_commit_vertices(mesh);
+
+    Basic.array_add(*variation.mesh.nodes, .{});
+    Basic.array_add(*Basic.peek_pointer(variation.mesh.nodes).primitives, mesh);
+
+    Sill.ui_on_trigger(*variation.ui, (trigger : Sill.UiTrigger, variation : *VariationEntity) {
+        if trigger.flags == .ClickStart {
+            variation_toggle_collapsed((cast(*PlyEntity) variation.parent).parentVariation);
+        } else {
+            pointerStyle := ifx trigger.flags == .HoverStart then Crater.PointerStyle.HandPointing else .Default;
+            color := ifx trigger.flags == .HoverStart then instance.config.moves.selectedColor else instance.config.moves.mainColor;
+            Magma.material_set(variation.mesh.nodes[0].primitives[0].material, "color", color);
+            Crater.window_pointer_style(instance.engine.window, pointerStyle);
+        }
+    }, Sill.UiCallbackFlags.HoverStart | .HoverStop | .ClickStart, variation);
+
+    variation.transform.translation.x = -UiConstants.PaddingHorizontalVariation / 2.0;
+}
+
+_rebuild_decorums :: (variation : *VariationEntity, hidden := false) {
+    _rebuild_decorum(variation, hidden);
+
+    for ply : variation.plies {
+        for subVariation : ply.variations {
+            _rebuild_decorum(subVariation, hidden || variation.collapsed);
+            _rebuild_decorums(subVariation, hidden || variation.collapsed);
+        }
+    }
+}
+
+_rebuild_decorum :: (variation : *VariationEntity, hidden := false) {
+    if variation.mesh.nodes.count == 0 then return;
+
+    Sill.entity_set_disabled(variation, hidden);
+    if hidden then return;
+
+    firstPly := variation.plies[0];
+    lastPly := Basic.peek(variation.plies);
+
+    while lastPly.variations.count != 0 {
+        lastPly = Basic.peek(Basic.peek(lastPly.variations).plies);
+    }
+
+    position := firstPly.transform.translation;
+    height := lastPly.transform.translation.y + lastPly.ui.extent.height - position.y;
+    _update_decorum(variation, height, variation.collapsed);
+}
+
+_update_decorum :: (variation : *VariationEntity, height : float, collapsed := false) {
+    mesh := variation.mesh.nodes[0].primitives[0];
+
+    height = Basic.max(height, UiConstants.HeightLine);
+
+    variation.ui.extent.width = UiConstants.WidthDecorumVariation + 1;
+    variation.ui.extent.height = height;
+    variation.ui.anchor = .TopLeft;
+
+    mesh.vertices[0].position.x = 0.0;
+    mesh.vertices[1].position.x = 0.0;
+    mesh.vertices[2].position.x = UiConstants.WidthDecorumVariation;
+    mesh.vertices[3].position.x = UiConstants.WidthDecorumVariation;
+    mesh.vertices[0].position.y = UiConstants.PaddingVerticalDecorumVariation;
+    mesh.vertices[1].position.y = height - UiConstants.PaddingVerticalDecorumVariation;
+    mesh.vertices[2].position.y = height - UiConstants.PaddingVerticalDecorumVariation;
+    mesh.vertices[3].position.y = UiConstants.PaddingVerticalDecorumVariation;
+
+    Magma.material_set(mesh.material, "collapsed", collapsed);
+    Magma.material_set(mesh.material, "height", height);
+
+    Magma.mesh_commit_vertices(mesh);
+}

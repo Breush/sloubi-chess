@@ -15,7 +15,7 @@ Position :: struct {
 
     comment : string;
     moveIndex : u16; // @note Therefore contains the color to play: even = white, odd = black.
-    lastMove : Move;
+    lastMove : AnnotatedMove;
     annotation : PositionAnnotation;
     observationAnnotations : [..]ObservationAnnotation;
 
@@ -24,7 +24,7 @@ Position :: struct {
         arrows : [..]ArrowHighlight;
     }
 
-    movesSinceLastCaptureOrPawnMove : u8; // @fixme Never updated in position_play_move...
+    movesSinceLastCaptureOrPawnMove : u8;
 
     blackClock := "";
     whiteClock := "";
@@ -50,8 +50,12 @@ Color :: enum u8 {
 
 // @note We call "move" what litterature might call "half-move".
 Move :: struct {
-    sourceCoord : Coord;
-    targetCoord : Coord;
+    sourceCoord : Coord = 0xFF;
+    targetCoord : Coord = 0xFF;
+}
+
+AnnotatedMove :: struct {
+    using #as move : Move;
 
     capture : bool;
     promotion : bool;
@@ -113,6 +117,8 @@ HighlightColor :: enum {
     Red;
     Yellow;
 }
+
+STARTING_POSITION :: #run get_starting_position();
 
 highlight_color :: () -> HighlightColor {
     if Sill.input_state(instance.engine, .ShiftLeft) ||
@@ -584,6 +590,11 @@ position_play_move :: (position : *Position, sourceCoord : Coord, targetCoord : 
     piece := position.board[sourceCoord];
     capture := (position.board[targetCoord].kind != .Empty);
 
+    position.movesSinceLastCaptureOrPawnMove += 1;
+    if piece.kind == .Pawn || capture {
+        position.movesSinceLastCaptureOrPawnMove = 0;
+    }
+
     // Basic.log("%. Playing % from % to %.", fullMoveNumber, piece.kind, coord_to_algebraic(sourceCoord), coord_to_algebraic(targetCoord), flags = .VERBOSE_ONLY);
 
     if piece.kind == .Pawn {
@@ -741,6 +752,8 @@ position_square_source_pieces :: (position : Position, squareCoord : Coord, colo
 // Removes the highlight if already existing with the same color.
 // Adds it or changes its color otherwise.
 position_toggle_highlight :: (position : *Position, squareHighlight : SquareHighlight) {
+    defer send(.PositionHighlightsChanged, position);
+
     for *existingSquareHighlight : position.highlights.squares {
         if existingSquareHighlight.coord != squareHighlight.coord then continue;
         if existingSquareHighlight.color == squareHighlight.color {
@@ -755,6 +768,8 @@ position_toggle_highlight :: (position : *Position, squareHighlight : SquareHigh
 }
 
 position_add_arrow_highlight :: (position : *Position, arrowHighlight : ArrowHighlight) {
+    defer send(.PositionHighlightsChanged, position);
+
     for *existingArrowHighlight : position.highlights.arrows {
         if existingArrowHighlight.fromCoord != arrowHighlight.fromCoord then continue;
         if existingArrowHighlight.toCoord != arrowHighlight.toCoord then continue;
@@ -769,9 +784,17 @@ position_add_arrow_highlight :: (position : *Position, arrowHighlight : ArrowHig
     Basic.array_add(*position.highlights.arrows, arrowHighlight);
 }
 
+position_clear_highlights :: (position : *Position) {
+    position.highlights.squares.count = 0;
+    position.highlights.arrows.count = 0;
+    send(.PositionHighlightsChanged, position);
+}
+
 // By analyzing the last move, determine if a pawn just advanced of two squares,
 // and if so return the square behind the pawn.
 position_en_passant_coord :: (using position : *Position) -> Coord {
+    if lastMove.targetCoord == 0xFF then return 0xFF;
+
     piece := board[lastMove.targetCoord];
     if piece.kind != .Pawn then return 0xFF;
 

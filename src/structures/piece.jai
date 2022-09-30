@@ -84,6 +84,11 @@ piece_to_algebraic :: (piece : Piece) -> string {
     return piece_to_algebraic(piece.kind);
 }
 
+piece_at_coord :: (coord : Coord) -> Piece {
+    if instance.game.ply == null then return .{}; // Empty
+    return instance.game.ply.position.board[coord];
+}
+
 PieceMovement :: struct {
     range : u8;
     directions : [][2]s8;

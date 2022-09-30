@@ -1,5 +1,5 @@
 {
     "the-language.projectFile": "${workspaceFolder}/src/first.jai",
-    "jai-lsp.buildFile": "${workspaceFolder}/src/first.jai",
+    "jai-lsp.buildFile": "/home/alexis/dev/sloubi-chess/src/second.jai",
     "files.trimTrailingWhitespace": true
 }
