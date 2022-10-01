@@ -164,6 +164,10 @@ _fonts_init :: () {
     Sill.fonts_register(instance.engine, "mainLightItalic", lightItalicFontFile, cast(float) instance.config.env.fontSize);
     Sill.fonts_register(instance.engine, "mainBold", boldFontFiles, cast(float) instance.config.env.fontSize);
     Sill.fonts_register(instance.engine, "mono", monoFontFile, cast(float) instance.config.env.fontSize);
+
+    // Preload for most common glyphs
+    Sill.fonts_glyph_infos(instance.engine, "mainLight", "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ.,!?-+*/=()[]{}:;<>|&@#$%^~`'\"\\");
+    Sill.fonts_glyph_infos(instance.engine, "mainBold", "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ.,!?-+*/=()[]{}:;<>|&@#$%^~`'\"\\");
 }
 
 _shaders_init :: () {

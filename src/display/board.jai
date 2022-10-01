@@ -265,11 +265,8 @@ _init_resources :: (using board : *BoardEntity) {
     init_piece_texture(board, piece_id(.{ .Q, .Black }), Basic.tprint("./assets/images/pieces/%-bq.png", instance.config.board.pieces));
     init_piece_texture(board, piece_id(.{ .R, .Black }), Basic.tprint("./assets/images/pieces/%-br.png", instance.config.board.pieces));
 
-    // Use a transparent texture for emptiness.
-    // @fixme This could be done "automatically" by Magma when the texture is set to "null".
     emptyPieceId := piece_id(.{ kind = .Empty });
-    piecesTextures[emptyPieceId] = Magma.create_texture(instance.engine.renderEngine);
-    Magma.texture_load_from_memory(piecesTextures[emptyPieceId], .[0, 0, 0, 0], .{1, 1});
+    piecesTextures[emptyPieceId] = null;
 
     // Moving piece
     Sill.entity_set_disabled(*movingPiece, true);
@@ -313,6 +310,7 @@ _init_meshes :: (using board : *BoardEntity) {
         row, col := row_col(cast(u8) coord);
         color := ifx (row + col) % 2 then instance.config.board.lightSquareColor else instance.config.board.darkSquareColor;
         Magma.material_set(squareMesh.material, "color", Chamber.make_vec4(color, 1));
+        Magma.material_fallback(squareMesh.material, "pieceTexture", *engine.renderEngine.textureInvisible);
 
         node := Basic.array_add(*mesh.nodes);
         Basic.array_add(*node.primitives, squareMesh);
