@@ -16,18 +16,31 @@ CharInfo :: struct { // @fixme Also store how many bytes it is worth.
     }
 }
 
+CharInfos :: struct {
+    infos : [..]CharInfo;
+
+    dirty : bool;
+    justifyMaxWidth : float;
+    justifyStartingOffsetX : float;
+    justifyComputedHeight : float;
+}
+
 create_text_mesh :: () -> *Magma.Mesh {
     mesh := Magma.create_mesh(instance.engine.scene);
     mesh.material = Magma.create_material(instance.shaders.text);
     return mesh;
 }
 
-text_mesh_update :: (mesh : *Magma.Mesh, text : string, fontId : string, color : Chamber.vec3, depth := 0.0) -> []CharInfo #must {
+text_mesh_update :: (mesh : *Magma.Mesh, text : string, fontId : string, color : Chamber.vec3, depth := 0.0, computeCharInfos := true) -> CharInfos {
+    charInfos : CharInfos;
+    charInfos.dirty = true;
+
     mesh.disabled &= ~.Application;
     if text.count == 0 {
         mesh.indices.count = 0;
-        Magma.mesh_commit_indices(mesh);
-        return .[];
+        Magma.mesh_commit_indices(mesh); // @fixme Why not disabling it?
+        charInfos.dirty = false;
+        return charInfos;
     }
 
     glyphInfos := Sill.fonts_glyph_infos(instance.engine, fontId, text);
@@ -37,17 +50,21 @@ text_mesh_update :: (mesh : *Magma.Mesh, text : string, fontId : string, color :
     Magma.material_set(mesh.material, "fontTexture", fontInfo.texture);
     Magma.material_set(mesh.material, "color", color);
 
-    charInfos : [..]CharInfo;
-    Basic.array_resize(*charInfos, glyphInfos.count);
+    if computeCharInfos {
+        Basic.array_resize(*charInfos.infos, glyphInfos.count);
+    }
+    infos : []CharInfo = charInfos.infos;
 
     totalBlanks := 0;
 
     for *glyphInfo, index : glyphInfos {
         if glyphInfo.blank then totalBlanks += 1;
-        charInfos[index].glyphBlank = glyphInfo.blank;
-        charInfos[index].glyphOffset = glyphInfo.offset;
-        charInfos[index].glyphExtent = glyphInfo.extent;
-        charInfos[index].glyphAdvance = glyphInfo.advance;
+        if computeCharInfos {
+            infos[index].glyphBlank = glyphInfo.blank;
+            infos[index].glyphOffset = glyphInfo.offset;
+            infos[index].glyphExtent = glyphInfo.extent;
+            infos[index].glyphAdvance = glyphInfo.advance;
+        }
     }
 
     // @todo Is baking all that into one texture worth it?
@@ -89,33 +106,42 @@ text_mesh_update :: (mesh : *Magma.Mesh, text : string, fontId : string, color :
         index += 1;
     }
 
-    for *charInfo : charInfos {
-        charInfo.effective.glyphOffset.std = charInfo.glyphOffset;
-        charInfo.effective.xStart = charInfo.effective.glyphOffset.x;
-        charInfo.effective.xEnd = charInfo.effective.glyphOffset.x + charInfo.glyphExtent.width;
-        charInfo.effective.xEndWithAdvance = charInfo.effective.glyphOffset.x + charInfo.glyphAdvance;
-        charInfo.effective.yStart = 0;
-        charInfo.effective.yEnd = fontInfo.font.size;
+    if computeCharInfos {
+        for *charInfo : infos {
+            charInfo.effective.glyphOffset.std = charInfo.glyphOffset;
+            charInfo.effective.xStart = charInfo.effective.glyphOffset.x;
+            charInfo.effective.xEnd = charInfo.effective.glyphOffset.x + charInfo.glyphExtent.width;
+            charInfo.effective.xEndWithAdvance = charInfo.effective.glyphOffset.x + charInfo.glyphAdvance;
+            charInfo.effective.yStart = 0;
+            charInfo.effective.yEnd = fontInfo.font.size;
+        }
     }
 
     Magma.mesh_commit_vertices(mesh);
     Magma.mesh_commit_indices(mesh);
-    Magma.mesh_commit_instance(mesh);
 
     return charInfos;
 }
 
-
 // Will modify the effective positions of the charInfos to justify the text
 // according to the provided maxWidth.
-justify_char_infos :: (charInfos : []CharInfo, maxWidth : float, startingOffsetX : float) -> float {
-    if charInfos.count == 0 then return 0.0;
+justify_char_infos :: (charInfos : *CharInfos, maxWidth : float, startingOffsetX : float) -> (height : float, updated : bool) {
+    if !charInfos.dirty && charInfos.justifyMaxWidth == maxWidth && charInfos.justifyStartingOffsetX == startingOffsetX {
+        return charInfos.justifyComputedHeight, false;
+    }
+
+    charInfos.dirty = false;
+    charInfos.justifyMaxWidth = maxWidth;
+    charInfos.justifyStartingOffsetX = startingOffsetX;
+
+    infos : []CharInfo = charInfos.infos;
+    if infos.count == 0 then return 0.0, true;
 
     offset : Chamber.vec2;
     offset.x = startingOffsetX;
 
     lastKnownBlankIndex := -1;
-    for *charInfo, index : charInfos {
+    for *charInfo, index : infos {
         if charInfo.glyphBlank then lastKnownBlankIndex = index;
         charInfo.effective.glyphOffset.std = charInfo.glyphOffset + offset;
         charInfo.effective.yStart = offset.y;
@@ -130,17 +156,17 @@ justify_char_infos :: (charInfos : []CharInfo, maxWidth : float, startingOffsetX
 
             // Moving the whole word down to the next line.
             for i : lastKnownBlankIndex + 1 .. index {
-                charInfos[i].effective.glyphOffset.y += UiConstants.HeightLine;
-                charInfos[i].effective.yStart += UiConstants.HeightLine;
-                charInfos[i].effective.yEnd += UiConstants.HeightLine;
+                infos[i].effective.glyphOffset.y += UiConstants.HeightLine;
+                infos[i].effective.yStart += UiConstants.HeightLine;
+                infos[i].effective.yEnd += UiConstants.HeightLine;
             }
 
             // Justify the whole previous line.
             j := lastKnownBlankIndex;
             blankCount := 0;
-            while j >= 0 && charInfos[j].glyphBlank { j -= 1; } // Ignore ending blanks.
-            while j >= 0 && charInfos[j].effective.yStart == charInfos[j + 1].effective.yStart {
-                if charInfos[j].glyphBlank then blankCount += 1;
+            while j >= 0 && infos[j].glyphBlank { j -= 1; } // Ignore ending blanks.
+            while j >= 0 && infos[j].effective.yStart == infos[j + 1].effective.yStart {
+                if infos[j].glyphBlank then blankCount += 1;
                 j -= 1;
             }
 
@@ -149,28 +175,28 @@ justify_char_infos :: (charInfos : []CharInfo, maxWidth : float, startingOffsetX
             //      aaaaa bbbb
             if blankCount > 0 {
                 j = lastKnownBlankIndex;
-                extraSpacePerBlank := (maxWidth - (offset.x + charInfos[j].glyphOffset.x + charInfos[j].glyphExtent.width)) / blankCount;
-                while j >= 0 && charInfos[j].glyphBlank {
-                    charInfos[j].effective.glyphOffset.x += Math.floor(blankCount * extraSpacePerBlank + 0.5);
+                extraSpacePerBlank := (maxWidth - (offset.x + infos[j].glyphOffset.x + infos[j].glyphExtent.width)) / blankCount;
+                while j >= 0 && infos[j].glyphBlank {
+                    infos[j].effective.glyphOffset.x += Math.floor(blankCount * extraSpacePerBlank + 0.5);
                     j -= 1;
                 }
-                while j >= 0 && charInfos[j].effective.yStart == charInfos[j + 1].effective.yStart {
-                    charInfos[j].effective.glyphOffset.x += Math.floor(blankCount * extraSpacePerBlank + 0.5);
-                    if charInfos[j].glyphBlank then blankCount -= 1;
+                while j >= 0 && infos[j].effective.yStart == infos[j + 1].effective.yStart {
+                    infos[j].effective.glyphOffset.x += Math.floor(blankCount * extraSpacePerBlank + 0.5);
+                    if infos[j].glyphBlank then blankCount -= 1;
                     j -= 1;
                 }
             }
 
             // Leave the ending blank character to the line above.
             i := lastKnownBlankIndex + 1;
-            if i >= charInfos.count then break; // Last character is a blank, just stop here.
+            if i >= infos.count then break; // Last character is a blank, just stop here.
 
-            offset.x = -charInfos[i].glyphOffset.x;
+            offset.x = -infos[i].glyphOffset.x;
             offset.y += UiConstants.HeightLine;
 
-            preOffset := -charInfos[i].effective.glyphOffset.x;
+            preOffset := -infos[i].effective.glyphOffset.x;
             while i <= index {
-                charInfos[i].effective.glyphOffset.x += preOffset;
+                infos[i].effective.glyphOffset.x += preOffset;
                 i += 1;
             }
 
@@ -178,11 +204,12 @@ justify_char_infos :: (charInfos : []CharInfo, maxWidth : float, startingOffsetX
         }
     }
 
-    for *charInfo : charInfos {
+    for *charInfo : infos {
         charInfo.effective.xStart = charInfo.effective.glyphOffset.x;
         charInfo.effective.xEnd = charInfo.effective.glyphOffset.x + charInfo.glyphExtent.width;
         charInfo.effective.xEndWithAdvance = charInfo.effective.glyphOffset.x + charInfo.glyphAdvance;
     }
 
-    return offset.y + UiConstants.HeightLine;
+    charInfos.justifyComputedHeight = offset.y + UiConstants.HeightLine;
+    return charInfos.justifyComputedHeight, true;
 }

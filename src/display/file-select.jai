@@ -48,8 +48,7 @@ file_select_show :: (extensionFilter : string, callback : FileSelectEntity.FileS
     Basic.array_add(*fileSelect.mesh.nodes, .{});
     Basic.array_add(*fileSelect.mesh.nodes[0].primitives, mesh);
 
-    charInfos := text_mesh_update(mesh, Basic.tprint("Select a % file", extensionFilter), "mainBold", *instance.config.env.textColor);
-    Basic.array_free(charInfos);
+    text_mesh_update(mesh, Basic.tprint("Select a % file", extensionFilter), "mainBold", *instance.config.env.textColor, computeCharInfos = false);
 
     Sill.ui_on_trigger(*fileSelect.ui, (trigger : Sill.UiTrigger, fileSelect : *FileSelectEntity) {
         _place_children(fileSelect);
@@ -143,9 +142,8 @@ _make_entry :: (fileSelect : *FileSelectEntity, name : string, isDirectory : boo
     textMesh := create_text_mesh();
     Basic.array_add(*entryEntity.mesh.nodes, .{});
     Basic.array_add(*entryEntity.mesh.nodes[0].primitives, textMesh);
-    charInfos := text_mesh_update(textMesh, Basic.tprint("% %", (ifx isDirectory then ForkAwesome.Folder else ForkAwesome.FileO), name),
-                                  "mainLight", *instance.config.env.textColor);
-    Basic.array_free(charInfos);
+    text_mesh_update(textMesh, Basic.tprint("% %", (ifx isDirectory then ForkAwesome.Folder else ForkAwesome.FileO), name),
+                     "mainLight", *instance.config.env.textColor, computeCharInfos = false);
     entryEntity.ui.extent.width = 400;
     entryEntity.ui.extent.height = UiConstants.HeightLine;
 

@@ -101,8 +101,8 @@ _make_button :: (button : *ButtonEntity, text : string) -> *ButtonEntity {
     textNode := Basic.array_add(*button.mesh.nodes);
     textMesh := create_text_mesh();
     charInfos := text_mesh_update(textMesh, text, "mainLight", instance.config.env.textColor);
-    defer Basic.array_free(charInfos);
-    textNode.transform.translation.x = -Math.floor(Basic.peek_pointer(charInfos).effective.xEnd / 2 + 0.5);
+    defer Basic.array_free(charInfos.infos);
+    textNode.transform.translation.x = -Math.floor(Basic.peek_pointer(charInfos.infos).effective.xEnd / 2 + 0.5);
     textNode.transform.translation.y = -8; // @todo Hardcoded offset... We should know the max glyph height instead.
     Basic.array_add(*textNode.primitives, textMesh);
 

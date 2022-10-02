@@ -79,8 +79,7 @@ _show :: (using metaBoard : *MetaBoardEntity, game : Game) {
 
     _set_name :: (playerName : *PlayerInfoEntity, name : string) {
         Sill.entity_set_disabled(playerName, false);
-        charInfos := text_mesh_update(playerName.mesh.nodes[0].primitives[0], name, "mainBold", instance.config.env.textColor);
-        Basic.array_free(charInfos);
+        text_mesh_update(playerName.mesh.nodes[0].primitives[0], name, "mainBold", instance.config.env.textColor, computeCharInfos = false);
     }
 
     if game.tags.white != "" {
@@ -108,16 +107,16 @@ _update_to_position :: (using metaBoard : *MetaBoardEntity, position : *Position
     if position.whiteClock.count != 0 {
         Sill.entity_set_disabled(*whiteClock, false);
         charInfos := text_mesh_update(whiteClock.mesh.nodes[0].primitives[0], position.whiteClock, "mono", instance.config.env.textColor);
-        whiteClock.mesh.nodes[0].transform.translation.x = -Basic.peek(charInfos).effective.xStart - Basic.peek(charInfos).glyphAdvance;
-        Basic.array_free(charInfos);
+        whiteClock.mesh.nodes[0].transform.translation.x = -Basic.peek(charInfos.infos).effective.xStart - Basic.peek(charInfos.infos).glyphAdvance;
+        Basic.array_free(charInfos.infos);
     }
 
     Sill.entity_set_disabled(*blackClock, true);
     if position.blackClock.count != 0 {
         Sill.entity_set_disabled(*blackClock, false);
         charInfos := text_mesh_update(blackClock.mesh.nodes[0].primitives[0], position.blackClock, "mono", instance.config.env.textColor);
-        blackClock.mesh.nodes[0].transform.translation.x = -Basic.peek(charInfos).effective.xStart - Basic.peek(charInfos).glyphAdvance;
-        Basic.array_free(charInfos);
+        blackClock.mesh.nodes[0].transform.translation.x = -Basic.peek(charInfos.infos).effective.xStart - Basic.peek(charInfos.infos).glyphAdvance;
+        Basic.array_free(charInfos.infos);
     }
 
     instance.metaBoard.moveIndex = position.moveIndex;

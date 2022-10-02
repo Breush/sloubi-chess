@@ -15,6 +15,8 @@ VariationEntity :: struct {
 
     depth : u16;
     collapsed : bool;
+
+    decorumHeight : float; // Last decorum height, so that it is not rebuilt uselessly if it didn't changed.
 }
 
 variation_init :: (variation : *VariationEntity, firstOne := true) {
@@ -192,16 +194,18 @@ _rebuild_decorum :: (variation : *VariationEntity) {
 
     position := firstPly.transform.translation;
     height := lastPly.transform.translation.y + lastPly.ui.extent.height - position.y;
-    _update_decorum(variation, height, variation.collapsed);
-}
-
-_update_decorum :: (variation : *VariationEntity, height : float, collapsed := false) {
-    mesh := variation.mesh.nodes[0].primitives[0];
-
     height = Basic.max(height, UiConstants.HeightLine);
 
+    if height == variation.decorumHeight then return;
+    variation.decorumHeight = height;
+    _update_decorum(variation, variation.collapsed);
+}
+
+_update_decorum :: (variation : *VariationEntity, collapsed := false) {
+    mesh := variation.mesh.nodes[0].primitives[0];
+
     variation.ui.extent.width = UiConstants.WidthDecorumVariation + 1;
-    variation.ui.extent.height = height;
+    variation.ui.extent.height = variation.decorumHeight;
     variation.ui.anchor = .TopLeft;
 
     mesh.vertices[0].position.x = 0.0;
@@ -209,12 +213,12 @@ _update_decorum :: (variation : *VariationEntity, height : float, collapsed := f
     mesh.vertices[2].position.x = UiConstants.WidthDecorumVariation;
     mesh.vertices[3].position.x = UiConstants.WidthDecorumVariation;
     mesh.vertices[0].position.y = UiConstants.PaddingVerticalDecorumVariation;
-    mesh.vertices[1].position.y = height - UiConstants.PaddingVerticalDecorumVariation;
-    mesh.vertices[2].position.y = height - UiConstants.PaddingVerticalDecorumVariation;
+    mesh.vertices[1].position.y = variation.decorumHeight - UiConstants.PaddingVerticalDecorumVariation;
+    mesh.vertices[2].position.y = variation.decorumHeight - UiConstants.PaddingVerticalDecorumVariation;
     mesh.vertices[3].position.y = UiConstants.PaddingVerticalDecorumVariation;
 
     Magma.material_set(mesh.material, "collapsed", collapsed);
-    Magma.material_set(mesh.material, "height", height);
+    Magma.material_set(mesh.material, "height", variation.decorumHeight);
 
     Magma.mesh_commit_vertices(mesh);
 }

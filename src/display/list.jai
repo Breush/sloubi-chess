@@ -158,18 +158,18 @@ _update_text_cursor :: (using list : *ListEntity, ply : *PlyEntity) {
     textCursor.transform.translation = ply.commentMeshNode.transform.translation;
     textCursor.transform.translation.y += UiConstants.HeightLine / 2;
     if ply.textCursorPosition == 0 {
-        if ply.charInfos.count != 0 {
-            textCursor.transform.translation.x += ply.charInfos[0].effective.xStart;
-            textCursor.transform.translation.y += ply.charInfos[0].effective.yStart;
+        if ply.charInfos.infos.count != 0 {
+            textCursor.transform.translation.x += ply.charInfos.infos[0].effective.xStart;
+            textCursor.transform.translation.y += ply.charInfos.infos[0].effective.yStart;
         }
     } else {
         byteIndex : u32;
-        for i : 0 .. ply.charInfos.count - 1 {
+        for *charInfo : ply.charInfos.infos {
             byteIndex += Chamber.utf8_word_length_after_byte(ply.position.comment, byteIndex);
 
             if ply.textCursorPosition <= byteIndex {
-                textCursor.transform.translation.x += Math.floor(ply.charInfos[i].effective.xEndWithAdvance + 0.5);
-                textCursor.transform.translation.y += ply.charInfos[i].effective.yStart;
+                textCursor.transform.translation.x += Math.floor(charInfo.effective.xEndWithAdvance + 0.5);
+                textCursor.transform.translation.y += charInfo.effective.yStart;
                 break;
             }
         }

@@ -14,7 +14,7 @@ PlyEntity :: struct {
     index : u16; // Index of the ply in the parent variation.
 
     // -- Display
-    charInfos : []CharInfo;
+    charInfos : CharInfos;
     textCursorPosition : u32; // Stored in bytes, not codepoints.
     startingOffsetX : float;
     commentLocation : CommentLocation;
@@ -31,7 +31,7 @@ PlyEntity :: struct {
 
     on_cleanup :: (using this : *PlyEntity) {
         position_cleanup(*position);
-        Basic.array_free(charInfos);
+        Basic.array_free(charInfos.infos);
     }
 }
 
@@ -73,8 +73,8 @@ ply_init :: (ply : *PlyEntity, place := true) {
         moveText := Basic.tprint("%.% %", moveIndex, ifx ply.position.moveIndex % 2 then "" else ".. ", position_last_move_to_san(ply.position, annotations = true));
         fontId := ifx ply.depth == 0 then "mainBold" else "mainLight";
         charInfos := text_mesh_update(ply.moveMeshNode.primitives[0], moveText, fontId, ply.moveColor);
-        ply.moveTextWidth = Basic.peek(charInfos).effective.xEnd;
-        Basic.array_free(charInfos);
+        ply.moveTextWidth = Basic.peek(charInfos.infos).effective.xEnd;
+        Basic.array_free(charInfos.infos);
     }
 
     // ----- Comment
@@ -140,7 +140,7 @@ ply_init :: (ply : *PlyEntity, place := true) {
 
         // @todo Do a clever diff instead of regenerating everything?
         if textChanged then {
-            Basic.array_free(ply.charInfos);
+            Basic.array_free(ply.charInfos.infos);
             ply.charInfos = text_mesh_update(ply.commentMeshNode.primitives[0], ply.position.comment, "mainLight", instance.config.moves.mainColor);
             ply_place(ply, propagate = true);
         }
@@ -222,52 +222,53 @@ ply_place :: (ply : *PlyEntity, propagate := false, hidden := false) {
         commentWidth = maxWidth / 2.0 - ply.moveTextWidth - UiConstants.PaddingCommentInline;
     }
 
-    // Position the comment mesh based on its location.
-    // Make the text fit the specified size.
-    commentHeight := justify_char_infos(ply.charInfos, commentWidth, 0.0);
-
-    ply.commentMeshNode.transform.translation = .{};
-    if ply.index != 0 {
-        if commentLocation.style == .Inline || ply.position.comment.count == 0 {
-            ply.commentMeshNode.transform.translation.x += ply.moveTextWidth + UiConstants.PaddingCommentInline;
-            ply.commentMeshNode.transform.translation.y = 0.0;
-            ply.ui.extent.height = Basic.max(UiConstants.HeightLine, commentHeight);
-        } else {
-            ply.commentMeshNode.transform.translation.y = UiConstants.HeightLine;
-            ply.ui.extent.height = UiConstants.HeightLine + commentHeight;
-        }
-
-        if commentLocation.color == .Black &&
-           (commentLocation.style == .SidedFull || commentLocation.style == .Full) {
-            ply.commentMeshNode.transform.translation.x = (maxWidth - commentWidth - offsetToBlack);
-        }
-    } else {
-        ply.ui.extent.height = commentHeight;
-    }
-
-    // @note Waiting for the comment mesh ply to be positioned so that we can place the collider accordingly.
-    _place_comment_from_char_infos(ply);
-
-    if ply.commentMeshNode != null {
-        ply.commentMeshNode.primitives[0].disabled &= ~.Application;
-        Basic.peek_pointer(ply.collider.boxShapes).disabled = false;
-    }
+    // Detect whether the comment mesh will be visible or not
+    ply.commentMeshNode.primitives[0].disabled &= ~.Application;
+    Basic.peek_pointer(ply.collider.boxShapes).disabled = false;
     Sill.entity_set_disabled(ply, hidden || parentVariationCollapsed);
 
     if hidden || parentVariationCollapsed {
         if !hidden && ply.index == 1 {
-            ply.ui.extent.height = Basic.max(UiConstants.HeightLine, commentHeight);
-
             // Show only the first move mesh in collapsed thingy
-            // @todo If move and comment were two separated entities,
-            // it would make that thing easier.
+            ply.commentMeshNode.primitives[0].disabled |= .Application;
+            Basic.peek_pointer(ply.collider.boxShapes).disabled = true;
             Sill.entity_set_disabled(ply, false);
-            if ply.commentMeshNode != null {
-                ply.commentMeshNode.primitives[0].disabled |= .Application;
-                Basic.peek_pointer(ply.collider.boxShapes).disabled = true;
-            }
         } else {
             ply.ui.extent.height = 0.0;
+        }
+    }
+
+    // Position the comment mesh based on its location.
+    // Make the text fit the specified size.
+    // @note Waiting for the comment mesh ply to be positioned so that we can place the collider accordingly.
+    if !ply.disabled {
+        commentHeight : float;
+        needCommentMeshUpdate := false;
+        if !parentVariationCollapsed {
+            commentHeight, needCommentMeshUpdate = justify_char_infos(*ply.charInfos, commentWidth, 0.0);
+        }
+
+        ply.commentMeshNode.transform.translation = .{};
+        if ply.index != 0 {
+            if commentLocation.style == .Inline || ply.position.comment.count == 0 || parentVariationCollapsed {
+                ply.commentMeshNode.transform.translation.x += ply.moveTextWidth + UiConstants.PaddingCommentInline;
+                ply.commentMeshNode.transform.translation.y = 0.0;
+                ply.ui.extent.height = Basic.max(UiConstants.HeightLine, commentHeight);
+            } else {
+                ply.commentMeshNode.transform.translation.y = UiConstants.HeightLine;
+                ply.ui.extent.height = UiConstants.HeightLine + commentHeight;
+            }
+
+            if commentLocation.color == .Black &&
+            (commentLocation.style == .SidedFull || commentLocation.style == .Full) {
+                ply.commentMeshNode.transform.translation.x = (maxWidth - commentWidth - offsetToBlack);
+            }
+        } else {
+            ply.ui.extent.height = commentHeight;
+        }
+
+        if needCommentMeshUpdate {
+            _place_comment_from_char_infos(ply);
         }
     }
 
@@ -481,7 +482,7 @@ _is_style_spaced_after :: (commentStyle : CommentStyle) -> bool {
 _place_comment_from_char_infos :: (ply : *PlyEntity) {
     mesh := ply.commentMeshNode.primitives[0];
 
-    if ply.charInfos.count == 0 {
+    if ply.charInfos.infos.count == 0 {
         mesh.disabled |= .Application;
         return;
     }
@@ -491,7 +492,7 @@ _place_comment_from_char_infos :: (ply : *PlyEntity) {
 
     mesh.disabled &= ~.Application;
     index := 0;
-    for *charInfo : ply.charInfos {
+    for *charInfo : ply.charInfos.infos {
         if charInfo.glyphBlank then continue;
 
         if charInfo.effective.xStart < minBounds.x then minBounds.x = charInfo.effective.xStart;
@@ -530,7 +531,7 @@ _set_text_cursor_position_from_mouse :: (ply : *PlyEntity) {
     byteIndex : u32;
     xStart := 0.0;
     lastYStart := -1.0;
-    for *charInfo : ply.charInfos {
+    for *charInfo : ply.charInfos.infos {
         // New line, reset xStart.
         if lastYStart != charInfo.effective.yStart {
             xStart = charInfo.effective.xStart;
@@ -550,4 +551,5 @@ _set_text_cursor_position_from_mouse :: (ply : *PlyEntity) {
     }
 
     ply.textCursorPosition = byteIndex;
+    send(.PlyTextCursorPositionChanged, ply);
 }
