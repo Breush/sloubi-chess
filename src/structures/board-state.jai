@@ -151,11 +151,14 @@ _update_coord_for_piece_movement :: (using boardState : *BoardState, targetCoord
     if playAllowed && selectedCoord != 0xFF {
         // Pawn promotion query
         row, col := row_col(targetCoord);
-        if position.board[selectedCoord].kind == .Pawn && (row == 0 || row == 7) {
-            board_state_start_pawn_promotion_selection(boardState, selectedCoord, targetCoord);
-            board_state_select_coord(boardState, 0xFF);
-        } else if position_move_legal(position, selectedCoord, targetCoord, .Empty) {
-            game_play_move(*instance.game, selectedCoord, targetCoord, .Empty);
+        isPromotion := position.board[selectedCoord].kind == .Pawn && (row == 0 || row == 7);
+        // @note We just need a valid promotion piece to check if the move is legal,
+        // but we won't make the promotion out of it.
+        promotionPieceKind := ifx isPromotion then PieceKind.Queen else .Empty;
+
+        if position_move_legal(position, selectedCoord, targetCoord, promotionPieceKind) {
+            if isPromotion then board_state_start_pawn_promotion_selection(boardState, selectedCoord, targetCoord);
+            else game_play_move(*instance.game, selectedCoord, targetCoord, .Empty);
             board_state_select_coord(boardState, 0xFF);
         }
     }

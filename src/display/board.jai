@@ -108,6 +108,7 @@ _on_message :: (using board : *BoardEntity, message : *Message) {
     case .ModeGameStarted;
         board_state_interactive(board, true);
     case .ModeGameStopped;
+        _hide_pawn_promotion_selecter(board);
         board_state_interactive(board, false);
     case .PositionHighlightsChanged;
         if message.position != state.position then return;
@@ -347,7 +348,7 @@ _show_pawn_promotion_selecter :: (using board : *BoardEntity) {
 
     // In case of a promotion at the bottom, we should reverse the order.
     for button, buttonIndex : pawnPromotionSelecter.buttons {
-        button.transform.translation.y = ifx color == instance.metaBoard.orientation then cast(float) buttonIndex else cast(float) -buttonIndex;
+        button.transform.translation.y = ifx color == .White then cast(float) buttonIndex else cast(float) -buttonIndex;
     }
 
     row, col := row_col(state.hoveredCoord);
