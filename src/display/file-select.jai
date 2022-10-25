@@ -155,7 +155,7 @@ _make_entry :: (fileSelect : *FileSelectEntity, name : string, isDirectory : boo
     squareMesh.vertices[3].position = .{400, 0, 5};
     squareMesh.material = Magma.create_material(instance.shaders.monochrome);
     squareMesh.disabled |= .Application;
-    Magma.material_set(squareMesh.material, "color", instance.config.env.selectionBackgroundColor);
+    Magma.material_set(squareMesh.material, "color", instance.config.env.selectedButtonBackgroundColor);
     Basic.array_add(*entryEntity.mesh.nodes[0].primitives, squareMesh);
 
     Sill.ui_on_trigger(*entryEntity.ui, (trigger : Sill.UiTrigger, entryEntity : *EntryEntity) {

@@ -31,7 +31,7 @@ create_text_mesh :: () -> *Magma.Mesh {
     return mesh;
 }
 
-text_mesh_update :: (mesh : *Magma.Mesh, text : string, fontId : string, color : Chamber.vec3, depth := 0.0, computeCharInfos := true) -> CharInfos {
+text_mesh_update :: (mesh : *Magma.Mesh, text : string, fontId : string, color : Chamber.vec3, depth := 0.0, computeCharInfos := true) -> (charInfos : CharInfos, width : float) {
     charInfos : CharInfos;
     charInfos.dirty = true;
 
@@ -40,7 +40,7 @@ text_mesh_update :: (mesh : *Magma.Mesh, text : string, fontId : string, color :
         mesh.indices.count = 0;
         Magma.mesh_commit_indices(mesh); // @fixme Why not disabling it?
         charInfos.dirty = false;
-        return charInfos;
+        return charInfos, 0.0;
     }
 
     glyphInfos := Sill.fonts_glyph_infos(instance.engine, fontId, text);
@@ -120,7 +120,7 @@ text_mesh_update :: (mesh : *Magma.Mesh, text : string, fontId : string, color :
     Magma.mesh_commit_vertices(mesh);
     Magma.mesh_commit_indices(mesh);
 
-    return charInfos;
+    return charInfos, Basic.peek(glyphInfos).offset.x + Basic.peek(glyphInfos).extent.x;
 }
 
 // Will modify the effective positions of the charInfos to justify the text

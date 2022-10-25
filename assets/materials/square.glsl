@@ -40,6 +40,9 @@ vec3 toLinear(vec3 sRGB)
 void main() {
     outColor = material.color;
 
+    vec2 pieceUv = uv;
+    if (material.flipped) pieceUv = 1 - pieceUv;
+
     // Highlighted square
     float f = 0.40 + 0.40 * length(uv - 0.5);
     float v = floor(40 * (uv.x + uv.y));
@@ -47,8 +50,19 @@ void main() {
     outColor.rgb = mix(outColor.rgb, material.highlightColor.rgb, f * material.highlightColor.a);
 
     // @todo Add config for these colors?
-    outColor.rgb = mix(outColor.rgb, vec3(0.98, 0.70, 0.50), float(material.selected));
-    outColor.rgb = mix(outColor.rgb, vec3(0.8, 0.8, 0.8), float(material.moved) * 0.4);
+    const float highlightThickness = 0.025;
+    float highlight = texture(pieceTexture, pieceUv + highlightThickness * vec2(1, 0)).a;
+    highlight += texture(pieceTexture, pieceUv + highlightThickness * vec2(-1, 0)).a;
+    highlight += texture(pieceTexture, pieceUv + highlightThickness * vec2(0, 1)).a;
+    highlight += texture(pieceTexture, pieceUv + highlightThickness * vec2(0, -1)).a;
+    highlight += texture(pieceTexture, pieceUv + highlightThickness * vec2(1, 1)).a;
+    highlight += texture(pieceTexture, pieceUv + highlightThickness * vec2(-1, 1)).a;
+    highlight += texture(pieceTexture, pieceUv + highlightThickness * vec2(1, -1)).a;
+    highlight += texture(pieceTexture, pieceUv + highlightThickness * vec2(-1, -1)).a;
+    highlight = clamp(highlight, 0, 1);
+    outColor.rgb = mix(outColor.rgb, vec3(0.88, 0.70, 0.50), highlight * float(material.selected));
+
+    outColor.rgb = mix(outColor.rgb, vec3(0.6, 0.6, 0.6), float(material.moved) * 0.5);
 
     if (material.targetable) {
         float factor = material.hovered ? 0.8 : 0.4;
@@ -69,8 +83,6 @@ void main() {
     }
 
     // Alpha compositing to opaque background
-    vec2 pieceUv = uv;
-    if (material.flipped) pieceUv = 1 - pieceUv;
     vec4 pieceColor = texture(pieceTexture, pieceUv);
     outColor.rgb = mix(outColor.rgb, pieceColor.rgb, (1 - material.pieceTranslucency) * pieceColor.a);
     outColor.a = pieceColor.a + outColor.a * (1 - pieceColor.a);

@@ -8,6 +8,7 @@ Message :: struct {
             oldPly : *PlyEntity;
         }
         variation : *VariationEntity;
+        moves : [3]Move;
     }
 }
 
@@ -32,6 +33,9 @@ MessageKind :: enum u32 {
     PlyInited;                                  // (ply : *PlyEntity)
     VariationCollapsedChanged;                  // (variation : *VariationEntity)
     VariationContentChanged;                    // (variation : *VariationEntity)
+    SmartMoverMovesChanged;                     // ()
+    SmartMoverDisplayedMovesChanged;            // ()
+    SmartMoverKeysChanged;                      // ()
 }
 
 send :: (kind : MessageKind) {

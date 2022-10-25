@@ -18,7 +18,6 @@ PlyEntity :: struct {
     textCursorPosition : u32; // Stored in bytes, not codepoints.
     startingOffsetX : float;
     commentLocation : CommentLocation;
-    depth : u8;
 
     // Below are just references to the corresponding primitive mesh within the component,
     // for easier use.
@@ -54,11 +53,6 @@ ply_init :: (ply : *PlyEntity, place := true) {
     height : float;
 
     ply.moveColor = annotation_color(ply.position.lastMove.annotation);
-    if ply.parentVariation.parentPly != null {
-        ply.depth = ply.parentVariation.parentPly.depth + 1;
-    } else {
-        ply.depth = 0;
-    }
 
     Sill.listener_on_message(*ply.listener, _on_message);
 
@@ -71,7 +65,7 @@ ply_init :: (ply : *PlyEntity, place := true) {
 
         moveIndex := (ply.position.moveIndex + 1) / 2;
         moveText := Basic.tprint("%.% %", moveIndex, ifx ply.position.moveIndex % 2 then "" else ".. ", position_last_move_to_san(ply.position, annotations = true));
-        fontId := ifx ply.depth == 0 then "mainBold" else "mainLight";
+        fontId := ifx ply.parentVariation.depth == 0 then "mainBold" else "mainLight";
         charInfos := text_mesh_update(ply.moveMeshNode.primitives[0], moveText, fontId, ply.moveColor);
         ply.moveTextWidth = Basic.peek(charInfos.infos).effective.xEnd;
         Basic.array_free(charInfos.infos);
@@ -199,7 +193,7 @@ ply_cleanup :: (ply : *PlyEntity) {
 // Which means that the comment mesh ply might be offseted to the left
 // for black moves.
 ply_place :: (ply : *PlyEntity, propagate := false, hidden := false) {
-    variationOffset := ply.depth * UiConstants.PaddingHorizontalVariation;
+    variationOffset := ply.parentVariation.depth * UiConstants.PaddingHorizontalVariation;
     maxWidth := instance.list.ui.extent.width - variationOffset;
     offsetToBlack := (maxWidth + UiConstants.PaddingHorizontalSplit) / 2;
     parentVariationCollapsed := ply.parentVariation.collapsed;

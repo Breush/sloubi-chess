@@ -94,15 +94,14 @@ _make_button :: (button : *ButtonEntity, text : string) -> *ButtonEntity {
     backgroundNode := Basic.array_add(*button.mesh.nodes);
     backgroundMesh := create_rect_mesh(button.ui.extent.width, button.ui.extent.height, 1);
     backgroundMesh.material = Magma.create_material(instance.shaders.monochrome);
-    Magma.material_set(backgroundMesh.material, "color", instance.config.env.secondaryBackgroundColor);
+    Magma.material_set(backgroundMesh.material, "color", instance.config.env.buttonBackgroundColor);
     Magma.mesh_commit_vertices(backgroundMesh);
     Basic.array_add(*backgroundNode.primitives, backgroundMesh);
 
     textNode := Basic.array_add(*button.mesh.nodes);
     textMesh := create_text_mesh();
-    charInfos := text_mesh_update(textMesh, text, "mainLight", instance.config.env.textColor);
-    defer Basic.array_free(charInfos.infos);
-    textNode.transform.translation.x = -Math.floor(Basic.peek_pointer(charInfos.infos).effective.xEnd / 2 + 0.5);
+    charInfos, textWidth := text_mesh_update(textMesh, text, "mainLight", instance.config.env.textColor, computeCharInfos = false);
+    textNode.transform.translation.x = -Math.floor(textWidth / 2 + 0.5);
     textNode.transform.translation.y = -8; // @todo Hardcoded offset... We should know the max glyph height instead.
     Basic.array_add(*textNode.primitives, textMesh);
 
@@ -110,10 +109,10 @@ _make_button :: (button : *ButtonEntity, text : string) -> *ButtonEntity {
         <<trigger.stopPropagation = true;
 
         if trigger.flags & .HoverStart {
-            Magma.material_set(button.mesh.nodes[0].primitives[0].material, "color", instance.config.env.selectionBackgroundColor);
+            Magma.material_set(button.mesh.nodes[0].primitives[0].material, "color", instance.config.env.selectedButtonBackgroundColor);
             Crater.window_pointer_style(instance.engine.window, .HandPointing);
         } else if trigger.flags & .HoverStop {
-            Magma.material_set(button.mesh.nodes[0].primitives[0].material, "color", instance.config.env.secondaryBackgroundColor);
+            Magma.material_set(button.mesh.nodes[0].primitives[0].material, "color", instance.config.env.buttonBackgroundColor);
             Crater.window_pointer_style(instance.engine.window, .Default);
         }
     }, Sill.UiCallbackFlags.ClickStop | .HoverStart | .Hovering | .HoverStop, button);

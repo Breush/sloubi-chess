@@ -6,11 +6,13 @@ Config :: struct {
     env : struct {
         backgroundColor : Chamber.vec3;
         secondaryBackgroundColor : Chamber.vec3;
-        selectionBackgroundColor : Chamber.vec3;
+        buttonBackgroundColor : Chamber.vec3;
+        selectedButtonBackgroundColor : Chamber.vec3;
         textColor : Chamber.vec3;
         fontFamily : string;
         monoFontFamily : string;
         fontSize : s64;
+        piecesSymbols : [..]string;
     }
     analysis : struct {
         externalSite : string;
@@ -39,6 +41,13 @@ Config :: struct {
             disambiguateWithLastMovedPiece : bool;
             mouseButton : Crater.MouseButton;
         }
+        keyboardMove : struct {
+            enabled : bool;
+            piecesMap : [..]Crater.Key;
+            numbersMap : [..]Crater.Key;
+            selectNext : [..]Crater.Key;
+            playSelected : [..]Crater.Key;
+        }
     }
     controls : struct {
         nextPly : Crater.Key;
@@ -59,7 +68,6 @@ Config :: struct {
         blunderColor : Chamber.vec3;
         selectedColor : Chamber.vec3;
         selectedCommentColor : Chamber.vec3;
-        pieceAsSymbol : bool;
         variationsCollapsed : bool;
         comments : struct {
             shortStyle : CommentStyle;
@@ -90,9 +98,6 @@ persistence_cleanup :: (persistence : *Persistence) {
 
 // @todo Move to Chamber
 read_json_as :: (data : *$T, filename : string, silentOnError := false) -> bool {
-    typeInfo := type_info(T);
-    _CHECK(typeInfo.type == .STRUCT, "Type is not a struct.");
-
     json, ok := Chamber.json_parse_file(filename);
     if !ok {
         if !silentOnError then Basic.log_error("Unable to read file '%'.", filename);
@@ -100,8 +105,35 @@ read_json_as :: (data : *$T, filename : string, silentOnError := false) -> bool 
     }
 
     defer Chamber.json_free(json);
-    read_json_struct(cast(*u8) data, typeInfo, json);
+
+    read_json(cast(*u8) data, type_info(T), json);
     return true;
+}
+
+read_json :: (dataBytes : *u8, typeInfo : *Type_Info, json : Chamber.JsonValue) {
+    if typeInfo.type == .INTEGER {
+        targetTypeInfo := cast(*Type_Info_Integer) typeInfo;
+        Basic.assert(targetTypeInfo.runtime_size == 8);
+        Basic.assert(targetTypeInfo.signed);
+        << cast(*s64) dataBytes = cast(s64) json.number;
+    } else if typeInfo.type == .FLOAT {
+        targetTypeInfo := cast(*Type_Info_Float) typeInfo;
+        Basic.assert(targetTypeInfo.runtime_size == 4);
+        << cast(*float) dataBytes = cast(float) json.number;
+    } else if typeInfo.type == .BOOL {
+        << cast(*bool) dataBytes = json.boolean;
+    } else if typeInfo.type == .STRING {
+        << cast(*string) dataBytes = Basic.copy_string(json.str);
+    }  else if typeInfo.type == .ENUM {
+        read_json_enum(dataBytes, cast(*Type_Info_Enum) typeInfo, *json);
+    } else if typeInfo.type == .STRUCT {
+        read_json_struct(dataBytes, cast(*Type_Info_Struct) typeInfo, *json);
+    } else if typeInfo.type == .ARRAY {
+        read_json_array(dataBytes, cast(*Type_Info_Array) typeInfo, *json);
+    } else {
+        Basic.log_error("Unsupported type tag: %.", typeInfo.type);
+        Basic.assert(false);
+    }
 }
 
 read_json_struct :: (dataBytes : *u8, typeInfo : *Type_Info_Struct, json : Chamber.JsonValue) {
@@ -122,29 +154,12 @@ read_json_struct :: (dataBytes : *u8, typeInfo : *Type_Info_Struct, json : Chamb
     }
 
     for member : typeInfo.members {
-        memberDataBytes := dataBytes + member.offset_in_bytes;
-
-        if member.type.type == .INTEGER {
-            memberType := cast(*Type_Info_Integer) member.type;
-            Basic.assert(memberType.runtime_size == 8);
-            Basic.assert(memberType.signed);
-            << cast(*s64) memberDataBytes = cast(s64) json[member.name].number;
-        } else if member.type.type == .FLOAT {
-            memberType := cast(*Type_Info_Float) member.type;
-            Basic.assert(memberType.runtime_size == 4);
-            << cast(*float) memberDataBytes = cast(float) json[member.name].number;
-        } else if member.type.type == .BOOL {
-            << cast(*bool) memberDataBytes = json[member.name].boolean;
-        } else if member.type.type == .STRING {
-            << cast(*string) memberDataBytes = Basic.copy_string(json[member.name].str);
-        }  else if member.type.type == .ENUM {
-            read_json_enum(memberDataBytes, cast(*Type_Info_Enum) member.type, *json[member.name]);
-        } else if member.type.type == .STRUCT {
-            read_json_struct(memberDataBytes, cast(*Type_Info_Struct) member.type, *json[member.name]);
-        } else {
-            Basic.log_error("Unsupported type tag: %.", member.type.type);
-            Basic.assert(false);
+        jsonValue := json[member.name];
+        if jsonValue.type == .INVALID {
+            // The JSON is missing one of the members. Just ignore it.
+            continue;
         }
+        read_json(dataBytes + member.offset_in_bytes, member.type, jsonValue);
     }
 }
 
@@ -157,6 +172,23 @@ read_json_enum :: (dataBytes : *u8, typeInfo : *Type_Info_Enum, json : Chamber.J
         }
     }
     Basic.log_error("Invalid value '%' for enum '%'.", json.str, typeInfo.name);
+}
+
+read_json_array :: (dataBytes : *u8, typeInfo : *Type_Info_Array, json : Chamber.JsonValue) {
+    if typeInfo.array_type == .RESIZABLE {
+        targetArray := cast(*[..]u8) dataBytes;
+        elementSize := typeInfo.element_type.runtime_size;
+        Basic.array_resize(targetArray, json.array.count * elementSize);
+
+        for element, elementIndex : json.array {
+            read_json(targetArray.data + elementIndex * elementSize, typeInfo.element_type, element);
+        }
+
+        targetArray.count = json.array.count;
+    } else {
+        Basic.log_error("Unsupported array type: %.", typeInfo.array_type);
+        Basic.assert(false);
+    }
 }
 
 #scope_file

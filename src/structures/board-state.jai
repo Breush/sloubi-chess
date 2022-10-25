@@ -19,20 +19,22 @@ board_state_interactive :: (boardState : *BoardState, interactive := true) {
 }
 
 // Set coord to 0xFF to unselect.
-board_state_select_coord :: (using boardState : *BoardState, coord : Coord) {
+board_state_select_coord :: (using boardState : *BoardState, coord : Coord, updateTargetableCoords := true) {
     if selectedCoord == coord then return;
     oldCoord := selectedCoord;
     selectedCoord = coord;
     send(.BoardStateSelectedCoordChanged, oldCoord);
 
-    if selectedCoord != 0xFF {
-        if instance.config.board.highlightValidSquares {
-            Basic.array_copy(*targetableCoords, position_find_piece_targets(position, selectedCoord));
+    if updateTargetableCoords {
+        if selectedCoord != 0xFF {
+            if instance.config.board.highlightValidSquares {
+                Basic.array_copy(*targetableCoords, position_find_piece_targets(position, selectedCoord));
+            }
+        } else {
+            targetableCoords.count = 0;
         }
-    } else {
-        targetableCoords.count = 0;
+        send(.BoardStateTargetableCoordsChanged);
     }
-    send(.BoardStateTargetableCoordsChanged);
 }
 
 // Set coord to 0xFF to unhover.
@@ -125,6 +127,13 @@ board_state_set_position :: (boardState : *BoardState, position : *Position) {
     if boardState.position == position then return;
     boardState.position = position;
     send(.BoardStatePositionChanged);
+
+    board_state_select_coord(boardState, 0xFF);
+}
+
+board_state_try_play_move :: (using boardState : *BoardState, sourceCoord : Coord, targetCoord : Coord) {
+    selectedCoord = sourceCoord;
+    _update_coord_for_piece_movement(boardState, targetCoord, selectAllowed = false);
 }
 
 board_state_play_pawn_promotion :: (using boardState : *BoardState, pieceKind : PieceKind) {
@@ -132,6 +141,19 @@ board_state_play_pawn_promotion :: (using boardState : *BoardState, pieceKind : 
         game_play_move(*instance.game, pawnPromotionSourceCoord, pawnPromotionTargetCoord, pieceKind);
     }
     send(.BoardStatePawnPromotionSelectionStopped);
+}
+
+board_state_prepare_move :: (using boardState : *BoardState, sourceCoord : Coord, targetCoord : Coord) {
+    board_state_select_coord(boardState, sourceCoord, updateTargetableCoords = false);
+
+    if targetCoord != 0xFF {
+        Basic.array_resize(*boardState.targetableCoords, 1);
+        boardState.targetableCoords[0] = targetCoord;
+        send(.BoardStateTargetableCoordsChanged);
+    } else {
+        boardState.targetableCoords.count = 0;
+        send(.BoardStateTargetableCoordsChanged);
+    }
 }
 
 #scope_file
@@ -142,7 +164,7 @@ _update_coord_for_piece_movement :: (using boardState : *BoardState, targetCoord
     // If we're selecting a piece of our color, just select that square.
     if selectAllowed {
         piece := piece_at_coord(targetCoord);
-        if piece.kind != .Empty && piece.color == position_color_to_play(position) {
+        if piece.kind != .None && piece.color == position_color_to_play(position) {
             return true;
         }
     }
@@ -154,12 +176,11 @@ _update_coord_for_piece_movement :: (using boardState : *BoardState, targetCoord
         isPromotion := position.board[selectedCoord].kind == .Pawn && (row == 0 || row == 7);
         // @note We just need a valid promotion piece to check if the move is legal,
         // but we won't make the promotion out of it.
-        promotionPieceKind := ifx isPromotion then PieceKind.Queen else .Empty;
+        promotionPieceKind := ifx isPromotion then PieceKind.Queen else .None;
 
         if position_move_legal(position, selectedCoord, targetCoord, promotionPieceKind) {
             if isPromotion then board_state_start_pawn_promotion_selection(boardState, selectedCoord, targetCoord);
-            else game_play_move(*instance.game, selectedCoord, targetCoord, .Empty);
-            board_state_select_coord(boardState, 0xFF);
+            else game_play_move(*instance.game, selectedCoord, targetCoord, .None);
         }
     }
 
@@ -177,7 +198,7 @@ _destination_square_piece_movement :: (using boardState : *BoardState, targetCoo
     if !instance.config.board.destinationSquareMove.enabled then return;
     colorToPlay := position_color_to_play(position);
 
-    if position.board[targetCoord].kind != .Empty && position.board[targetCoord].color == colorToPlay {
+    if position.board[targetCoord].kind != .None && position.board[targetCoord].color == colorToPlay {
         board_state_hint_coords(boardState, .[]);
         return;
     }
@@ -187,14 +208,12 @@ _destination_square_piece_movement :: (using boardState : *BoardState, targetCoo
     if sourceCoords.count == 0 {
         board_state_hint_coords(boardState, .[]);
     } else if sourceCoords.count == 1 {
-        selectedCoord = sourceCoords[0];
-        _update_coord_for_piece_movement(boardState, targetCoord, selectAllowed = false);
+        board_state_try_play_move(boardState, sourceCoords[0], targetCoord);
     } else {
         if instance.config.board.destinationSquareMove.disambiguateWithLastMovedPiece {
             previousPly := ply_previous_ply(instance.game.ply);
             if previousPly && Basic.array_find(sourceCoords, previousPly.position.lastMove.targetCoord) {
-                selectedCoord = previousPly.position.lastMove.targetCoord;
-                _update_coord_for_piece_movement(boardState, targetCoord, selectAllowed = false);
+                board_state_try_play_move(boardState, previousPly.position.lastMove.targetCoord, targetCoord);
                 return;
             }
         }

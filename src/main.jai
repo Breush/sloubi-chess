@@ -10,6 +10,7 @@ Debug :: #import "Debug";
 Hash :: #import "Hash_Table";
 Math :: #import "Math";
 File :: #import "File";
+Sort :: #import "Sort";
 Bucket_Array :: #import "Bucket_Array";
 CommandLine :: #import "Command_Line";
 for_expansion :: Hash.for_expansion;
@@ -20,6 +21,7 @@ for_expansion :: Hash.for_expansion;
 #load "display/file-select.jai";
 #load "display/list.jai";
 #load "display/meta-board.jai";
+#load "display/smart-mover.jai";
 #load "helpers/arrow-mesh.jai";
 #load "helpers/entities.jai";
 #load "helpers/fork-awesome.jai";
@@ -32,6 +34,7 @@ for_expansion :: Hash.for_expansion;
 #load "structures/piece.jai";
 #load "structures/ply.jai";
 #load "structures/position.jai";
+#load "structures/san-key.jai";
 #load "structures/variation.jai";
 #load "readers/fen.jai";
 #load "readers/pgn.jai";
@@ -89,7 +92,7 @@ main :: () {
     read_json_as(*instance.persistence, Basic.tprint("%1%2", storagePath, ".sloubi-chess.json"), silentOnError = true);
     Basic.free(storagePath);
 
-    instance.engine = Sill.create_engine(SillMeta, .{ eventHandler = _event_handler });
+    instance.engine = Sill.create_engine(SillMeta, .{ eventHandler = _event_handler, windowTitle = "SloubiChess" });
 
     _shaders_init();
     _fonts_init();
@@ -158,12 +161,15 @@ _fonts_init :: () {
     lightFontFiles[2] = "./assets/fonts/ForkAwesome.ttf";
 
     lightItalicFontFile := Basic.tprint("./assets/fonts/%-LightItalic.ttf", instance.config.env.fontFamily);
-    monoFontFile := Basic.tprint("./assets/fonts/%-Regular.ttf", instance.config.env.monoFontFamily);
+
+    monoFontFiles : [2]string;
+    monoFontFiles[0] = Basic.tprint("./assets/fonts/%-Regular.ttf", instance.config.env.monoFontFamily);
+    monoFontFiles[1] = "./assets/fonts/DejaVuSans.ttf";
 
     Sill.fonts_register(instance.engine, "mainLight", lightFontFiles, cast(float) instance.config.env.fontSize);
     Sill.fonts_register(instance.engine, "mainLightItalic", lightItalicFontFile, cast(float) instance.config.env.fontSize);
     Sill.fonts_register(instance.engine, "mainBold", boldFontFiles, cast(float) instance.config.env.fontSize);
-    Sill.fonts_register(instance.engine, "mono", monoFontFile, cast(float) instance.config.env.fontSize);
+    Sill.fonts_register(instance.engine, "mono", monoFontFiles, cast(float) instance.config.env.fontSize);
 
     // Preload for most common glyphs
     Sill.fonts_glyph_infos(instance.engine, "mainLight", "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ.,!?-+*/=()[]{}:;<>|&@#$%^~`'\"\\");

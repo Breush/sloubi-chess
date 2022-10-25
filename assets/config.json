@@ -2,12 +2,18 @@
     "version": 0,
     "env": {
         "backgroundColor": [0.173, 0.173, 0.173],           // RGB color, 0 to 1 values
-        "secondaryBackgroundColor": [0.173, 0.173, 0.3],    // RGB color, 0 to 1 values
-        "selectionBackgroundColor": [0.3, 0.3, 0.4],        // RGB color, 0 to 1 values
+        "secondaryBackgroundColor": [0.233, 0.233, 0.233],  // RGB color, 0 to 1 values
+        "buttonBackgroundColor": [0.173, 0.173, 0.3],       // RGB color, 0 to 1 values
+        "selectedButtonBackgroundColor": [0.3, 0.3, 0.4],   // RGB color, 0 to 1 values
         "textColor": [1, 1, 1],                             // RGB color, 0 to 1 values
         "fontFamily": "Ubuntu", // Currently has to be in assets/fonts/, Light, LightItalic and Bold variants should exist.
         "monoFontFamily": "SpaceMono", // Currently has to be in assets/fonts/, Regular variant should exists.
-        "fontSize": 16
+        "fontSize": 16,
+        // Prefered representation for short name of pieces.
+        //  - English ones are ["R", "N", "B", "Q", "K"]
+        //  - French ones are ["T", "C", "F", "D", "R"]
+        //  - Unicode symbols are ["♜", "♞", "♝", "♛", "♚"]
+        "piecesSymbols": ["R", "N", "B", "Q", "K"]
     },
     "board": {
         "pieces": "staunty",    // Files have to be in ./assets/images/pieces/ and prefixed accordingly
@@ -26,12 +32,27 @@
             "ghostOpacity": 0.2 // When dragging a piece, opacity of the piece on its starting square.
         },
         "clickClickMove": {
-            "enabled": true    // Allow clicking on the starting square then on the destination square to play a move.
+            "enabled": true     // Allow clicking on the starting square then on the destination square to play a move.
         },
         "destinationSquareMove": {
             "enabled": true,    // Allow clicking on a destination square to play a move, if there is only one piece that can go there.
-            "disambiguateWithLastMovedPiece": true, // Choose the last piece that moved if there are multiple choices.
+            "disambiguateWithLastMovedPiece": false, // Choose the last piece that moved if there are multiple choices.
             "mouseButton": "Middle" // "Left", "Middle" or "Right".
+        },
+        "keyboardMove": {
+            // Allow entering moves with keyboard.
+            // For instance, with the default config, typing "nf3<Return>" will move a knight to f3 if allowed.
+            "enabled": false,
+            // Map keyboard keys to a piece name (Rook, Knight, Bishop, Queen, King).
+            // This allows writing a piece name in a different language.
+            // They can be different from the display characters used in `env.piecesSymbol`.
+            "piecesMap": ["R", "N", "B", "Q", "K"],
+            // Map keyboard keys to a number (1 to 8).
+            // As for some non-qwerty keyboards, the numbers require a Shift toggle,
+            // this is an easy way to allow more.
+            "numbersMap": ["Ampersand", "EAcute", "QuoteDouble", "Apostrophe", "ParenthesisLeft", "Minus", "EGrave", "Underscore"], // This default is for an azerty keyboard.
+            "selectNext": ["Tab"],                    // Keys to select the next matching move.
+            "playSelected": ["Return", "NumpadEnter"] // Keys to play the selected move.
         }
     },
     "analysis": {
@@ -47,7 +68,7 @@
         "previousPly": "Left",
         "firstPly": "Home", // Chess websites usually map these to "Up" and "Down"
         "lastPly": "End",
-        "editPlyComment": "Return",
+        "editPlyComment": "Space",
         // Go to an alternative on the current ply.
         "nextVariation": "Down",
         "previousVariation": "Up"
@@ -62,7 +83,6 @@
         "blunderColor": [0.9, 0.1, 0.1],        // RGB color, 0 to 1 values
         "selectedColor": [1, 0.7, 0.3],         // RGB color, 0 to 1 values
         "selectedCommentColor": [1, 0.9, 0.7],  // RGB color, 0 to 1 values
-        "pieceAsSymbol": false, // true to uses symbols (♜♞♝♛♚), false to uses letters (RNBQK)
         "variationsCollapsed": true, // true to collapse variations by default
         "comments": {
             // We have three types of comments:

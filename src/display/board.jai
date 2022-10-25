@@ -59,9 +59,12 @@ board_init :: (using board : *BoardEntity) {
 
             if normalizedCoord.x >= 0 && normalizedCoord.x < 8 && normalizedCoord.y >= 0 && normalizedCoord.y < 8 {
                 board_state_hover_coord(board, coord(normalizedCoord.x, normalizedCoord.y));
+                Sill.ui_set_focused(*board.ui);
             } else {
                 board_state_hover_coord(board, 0xFF);
             }
+        } else if trigger.flags & .Key {
+            smart_mover_ui_trigger(*instance.metaBoard.smartMover, trigger);
         }
 
         board_state_ui_trigger(board, trigger);
@@ -71,7 +74,7 @@ board_init :: (using board : *BoardEntity) {
             movingPiece.transform.translation.xy = relativeMousePointerPosition;
             Sill.transform_commit(*movingPiece.transform);
         }
-    }, Sill.UiCallbackFlags.ClickStart | .ClickStop | .Hovering | .HoverStop | .DragStart | .Dragging | .DragStop | .DragDrop, board);
+    }, Sill.UiCallbackFlags.ClickStart | .ClickStop | .Hovering | .HoverStop | .DragStart | .Dragging | .DragStop | .DragDrop | .Key, board);
 
     // Drawing a position
     board_state_set_position(board, *STARTING_POSITION);
@@ -141,7 +144,7 @@ _update_from_position :: (using board : *BoardEntity) {
         moved := coord == position.lastMove.sourceCoord || coord == position.lastMove.targetCoord;
         Magma.material_set(node.primitives[0].material, "moved", moved);
         Magma.material_set(node.primitives[0].material, "selected", false);
-        Magma.material_set(node.primitives[0].material, "capturable", position.board[coord].kind != .Empty || coord == enPassantCoord);
+        Magma.material_set(node.primitives[0].material, "capturable", position.board[coord].kind != .None || coord == enPassantCoord);
         Magma.material_set(node.primitives[0].material, "pieceTexture", pieceTexture);
     }
 
@@ -163,7 +166,7 @@ _update_from_hovered_coord :: (using board : *BoardEntity, oldCoord : Coord) {
         Magma.material_set(mesh.nodes[state.hoveredCoord].primitives[0].material, "hovered", true);
 
         if instance.engine.ui.draggingState == .None {
-            pointerStyle := ifx piece_at_coord(state.hoveredCoord).kind != .Empty then Crater.PointerStyle.Hand else .Default;
+            pointerStyle := ifx piece_at_coord(state.hoveredCoord).kind != .None then Crater.PointerStyle.Hand else .Default;
             Crater.window_pointer_style(instance.engine.window, pointerStyle);
         }
     }
@@ -266,7 +269,7 @@ _init_resources :: (using board : *BoardEntity) {
     init_piece_texture(board, piece_id(.{ .Q, .Black }), Basic.tprint("./assets/images/pieces/%-bq.png", instance.config.board.pieces));
     init_piece_texture(board, piece_id(.{ .R, .Black }), Basic.tprint("./assets/images/pieces/%-br.png", instance.config.board.pieces));
 
-    emptyPieceId := piece_id(.{ kind = .Empty });
+    emptyPieceId := piece_id(.{ kind = .None });
     piecesTextures[emptyPieceId] = null;
 
     // Moving piece
@@ -351,7 +354,7 @@ _show_pawn_promotion_selecter :: (using board : *BoardEntity) {
         button.transform.translation.y = ifx color == .White then cast(float) buttonIndex else cast(float) -buttonIndex;
     }
 
-    row, col := row_col(state.hoveredCoord);
+    row, col := row_col(state.pawnPromotionTargetCoord);
     pawnPromotionSelecter.transform.translation.x = col - 3.5;
     pawnPromotionSelecter.transform.translation.y = 3.5 - row;
     Sill.transform_commit(*pawnPromotionSelecter.transform);

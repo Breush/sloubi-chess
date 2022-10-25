@@ -52,13 +52,13 @@ Color :: enum u8 {
 Move :: struct {
     sourceCoord : Coord = 0xFF;
     targetCoord : Coord = 0xFF;
+    promotionPieceKind := PieceKind.None;
 }
 
 AnnotatedMove :: struct {
     using #as move : Move;
 
     capture : bool;
-    promotion : bool;
     annotation : MoveAnnotation;
 }
 
@@ -226,6 +226,10 @@ annotation_to_utf8 :: (annotation : ObservationAnnotation) -> string {
     return "";
 }
 
+move_to_algebraic :: (move : Move) -> string {
+    return Basic.tprint("%1%2", coord_to_algebraic(move.sourceCoord), coord_to_algebraic(move.targetCoord));
+}
+
 get_starting_position :: () -> Position {
     position : Position;
 
@@ -310,7 +314,7 @@ position_copy_state_from :: (position : *Position, sourcePosition : Position) {
     position.lastMove.sourceCoord = sourcePosition.lastMove.sourceCoord;
     position.lastMove.targetCoord = sourcePosition.lastMove.targetCoord;
     position.lastMove.capture = sourcePosition.lastMove.capture;
-    position.lastMove.promotion = sourcePosition.lastMove.promotion;
+    position.lastMove.promotionPieceKind = sourcePosition.lastMove.promotionPieceKind;
     position.moveIndex = sourcePosition.moveIndex;
     position.movesSinceLastCaptureOrPawnMove = sourcePosition.movesSinceLastCaptureOrPawnMove;
     position.whiteClock = sourcePosition.whiteClock;
@@ -338,12 +342,12 @@ position_find_piece_in_direction :: (position : Position,
         if col >= 8 || row >= 8 then break;
 
         testCoord := coord(row, col);
-        if position.board[testCoord].kind != .Empty {
+        if position.board[testCoord].kind != .None {
             return (position.board[testCoord], testCoord);
         }
     }
 
-    return (.{ kind = .Empty }, 0xFF);
+    return (.{ kind = .None }, 0xFF);
 }
 
 position_find_piece_in_direction :: (position : Position, piece : Piece, sourceHintCoord : Coord,
@@ -388,7 +392,7 @@ position_find_piece_targets :: (position : Position, sourceCoord : Coord) -> []C
     if !coord_is_valid(sourceCoord) then return .[];
 
     piece := position.board[sourceCoord];
-    if piece.kind == .Empty then return .[];
+    if piece.kind == .None then return .[];
 
     Basic.push_allocator(Basic.temp);
     targets : [..]Coord;
@@ -410,14 +414,14 @@ position_find_piece_targets :: (position : Position, sourceCoord : Coord) -> []C
 
         // Can advance one square if empty
         advanceOneCoord := coord(cast(s8) row + pawnDirection, col);
-        if position.board[advanceOneCoord].kind == .Empty {
+        if position.board[advanceOneCoord].kind == .None {
             add_target_if_legal(*targets, position, sourceCoord, advanceOneCoord);
 
             // And can advance two squares if empty and on starting row
             pawnStartingRow := ifx colorToPlay == .White then cast(u8) 1 else 6;
             if row == pawnStartingRow {
                 advanceTwoCoord := coord(cast(s8) row + 2 * pawnDirection, col);
-                if position.board[advanceTwoCoord].kind == .Empty {
+                if position.board[advanceTwoCoord].kind == .None {
                     add_target_if_legal(*targets, position, sourceCoord, advanceTwoCoord);
                 }
             }
@@ -429,7 +433,7 @@ position_find_piece_targets :: (position : Position, sourceCoord : Coord) -> []C
             captureCoord := coord(cast(s8) row + pawnDirection, col - 1);
             targetPiece := position.board[captureCoord];
             if captureCoord == enPassantCoord ||
-               (targetPiece.kind != .Empty && targetPiece.color != colorToPlay) {
+               (targetPiece.kind != .None && targetPiece.color != colorToPlay) {
                 add_target_if_legal(*targets, position, sourceCoord, captureCoord);
             }
         }
@@ -437,7 +441,7 @@ position_find_piece_targets :: (position : Position, sourceCoord : Coord) -> []C
             captureCoord := coord(cast(s8) row + pawnDirection, col + 1);
             targetPiece := position.board[captureCoord];
             if captureCoord == enPassantCoord ||
-               (targetPiece.kind != .Empty && targetPiece.color != colorToPlay) {
+               (targetPiece.kind != .None && targetPiece.color != colorToPlay) {
                 add_target_if_legal(*targets, position, sourceCoord, captureCoord);
             }
         }
@@ -450,7 +454,7 @@ position_find_piece_targets :: (position : Position, sourceCoord : Coord) -> []C
                 if col >= 8 || row >= 8 then break;
 
                 targetCoord := coord(row, col);
-                if position.board[targetCoord].kind == .Empty {
+                if position.board[targetCoord].kind == .None {
                     add_target_if_legal(*targets, position, sourceCoord, targetCoord);
                 } else if position.board[targetCoord].color == colorNotToPlay {
                     add_target_if_legal(*targets, position, sourceCoord, targetCoord);
@@ -468,16 +472,16 @@ position_find_piece_targets :: (position : Position, sourceCoord : Coord) -> []C
                 kingsideFlag := ifx colorToPlay == .White then PositionFlags.WhiteKingsideCastlingAllowed else .BlackKingsideCastlingAllowed;
                 queensideFlag := ifx colorToPlay == .White then PositionFlags.WhiteQueensideCastlingAllowed else .BlackQueensideCastlingAllowed;
                 if position.flags & kingsideFlag &&
-                    position.board[coord(row, 5)].kind == .Empty &&
-                    position.board[coord(row, 6)].kind == .Empty &&
+                    position.board[coord(row, 5)].kind == .None &&
+                    position.board[coord(row, 6)].kind == .None &&
                     !position_square_controlled(position, coord(row, 5), colorNotToPlay) &&
                     !position_square_controlled(position, coord(row, 6), colorNotToPlay) {
                     add_target_if_legal(*targets, position, sourceCoord, coord(row, 6));
                 }
                 if position.flags & queensideFlag &&
-                    position.board[coord(row, 3)].kind == .Empty &&
-                    position.board[coord(row, 2)].kind == .Empty &&
-                    position.board[coord(row, 1)].kind == .Empty &&
+                    position.board[coord(row, 3)].kind == .None &&
+                    position.board[coord(row, 2)].kind == .None &&
+                    position.board[coord(row, 1)].kind == .None &&
                     !position_square_controlled(position, coord(row, 3), colorNotToPlay) &&
                     !position_square_controlled(position, coord(row, 2), colorNotToPlay) &&
                     !position_square_controlled(position, coord(row, 1), colorNotToPlay) {
@@ -497,15 +501,15 @@ position_last_move_to_san :: (position : Position, annotations := false) -> stri
     Basic.push_allocator(Basic.temp);
 
     piece := position.board[position.lastMove.targetCoord];
-    targetRow, targetCol := row_col(position.lastMove.targetCoord);
     sourceRow, sourceCol := row_col(position.lastMove.sourceCoord);
+    targetRow, targetCol := row_col(position.lastMove.targetCoord);
 
     check := ifx position.flags & .Mate then "#" else ifx position.flags & .Check then "+" else "";
     capture := ifx position.lastMove.capture then "x" else "";
 
     promotion := "";
-    if position.lastMove.promotion {
-        promotion = Basic.tprint("=%", piece_to_algebraic(piece));
+    if position.lastMove.promotionPieceKind != .None {
+        promotion = Basic.tprint("=%", piece_kind_to_symbol(piece.kind));
         piece.kind = .Pawn;
     }
 
@@ -516,13 +520,14 @@ position_last_move_to_san :: (position : Position, annotations := false) -> stri
         }
     } else if piece.kind == .King {
         // Detect castling
+        // @fixme Bug: no annotations in this case
         if targetCol == sourceCol + 2 then return Basic.tprint("O-O%", check);
         else if targetCol == sourceCol - 2 then return Basic.tprint("O-O-O%", check);
 
         // King is alone, never duplicated sources.
         sourceRow, sourceCol = 0xFF, 0xFF;
     } else {
-        // Detect if we need to disambuigate
+        // Detect if we need to disambiguate
         duplicateSources := position_find_piece_sources(position, piece, 0xFF, position.lastMove.targetCoord);
 
         if duplicateSources.count == 0 {
@@ -535,7 +540,7 @@ position_last_move_to_san :: (position : Position, annotations := false) -> stri
                 colConflicts = colConflicts || (duplicateCol == sourceCol);
             }
 
-            // @note SAN prefers the col is it is sufficient to disambuigate.
+            // @note SAN prefers the col is it is sufficient to disambiguate.
             if !colConflicts then sourceRow = 0xFF;
             else if !rowConflicts then sourceCol = 0xFF;
         }
@@ -550,11 +555,99 @@ position_last_move_to_san :: (position : Position, annotations := false) -> stri
         }
     }
 
-    pieceStr := ifx instance.config.moves.pieceAsSymbol then piece_to_symbol(piece) else piece_to_algebraic(piece);
+    pieceStr := piece_kind_to_symbol(piece.kind);
 
     return Basic.tprint("%1%2%3%4%5%6%7", pieceStr, row_col_to_algebraic(sourceRow, sourceCol, silentOnInvalid = true),
                                         capture, row_col_to_algebraic(targetRow, targetCol, silentOnInvalid = true),
                                         promotion, check, annotationsStr);
+}
+
+position_move_to_san :: (position : Position, move : Move) -> string {
+    Basic.push_allocator(Basic.temp);
+
+    sanKeys := position_move_to_san_keys(position, move, true);
+
+    text : string;
+    for sanKey : sanKeys {
+        if sanKey == .None then break;
+        text = Basic.tprint("%1%2", text, san_key_to_symbol(sanKey));
+    }
+
+    return text;
+}
+
+position_move_to_san_keys :: (position : Position, move : Move, showActions := true) -> SanKeys {
+    sanKeys : SanKeys;
+    offset := 0;
+
+    piece := position.board[move.sourceCoord];
+    pieceSanKey := piece_kind_to_san_key(piece.kind);
+    if pieceSanKey != .None {
+        sanKeys[offset] = pieceSanKey;
+        offset += 1;
+    }
+
+    capture := position.board[move.targetCoord].kind != .None ||
+               (piece.kind == .Pawn && move.targetCoord == position_en_passant_coord(*position));
+
+    sourceRow, sourceCol := row_col(move.sourceCoord);
+    targetRow, targetCol := row_col(move.targetCoord);
+
+    // Detect if we need to disambiguate
+    if piece.kind == .Pawn {
+        sourceRow = 0xFF;
+        if !capture then sourceCol = 0xFF;
+    } else if piece.kind == .King {
+        // King is alone, never disambiguate sources.
+        sourceRow, sourceCol = 0xFF, 0xFF;
+    } else {
+        duplicateSources := position_find_piece_sources(position, piece, 0xFF, move.targetCoord);
+
+        if duplicateSources.count == 1 {
+            sourceRow, sourceCol = 0xFF, 0xFF;
+        } else {
+            rowConflicts, colConflicts := false, false;
+            for duplicateSource : duplicateSources {
+                if duplicateSource == move.sourceCoord then continue;
+                duplicateRow, duplicateCol := row_col(duplicateSource);
+                rowConflicts = rowConflicts || (duplicateRow == sourceRow);
+                colConflicts = colConflicts || (duplicateCol == sourceCol);
+            }
+
+            // @note SAN prefers the col is it is sufficient to disambiguate.
+            if !colConflicts then sourceRow = 0xFF;
+            else if !rowConflicts then sourceCol = 0xFF;
+        }
+    }
+
+    if sourceCol != 0xFF {
+        sanKeys[offset] = SanKey.ColA + cast(SanKey) sourceCol;
+        offset += 1;
+    }
+    if sourceRow != 0xFF {
+        sanKeys[offset] = SanKey.Row1 + cast(SanKey) sourceRow;
+        offset += 1;
+    }
+
+    if showActions && capture {
+        sanKeys[offset] = .Capture;
+        offset += 1;
+    }
+
+    sanKeys[offset] = SanKey.ColA + cast(SanKey) targetCol;
+    offset += 1;
+    sanKeys[offset] = SanKey.Row1 + cast(SanKey) targetRow;
+    offset += 1;
+
+    if move.promotionPieceKind != .None {
+        if showActions {
+            sanKeys[offset] = .Promotion;
+            offset += 1;
+        }
+        sanKeys[offset] = piece_kind_to_san_key(move.promotionPieceKind);
+    }
+
+    return sanKeys;
 }
 
 position_move_legal :: (position : *Position, sourceCoord : Coord, targetCoord : Coord, promotionPieceKind : PieceKind) -> bool {
@@ -566,8 +659,8 @@ position_move_legal :: (position : *Position, sourceCoord : Coord, targetCoord :
     // Is the promotion valid?
     targetRow, targetCol := row_col(targetCoord);
     if position.board[sourceCoord].kind == .Pawn && (targetRow == 0 || targetRow == 7) {
-        if promotionPieceKind == .Empty || promotionPieceKind == .Pawn || promotionPieceKind == .King then return false;
-    } else if promotionPieceKind != .Empty {
+        if promotionPieceKind == .None || promotionPieceKind == .Pawn || promotionPieceKind == .King then return false;
+    } else if promotionPieceKind != .None {
         return false;
     }
 
@@ -577,7 +670,7 @@ position_move_legal :: (position : *Position, sourceCoord : Coord, targetCoord :
 position_move_checkwise_legal :: (position : Position, sourceCoord : Coord, targetCoord : Coord) -> bool {
     newPosition : Position;
     position_copy_state_from(*newPosition, position);
-    position_play_move(*newPosition, sourceCoord, targetCoord, .Empty, updateFlags = false);
+    position_play_move(*newPosition, sourceCoord, targetCoord, .None, updateFlags = false);
 
     colorToPlay := position_color_to_play(*position);
     colorNotToPlay := ifx colorToPlay == .White then Color.Black else .White;
@@ -605,7 +698,7 @@ position_play_move :: (position : *Position, sourceCoord : Coord, targetCoord : 
     }
 
     piece := position.board[sourceCoord];
-    capture := (position.board[targetCoord].kind != .Empty);
+    capture := (position.board[targetCoord].kind != .None);
 
     position.movesSinceLastCaptureOrPawnMove += 1;
     if piece.kind == .Pawn || capture {
@@ -618,10 +711,10 @@ position_play_move :: (position : *Position, sourceCoord : Coord, targetCoord : 
         capture = !coord_same_col(sourceCoord, targetCoord);
 
         // En-passant, remove the captured pawn.
-        if capture && position.board[targetCoord].kind == .Empty {
+        if capture && position.board[targetCoord].kind == .None {
             targetRow, targetCol := row_col(targetCoord);
             enPassantCoord := coord(ifx piece.color == .White then targetRow - 1 else targetRow + 1, targetCol);
-            position.board[enPassantCoord].kind = .Empty;
+            position.board[enPassantCoord].kind = .None;
         }
     } else if piece.kind == .King {
         sourceRow, sourceCol := row_col(sourceCoord);
@@ -631,14 +724,14 @@ position_play_move :: (position : *Position, sourceCoord : Coord, targetCoord : 
         // Castling, move the rook also.
         if sourceCol == targetCol + 2 {
             position.board[coord(targetRow, 3)] = position.board[coord(sourceRow, 0)];
-            position.board[coord(sourceRow, 0)].kind = .Empty;
+            position.board[coord(sourceRow, 0)].kind = .None;
             if updateFlags {
                 if colorToPlay == .White then position.flags &= ~.WhiteKingsideCastlingAllowed;
                 else position.flags &= ~.BlackKingsideCastlingAllowed;
             }
         } else if sourceCol == targetCol - 2 {
             position.board[coord(targetRow, 5)] = position.board[coord(sourceRow, 7)];
-            position.board[coord(sourceRow, 7)].kind = .Empty;
+            position.board[coord(sourceRow, 7)].kind = .None;
             if updateFlags {
                 if colorToPlay == .White then position.flags &= ~.WhiteQueensideCastlingAllowed;
                 else position.flags &= ~.BlackQueensideCastlingAllowed;
@@ -654,12 +747,12 @@ position_play_move :: (position : *Position, sourceCoord : Coord, targetCoord : 
 
     position.moveIndex += 1;
     position.lastMove.capture = capture;
-    position.lastMove.promotion = (promotionPieceKind != .Empty);
+    position.lastMove.promotionPieceKind = promotionPieceKind;
     position.lastMove.sourceCoord = sourceCoord;
     position.lastMove.targetCoord = targetCoord;
-    position.board[targetCoord].kind = ifx promotionPieceKind != .Empty then promotionPieceKind else piece.kind;
+    position.board[targetCoord].kind = ifx promotionPieceKind != .None then promotionPieceKind else piece.kind;
     position.board[targetCoord].color = piece.color;
-    position.board[sourceCoord].kind = .Empty;
+    position.board[sourceCoord].kind = .None;
 
     if updateFlags {
         // Detect if check and/or checkmate.
@@ -670,7 +763,7 @@ position_play_move :: (position : *Position, sourceCoord : Coord, targetCoord : 
         kingCoord := position_find_piece(position, .King, colorNotToPlay);
         if kingCoord != 0xFF && position_square_controlled(position, kingCoord, piece.color) {
             position.flags |= .Check;
-            if position_legal_moves(position).count == 0 {
+            if position_legal_moves(position, promotionVariants = false).count == 0 {
                 position.flags |= .Mate;
             }
         }
@@ -702,21 +795,33 @@ position_square_controlled :: (position : Position, squareCoord : Coord, color :
     return false;
 }
 
-position_legal_moves :: (position : *Position) -> []Move {
+// If promotionVariants is false, only one move is returned for a possible promotion,
+// with the promotionPieceKind set to .None.
+position_legal_moves :: (position : *Position, promotionVariants := true) -> []Move {
     Basic.push_allocator(Basic.temp);
     legalMoves : [..]Move;
 
     colorToPlay := position_color_to_play(position);
     for coord : 0 .. CoordCount - 1 {
         piece := position.board[coord];
-        if piece.kind != .Empty && piece.color == colorToPlay {
+        if piece.kind != .None && piece.color == colorToPlay {
             targetCoords := position_find_piece_targets(position, coord);
 
             move : Move;
             move.sourceCoord = coord;
             for targetCoord : targetCoords {
                 move.targetCoord = targetCoord;
-                Basic.array_add(*legalMoves, move);
+                targetRow, targetCol := row_col(targetCoord);
+
+                if promotionVariants && piece.kind == .Pawn && (targetRow == 0 || targetRow == 7) {
+                    // Add all promotion variants
+                    for promotionPieceKind : PieceKind.[.Rook, .Knight, .Bishop, .Queen] {
+                        move.promotionPieceKind = promotionPieceKind;
+                        Basic.array_add(*legalMoves, move);
+                    }
+                } else {
+                    Basic.array_add(*legalMoves, move);
+                }
             }
         }
     }
@@ -752,14 +857,14 @@ position_square_source_pieces :: (position : Position, squareCoord : Coord, colo
     pawnStartingRow := ifx color == .White then cast(u8) 1 else 6;
     if row != pawnStartingRow && row != pawnStartingRow - pawnDirection {
         // Advance if the target square is empty
-        if position.board[squareCoord].kind == .Empty {
+        if position.board[squareCoord].kind == .None {
             advanceOneCoord := coord(row - pawnDirection, col);
             piece := position.board[advanceOneCoord];
             if piece.kind == .Pawn && piece.color == color {
                 Basic.array_add(*coords, advanceOneCoord);
             }
             // Big advance if from the starting square and the intermediate square is empty
-            if row - 2 * pawnDirection == pawnStartingRow && piece.kind == .Empty {
+            if row - 2 * pawnDirection == pawnStartingRow && piece.kind == .None {
                 advanceTwoCoord := coord(row - 2 * pawnDirection, col);
                 piece := position.board[advanceTwoCoord];
                 if piece.kind == .Pawn && piece.color == color {
@@ -769,7 +874,7 @@ position_square_source_pieces :: (position : Position, squareCoord : Coord, colo
         }
         // Capture if the target square is not empty or en-passant
         enPassantCoord := position_en_passant_coord(*position);
-        if position.board[squareCoord].kind != .Empty || enPassantCoord == squareCoord {
+        if position.board[squareCoord].kind != .None || enPassantCoord == squareCoord {
             if col > 0 {
                 captureCoord := coord(row - pawnDirection, col - 1);
                 piece := position.board[captureCoord];
@@ -789,11 +894,11 @@ position_square_source_pieces :: (position : Position, squareCoord : Coord, colo
 
     // Castling
     castlingRow := ifx color == .White then 0 else 7;
-    if row == castlingRow && position.board[squareCoord].kind == .Empty {
+    if row == castlingRow && position.board[squareCoord].kind == .None {
         kingsideFlag := ifx color == .White then PositionFlags.WhiteKingsideCastlingAllowed else .BlackKingsideCastlingAllowed;
         queensideFlag := ifx color == .White then PositionFlags.WhiteQueensideCastlingAllowed else .BlackQueensideCastlingAllowed;
-        if (col == 6 && position.flags & kingsideFlag && position.board[coord(row, 5)].kind == .Empty) ||
-           (col == 2 && position.flags & queensideFlag && position.board[coord(row, 3)].kind == .Empty && position.board[coord(row, 1)].kind == .Empty) {
+        if (col == 6 && position.flags & kingsideFlag && position.board[coord(row, 5)].kind == .None) ||
+           (col == 2 && position.flags & queensideFlag && position.board[coord(row, 3)].kind == .None && position.board[coord(row, 1)].kind == .None) {
             Basic.array_add(*coords, coord(row, 4));
         }
     }

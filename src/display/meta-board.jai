@@ -10,6 +10,7 @@ MetaBoardEntity :: struct {
     blackPlayerName : PlayerInfoEntity;
     whiteClock : PlayerInfoEntity;
     blackClock : PlayerInfoEntity;
+    smartMover : SmartMoverEntity;
 
     orientation : Color;
     moveIndex : u16;
@@ -27,9 +28,11 @@ meta_board_create :: () -> *MetaBoardEntity {
     Sill.listener_on_message(*listener, _on_message);
     _init_meshes(metaBoard);
     board_init(*board);
+    smart_mover_init(*smartMover);
 
     Sill.entity_set_parent(*whitePlayerName, metaBoard);
     Sill.entity_set_parent(*blackPlayerName, metaBoard);
+    Sill.entity_set_parent(*smartMover, metaBoard);
     Sill.entity_set_parent(*board, metaBoard);
 
     return metaBoard;
@@ -57,13 +60,15 @@ _reflow :: (using metaBoard : *MetaBoardEntity) {
     board_update_to_size(*board, size);
 
     whitePlayerName.transform.translation.x = -size / 2;
-    whitePlayerName.transform.translation.y =  size / 2 + instance.config.env.fontSize / 2 + UiConstants.PaddingPlayerName;
+    whitePlayerName.transform.translation.y =  size / 2 + instance.config.env.fontSize / 2 + UiConstants.PaddingVerticalSmall;
     blackPlayerName.transform.translation.x = -size / 2;
-    blackPlayerName.transform.translation.y = -size / 2 - instance.config.env.fontSize / 2 - UiConstants.PaddingPlayerName;
+    blackPlayerName.transform.translation.y = -size / 2 - instance.config.env.fontSize / 2 - UiConstants.PaddingVerticalSmall;
     whiteClock.transform.translation.x =  size / 2;
-    whiteClock.transform.translation.y =  size / 2 + instance.config.env.fontSize / 2 + UiConstants.PaddingPlayerName;
+    whiteClock.transform.translation.y =  size / 2 + instance.config.env.fontSize / 2 + UiConstants.PaddingVerticalSmall;
     blackClock.transform.translation.x =  size / 2;
-    blackClock.transform.translation.y = -size / 2 - instance.config.env.fontSize / 2 - UiConstants.PaddingPlayerName;
+    blackClock.transform.translation.y = -size / 2 - instance.config.env.fontSize / 2 - UiConstants.PaddingVerticalSmall;
+
+    smartMover.transform.translation.y = size / 2;
 
     if orientation == .Black {
         whitePlayerName.transform.translation.y *= -1;
@@ -106,17 +111,17 @@ _update_to_position :: (using metaBoard : *MetaBoardEntity, position : *Position
     Sill.entity_set_disabled(*whiteClock, true);
     if position.whiteClock.count != 0 {
         Sill.entity_set_disabled(*whiteClock, false);
-        charInfos := text_mesh_update(whiteClock.mesh.nodes[0].primitives[0], position.whiteClock, "mono", instance.config.env.textColor);
-        whiteClock.mesh.nodes[0].transform.translation.x = -Basic.peek(charInfos.infos).effective.xStart - Basic.peek(charInfos.infos).glyphAdvance;
-        Basic.array_free(charInfos.infos);
+        _, width := text_mesh_update(whiteClock.mesh.nodes[0].primitives[0], position.whiteClock, "mono", instance.config.env.textColor, computeCharInfos = false);
+        whiteClock.mesh.nodes[0].transform.translation.x = -Math.floor(width + 0.5);
+        Sill.mesh_commit_nodes(*whiteClock.mesh, instantly = true);
     }
 
     Sill.entity_set_disabled(*blackClock, true);
     if position.blackClock.count != 0 {
         Sill.entity_set_disabled(*blackClock, false);
-        charInfos := text_mesh_update(blackClock.mesh.nodes[0].primitives[0], position.blackClock, "mono", instance.config.env.textColor);
-        blackClock.mesh.nodes[0].transform.translation.x = -Basic.peek(charInfos.infos).effective.xStart - Basic.peek(charInfos.infos).glyphAdvance;
-        Basic.array_free(charInfos.infos);
+        _, width := text_mesh_update(blackClock.mesh.nodes[0].primitives[0], position.blackClock, "mono", instance.config.env.textColor, computeCharInfos = false);
+        blackClock.mesh.nodes[0].transform.translation.x = -Math.floor(width + 0.5);
+        Sill.mesh_commit_nodes(*blackClock.mesh, instantly = true);
     }
 
     instance.metaBoard.moveIndex = position.moveIndex;

@@ -633,7 +633,7 @@ _parse_potential_mate :: (bytes : *string) -> bool {
 }
 
 _parse_potential_promotion :: (bytes : *string) -> PieceKind {
-    if (<<bytes)[0] != #char "=" then return .Empty;
+    if (<<bytes)[0] != #char "=" then return .None;
     Basic.advance(bytes);
 
     return _parse_piece_kind(bytes);
@@ -658,7 +658,7 @@ _parse_pgn_move :: (bytes : *string) -> (sourceHintCoord : Coord, targetCoord : 
 }
 
 _parse_piece_kind :: (bytes : *string) -> PieceKind {
-    pieceKind := PieceKind.Empty;
+    pieceKind := PieceKind.None;
 
     if      (<<bytes)[0] == #char "B" then pieceKind = .Bishop;
     else if (<<bytes)[0] == #char "K" then pieceKind = .King;

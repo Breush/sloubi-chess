@@ -141,7 +141,7 @@ game_play_move :: (game : *Game, sourceCoord : Coord, targetCoord : Coord, promo
     for nextPly : ply_next_plies(game.ply) {
         if nextPly.position.lastMove.sourceCoord == sourceCoord &&
            nextPly.position.lastMove.targetCoord == targetCoord &&
-           (!nextPly.position.lastMove.promotion || nextPly.position.board[targetCoord].kind == promotionPieceKind) {
+           (nextPly.position.lastMove.promotionPieceKind == promotionPieceKind) {
             game_update_to(game, nextPly);
             return;
         }

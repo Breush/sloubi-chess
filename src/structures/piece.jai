@@ -6,11 +6,11 @@ Piece :: struct {
 
 operator== :: (piece1 : Piece, piece2 : Piece) -> bool {
     return piece1.kind == piece2.kind &&
-           (piece1.kind == .Empty || piece1.color == piece2.color);
+           (piece1.kind == .None || piece1.color == piece2.color);
 }
 
 PieceKind :: enum u8 {
-    Empty :: 0;
+    None :: 0;
     Bishop; B :: Bishop;
     King;   K :: King;
     Knight; N :: Knight;
@@ -21,7 +21,7 @@ PieceKind :: enum u8 {
 
 PieceKindCount :: 7;
 
-// Empty :: 0;
+// None :: 0;
 // WB; WK; WN; WP; WQ; WR;
 // BB; BK; BN; BP; BQ; BR;
 PieceId :: u8;
@@ -35,12 +35,12 @@ make_piece :: (kind : PieceKind, color : Color) -> Piece {
 }
 
 piece_id :: (piece : Piece) -> PieceId {
-    if (piece.kind == .Empty) return 0;
+    if (piece.kind == .None) return 0;
     return 6 * cast(u8) piece.color + cast(u8) piece.kind;
 }
 
 piece_id :: (kind : PieceKind, color : Color) -> PieceId {
-    if (kind == .Empty) return 0;
+    if (kind == .None) return 0;
     return 6 * cast(u8) color + cast(u8) kind;
 }
 
@@ -60,33 +60,30 @@ piece_to_utf8 :: (piece : Piece) -> string {
     return " ";
 }
 
-piece_to_symbol :: (piece : Piece) -> string {
-    if piece.kind == .B then return "♝";
-    if piece.kind == .K then return "♚";
-    if piece.kind == .N then return "♞";
-    if piece.kind == .P then return "";
-    if piece.kind == .Q then return "♛";
-    if piece.kind == .R then return "♜";
-    return "?";
-}
-
-piece_to_algebraic :: (pieceKind : PieceKind) -> string {
-    if pieceKind == .B then return "B";
-    if pieceKind == .K then return "K";
-    if pieceKind == .N then return "N";
+piece_kind_to_symbol :: (pieceKind : PieceKind) -> string {
     if pieceKind == .P then return "";
-    if pieceKind == .Q then return "Q";
-    if pieceKind == .R then return "R";
+    if pieceKind == .R then return instance.config.env.piecesSymbols[0];
+    if pieceKind == .N then return instance.config.env.piecesSymbols[1];
+    if pieceKind == .B then return instance.config.env.piecesSymbols[2];
+    if pieceKind == .Q then return instance.config.env.piecesSymbols[3];
+    if pieceKind == .K then return instance.config.env.piecesSymbols[4];
     return "?";
-}
-
-piece_to_algebraic :: (piece : Piece) -> string {
-    return piece_to_algebraic(piece.kind);
 }
 
 piece_at_coord :: (coord : Coord) -> Piece {
     if instance.game.ply == null then return .{}; // Empty
     return instance.game.ply.position.board[coord];
+}
+
+// In centipawns
+piece_kind_value :: (pieceKind : PieceKind) -> s32 {
+    if pieceKind == .P then return 100;
+    if pieceKind == .R then return 500;
+    if pieceKind == .N then return 300;
+    if pieceKind == .B then return 350;
+    if pieceKind == .Q then return 900;
+    if pieceKind == .K then return 0x7FFF_FFFF;
+    return 0;
 }
 
 PieceMovement :: struct {

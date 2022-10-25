@@ -68,7 +68,7 @@ position_to_fen :: (position : Position) -> string {
         emptyCount := 0;
         for col : 0..7 {
             squareCoord := coord(7 - cast(u8) oppositeRow, cast(u8) col);
-            if position.board[squareCoord].kind == .Empty {
+            if position.board[squareCoord].kind == .None {
                 emptyCount += 1;
             } else {
                 if emptyCount != 0 {
@@ -153,5 +153,5 @@ _fen_get_piece :: (fen : u8) -> Piece {
     if fen == #char "P" then return .{ .P, .White };
     if fen == #char "Q" then return .{ .Q, .White };
     if fen == #char "R" then return .{ .R, .White };
-    return .{ kind = .Empty };
+    return .{ kind = .None };
 }
