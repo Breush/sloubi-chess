@@ -16,6 +16,12 @@ SmartMoverEntity :: struct {
     keysMeshNode : *Sill.MeshNode;
     dotsMeshNode : *Sill.MeshNode;
 
+    on_cleanup :: (using smartMover : *SmartMoverEntity) {
+        Basic.array_free(keys);
+        Basic.array_free(moves);
+        Basic.free(keysText);
+    }
+
     SmartMove :: struct {
         using #as move : Move;
         sanKeys : SanKeys;
@@ -134,6 +140,9 @@ smart_mover_remove_last_key :: (using smartMover : *SmartMoverEntity) {
 #scope_file
 
 _on_message :: (using smartMover : *SmartMoverEntity, message : *Message) {
+    board := *(cast(*MetaBoardEntity) smartMover.parent).board;
+    if !board.state.interactive then return;
+
     if message.kind == {
     case .GameSelectedPlyChanged;
         smart_mover_reset(smartMover);

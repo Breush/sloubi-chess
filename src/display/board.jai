@@ -18,6 +18,7 @@ BoardEntity :: struct {
 
     on_cleanup :: (using board : *BoardEntity) {
         Basic.array_free(arrows);
+        board_state_cleanup(board);
     }
 }
 

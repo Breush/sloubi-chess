@@ -88,8 +88,14 @@ Persistence :: struct {
 config_cleanup :: (config : *Config) {
     Basic.free(config.env.fontFamily);
     Basic.free(config.env.monoFontFamily);
+    for config.env.piecesSymbols { Basic.free(it); }
+    Basic.array_free(config.env.piecesSymbols);
     Basic.free(config.analysis.externalSite);
     Basic.free(config.board.pieces);
+    Basic.array_free(config.board.keyboardMove.piecesMap);
+    Basic.array_free(config.board.keyboardMove.numbersMap);
+    Basic.array_free(config.board.keyboardMove.selectNext);
+    Basic.array_free(config.board.keyboardMove.playSelected);
 }
 
 persistence_cleanup :: (persistence : *Persistence) {

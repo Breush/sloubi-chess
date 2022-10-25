@@ -14,6 +14,11 @@ BoardState :: struct {
     pawnPromotionTargetCoord : Coord = 0xFF;
 }
 
+board_state_cleanup :: (using boardState : *BoardState) {
+    Basic.array_free(targetableCoords);
+    Basic.array_free(hintedCoords);
+}
+
 board_state_interactive :: (boardState : *BoardState, interactive := true) {
     boardState.interactive = interactive;
 }
