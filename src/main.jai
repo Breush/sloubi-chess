@@ -53,6 +53,7 @@ Instance :: struct {
 
     shaders : struct {
         decorum : *Magma.Shader;
+        gradient : *Magma.Shader;
         monochrome : *Magma.Shader;
         text : *Magma.Shader;
         translucentMonochrome : *Magma.Shader;
@@ -177,6 +178,7 @@ _fonts_init :: () {
 }
 
 _shaders_init :: () {
+    instance.shaders.gradient = Magma.create_shader(instance.engine.renderer, "./assets/materials/gradient");
     instance.shaders.monochrome = Magma.create_shader(instance.engine.renderer, "./assets/materials/monochrome");
     instance.shaders.text = Magma.create_shader(instance.engine.renderer, "./assets/materials/text", .{ depthWriteEnabled = false, alphaBlendingEnabled = true });
     instance.shaders.translucentMonochrome = Magma.create_shader(instance.engine.renderer, "./assets/materials/translucent-monochrome", .{ depthWriteEnabled = false, alphaBlendingEnabled = true });

@@ -60,10 +60,11 @@ board_init :: (using board : *BoardEntity) {
 
             if normalizedCoord.x >= 0 && normalizedCoord.x < 8 && normalizedCoord.y >= 0 && normalizedCoord.y < 8 {
                 board_state_hover_coord(board, coord(normalizedCoord.x, normalizedCoord.y));
-                Sill.ui_set_focused(*board.ui);
             } else {
                 board_state_hover_coord(board, 0xFF);
             }
+        } else if trigger.flags & .ClickStart {
+            Sill.ui_set_focused(*board.ui);
         } else if trigger.flags & .Key {
             smart_mover_ui_trigger(*instance.metaBoard.smartMover, trigger);
         }
@@ -75,7 +76,7 @@ board_init :: (using board : *BoardEntity) {
             movingPiece.transform.translation.xy = relativeMousePointerPosition;
             Sill.transform_commit(*movingPiece.transform);
         }
-    }, Sill.UiCallbackFlags.ClickStart | .ClickStop | .Hovering | .HoverStop | .DragStart | .Dragging | .DragStop | .DragDrop | .Key, board);
+    }, userData = board);
 
     // Drawing a position
     board_state_set_position(board, *STARTING_POSITION);

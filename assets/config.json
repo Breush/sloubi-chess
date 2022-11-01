@@ -42,7 +42,7 @@
         "keyboardMove": {
             // Allow entering moves with keyboard.
             // For instance, with the default config, typing "nf3<Return>" will move a knight to f3 if allowed.
-            "enabled": false,
+            "enabled": true,
             // Map keyboard keys to a piece name (Rook, Knight, Bishop, Queen, King).
             // This allows writing a piece name in a different language.
             // They can be different from the display characters used in `env.piecesSymbol`.

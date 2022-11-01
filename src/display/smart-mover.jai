@@ -32,6 +32,7 @@ smart_mover_init :: (using smartMover : *SmartMoverEntity) {
     if !instance.config.board.keyboardMove.enabled then return;
 
     Sill.listener_on_message(*smartMover.listener, _on_message);
+    Sill.entity_set_disabled(smartMover, true); // Start disabled, focusing the board will show it.
 
     _init_meshes(smartMover);
 }
@@ -50,7 +51,6 @@ smart_mover_ui_trigger :: (using smartMover : *SmartMoverEntity, trigger : Sill.
         smart_mover_remove_last_key(smartMover);
         return;
     }
-
 
     // Check that the new key represents something.
     possibleSanKeys := _key_to_possible_san_keys(trigger.event.key.which);
@@ -146,6 +146,8 @@ _on_message :: (using smartMover : *SmartMoverEntity, message : *Message) {
     if message.kind == {
     case .GameSelectedPlyChanged;
         smart_mover_reset(smartMover);
+    case .BoardStateFocusChanged;
+        Sill.entity_set_disabled(smartMover, !board.state.focus);
     case .SmartMoverMovesChanged;
         _update_from_moves(smartMover);
     case .SmartMoverDisplayedMovesChanged;
@@ -246,8 +248,9 @@ _init_meshes :: (using smartMover : *SmartMoverEntity) {
     // Background
     Basic.array_add(*mesh.nodes[0].primitives, create_rect_mesh(SmartMoverEntity.WIDTH, 2 * UiConstants.HeightLine + 2 * UiConstants.PaddingVerticalMedium));
     mesh.nodes[0].transform.translation.y += UiConstants.HeightLine + UiConstants.PaddingVerticalMedium;
-    mesh.nodes[0].primitives[0].material = Magma.create_material(instance.shaders.monochrome);
+    mesh.nodes[0].primitives[0].material = Magma.create_material(instance.shaders.gradient);
     Magma.material_set(mesh.nodes[0].primitives[0].material, "color", instance.config.env.secondaryBackgroundColor);
+    Magma.material_set(mesh.nodes[0].primitives[0].material, "fadeColor", instance.config.env.backgroundColor);
 
     // Moves
     for i : 0 .. 3 {

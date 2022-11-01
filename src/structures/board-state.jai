@@ -9,6 +9,7 @@ BoardState :: struct {
     // Controller part
     position : *Position; // The currently displayed position, not owned.
     interactive : bool;
+    focus : bool;
     arrowingStartCoord : Coord = 0xFF;
     pawnPromotionSourceCoord : Coord = 0xFF;
     pawnPromotionTargetCoord : Coord = 0xFF;
@@ -125,6 +126,12 @@ board_state_ui_trigger :: (using boardState : *BoardState, trigger : Sill.UiTrig
                 position_add_arrow_highlight(*instance.game.ply.position, arrowHighlight);
             }
         }
+    } else if trigger.flags & .FocusStart {
+        focus = true;
+        send(.BoardStateFocusChanged);
+    } else if trigger.flags & .FocusStop {
+        focus = false;
+        send(.BoardStateFocusChanged);
     }
 }
 

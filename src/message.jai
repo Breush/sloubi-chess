@@ -21,6 +21,7 @@ MessageKind :: enum u32 {
     ModePlyEditCommentStopped;                  // ()
     GameSelectedPlyChanged;                     // (oldPly : *PlyEntity)
     PositionHighlightsChanged;                  // (position : *Position)
+    BoardStateFocusChanged;                     // ()
     BoardStatePositionChanged;                  // ()
     BoardStateSelectedCoordChanged;             // (oldCoord : Coord)
     BoardStateHoveredCoordChanged;              // (oldCoord : Coord)
