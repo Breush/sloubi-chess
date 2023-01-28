@@ -33,10 +33,6 @@ variation_init :: (variation : *VariationEntity, firstOne := true) {
 
     if (variation.parentPly != null) {
         _init_decorum(variation);
-        // @todo It would ease the replace of plies if the plies were children
-        // of the variation, and not the inverse.
-        // It would also ease the computation of the size for the decorum.
-        Sill.entity_set_parent(variation, variation.plies[0]);
     }
 
     if firstOne {
@@ -119,12 +115,12 @@ variation_debug_dump :: (variation : *VariationEntity, depth : u8) {
 
 _on_message :: (variation : *VariationEntity, message : *Message) {
     if message.kind == {
-    case .GameSelectedPlyChanged;
+    case .SelectedPlyChanged;
         if variation.plies.count == 0 then return;
         if message.oldPly == variation.plies[0] && variation.mesh.nodes.count != 0 {
-            Magma.material_set(variation.mesh.nodes[0].primitives[0].material, "color", instance.config.moves.mainColor);
-        } else if instance.game.ply == variation.plies[0] && variation.mesh.nodes.count != 0 {
-            Magma.material_set(variation.mesh.nodes[0].primitives[0].material, "color", instance.config.moves.selectedColor);
+            Magma.material_set_color(variation.mesh.nodes[0].primitives[0].material, "color", instance.config.moves.mainColor);
+        } else if instance.currentGame.ply == variation.plies[0] && variation.mesh.nodes.count != 0 {
+            Magma.material_set_color(variation.mesh.nodes[0].primitives[0].material, "color", instance.config.moves.selectedColor);
         }
     case .VariationContentChanged;
         if variation == message.variation {
@@ -137,36 +133,25 @@ _init_decorum :: (variation : *VariationEntity) {
     variation.ui.anchor = .TopLeft;
 
     mesh := Magma.create_mesh(instance.engine.scene);
-    create_rect_mesh(existingMesh = mesh);
-
-    mesh.vertices[0].position.x = 0.0;
-    mesh.vertices[0].position.y = 0.0;
-    mesh.vertices[1].position.x = 0.0;
-    mesh.vertices[1].position.y = 1.0; // Will be height
-    mesh.vertices[2].position.x = 1.0; // Will be width
-    mesh.vertices[2].position.y = 1.0; // Will be height
-    mesh.vertices[3].position.x = 1.0; // Will be width
-    mesh.vertices[3].position.y = 0.0;
+    create_rect_mesh(1, 1, 0, .TopLeft, existingMesh = mesh);
 
     mesh.material = Magma.create_material(instance.shaders.decorum);
-    Magma.material_set(mesh.material, "color", instance.config.moves.mainColor);
+    Magma.material_set_color(mesh.material, "color", instance.config.moves.mainColor);
     Magma.mesh_commit_vertices(mesh);
 
     Basic.array_add(*variation.mesh.nodes, .{});
     Basic.array_add(*Basic.peek_pointer(variation.mesh.nodes).primitives, mesh);
 
     Sill.ui_on_trigger(*variation.ui, (trigger : Sill.UiTrigger, variation : *VariationEntity) {
-        if trigger.flags == .ClickStart {
-            variation_toggle_collapsed((cast(*PlyEntity) variation.parent).parentVariation);
+        if trigger.flags == .ClickStop {
+            variation_toggle_collapsed(variation);
         } else {
             pointerStyle := ifx trigger.flags == .HoverStart then Crater.PointerStyle.HandPointing else .Default;
             color := ifx trigger.flags == .HoverStart then instance.config.moves.selectedColor else instance.config.moves.mainColor;
-            Magma.material_set(variation.mesh.nodes[0].primitives[0].material, "color", color);
+            Magma.material_set_color(variation.mesh.nodes[0].primitives[0].material, "color", color);
             Crater.window_pointer_style(instance.engine.window, pointerStyle);
         }
-    }, Sill.UiCallbackFlags.HoverStart | .HoverStop | .ClickStart, variation);
-
-    variation.transform.translation.x = -UiConstants.PaddingHorizontalVariation / 2.0;
+    }, Sill.UiCallbackFlags.HoverStart | .HoverStop | .ClickStop, variation);
 }
 
 _rebuild_decorum :: (variation : *VariationEntity) {
@@ -185,6 +170,13 @@ _rebuild_decorum :: (variation : *VariationEntity) {
     Sill.entity_set_disabled(variation, hidden);
     if hidden then return;
 
+    // @todo Is this the right thing to do? It just feels a bit weird to be placed based
+    // a "child" conceptually.
+    Sill.entity_set_parent(variation, variation.plies[0].parent);
+    variation.transform.translation.xy = variation.plies[0].transform.translation.xy;
+    variation.transform.translation.x -= UiConstants.PaddingHorizontalVariation / 2.0;
+    Sill.transform_commit(*variation.transform);
+
     firstPly := variation.plies[0];
     lastPly := Basic.peek(variation.plies);
 
@@ -195,6 +187,7 @@ _rebuild_decorum :: (variation : *VariationEntity) {
     position := firstPly.transform.translation;
     height := lastPly.transform.translation.y + lastPly.ui.extent.height - position.y;
     height = Basic.max(height, UiConstants.HeightLine);
+    if variation.collapsed then height += 1; // So that the check below distinguishes between collapsed and not collapsed.
 
     if height == variation.decorumHeight then return;
     variation.decorumHeight = height;

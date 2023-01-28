@@ -4,6 +4,11 @@ Piece :: struct {
     color : Color;
 }
 
+Color :: enum u8 {
+    White :: 0;
+    Black;
+}
+
 operator== :: (piece1 : Piece, piece2 : Piece) -> bool {
     return piece1.kind == piece2.kind &&
            (piece1.kind == .None || piece1.color == piece2.color);
@@ -28,20 +33,22 @@ PieceId :: u8;
 PieceIdCount : PieceId : 13;
 
 make_piece :: (kind : PieceKind, color : Color) -> Piece {
-    piece : Piece = ---;
-    piece.kind = kind;
-    piece.color = color;
-    return piece;
+    return .{ kind, color };
 }
 
 piece_id :: (piece : Piece) -> PieceId {
-    if (piece.kind == .None) return 0;
+    if piece.kind == .None then return 0;
     return 6 * cast(u8) piece.color + cast(u8) piece.kind;
 }
 
 piece_id :: (kind : PieceKind, color : Color) -> PieceId {
-    if (kind == .None) return 0;
+    if kind == .None then return 0;
     return 6 * cast(u8) color + cast(u8) kind;
+}
+
+piece_from_piece_id :: (pieceId : PieceId) -> Piece {
+    if pieceId == 0 then return .{};
+    return make_piece(cast(PieceKind) ((pieceId - 1) % 6 + 1), cast(Color) ((pieceId - 1) / 6));
 }
 
 piece_to_utf8 :: (piece : Piece) -> string {
@@ -71,8 +78,8 @@ piece_kind_to_symbol :: (pieceKind : PieceKind) -> string {
 }
 
 piece_at_coord :: (coord : Coord) -> Piece {
-    if instance.game.ply == null then return .{}; // Empty
-    return instance.game.ply.position.board[coord];
+    if instance.currentGame == null then return .{}; // Empty
+    return instance.currentGame.ply.position.board[coord];
 }
 
 // In centipawns

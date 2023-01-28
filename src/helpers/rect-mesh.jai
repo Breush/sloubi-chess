@@ -1,4 +1,4 @@
-create_rect_mesh :: (width := 1.0, height := 1.0, depth := 0.0, existingMesh : *Magma.Mesh = null) -> *Magma.Mesh {
+create_rect_mesh :: (width := 1.0, height := 1.0, depth := 0.0, anchor := Chamber.Anchor.Center, existingMesh : *Magma.Mesh = null) -> *Magma.Mesh {
     mesh := existingMesh;
     if mesh == null {
         mesh = Magma.create_mesh(instance.engine.scene);
@@ -28,9 +28,21 @@ create_rect_mesh :: (width := 1.0, height := 1.0, depth := 0.0, existingMesh : *
 
     indices := u16.[0,  1,  2,  2,  3,  0];
 
+    offset : Chamber.vec3;
+    if anchor == {
+        case .Left;         offset.x += width / 2.0;
+        case .Right;        offset.x -= width / 2.0;
+        case .Top;          offset.y += height / 2.0;
+        case .Bottom;       offset.y -= height / 2.0;
+        case .TopLeft;      offset.x += width / 2.0; offset.y += height / 2.0;
+        case .TopRight;     offset.x -= width / 2.0; offset.y += height / 2.0;
+        case .BottomLeft;   offset.x += width / 2.0; offset.y -= height / 2.0;
+        case .BottomRight;  offset.x -= width / 2.0; offset.y -= height / 2.0;
+    }
+
     Basic.array_resize(*mesh.vertices, positions.count);
     for *vertex, i : mesh.vertices {
-        vertex.position = positions[i];
+        vertex.position.std = positions[i] + offset;
         vertex.uv = uvs[i];
     }
 

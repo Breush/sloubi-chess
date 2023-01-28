@@ -1,4 +1,4 @@
-BoardState :: struct {
+Board :: struct {
     // Model part, use these to update the view
     selectedCoord : Coord = 0xFF; // Only valid if there's a piece there.
     hoveredCoord : Coord = 0xFF;
@@ -8,28 +8,30 @@ BoardState :: struct {
 
     // Controller part
     position : *Position; // The currently displayed position, not owned.
-    interactive : bool;
+    interactive := true;
     focus : bool;
     arrowingStartCoord : Coord = 0xFF;
     pawnPromotionSourceCoord : Coord = 0xFF;
     pawnPromotionTargetCoord : Coord = 0xFF;
 }
 
-board_state_cleanup :: (using boardState : *BoardState) {
+board_cleanup :: (using board : *Board) {
     Basic.array_free(targetableCoords);
     Basic.array_free(hintedCoords);
 }
 
-board_state_interactive :: (boardState : *BoardState, interactive := true) {
-    boardState.interactive = interactive;
+board_interactive :: (board : *Board, interactive := true) {
+    if board.interactive == interactive then return;
+    board.interactive = interactive;
+    send(.BoardInteractiveChanged);
 }
 
 // Set coord to 0xFF to unselect.
-board_state_select_coord :: (using boardState : *BoardState, coord : Coord, updateTargetableCoords := true) {
+board_select_coord :: (using board : *Board, coord : Coord, updateTargetableCoords := true) {
     if selectedCoord == coord then return;
     oldCoord := selectedCoord;
     selectedCoord = coord;
-    send(.BoardStateSelectedCoordChanged, oldCoord);
+    send(.BoardSelectedCoordChanged, oldCoord);
 
     if updateTargetableCoords {
         if selectedCoord != 0xFF {
@@ -39,132 +41,132 @@ board_state_select_coord :: (using boardState : *BoardState, coord : Coord, upda
         } else {
             targetableCoords.count = 0;
         }
-        send(.BoardStateTargetableCoordsChanged);
+        send(.BoardTargetableCoordsChanged);
     }
 }
 
 // Set coord to 0xFF to unhover.
-board_state_hover_coord :: (using boardState : *BoardState, coord : Coord) {
+board_hover_coord :: (using board : *Board, coord : Coord) {
     if !interactive then return;
     if hoveredCoord == coord then return;
     oldCoord := hoveredCoord;
     hoveredCoord = coord;
-    send(.BoardStateHoveredCoordChanged, oldCoord);
+    send(.BoardHoveredCoordChanged, oldCoord);
 }
 
 // Set coord to 0xFF to ungrab.
-board_state_grab_coord :: (using boardState : *BoardState, coord : Coord) {
+board_grab_coord :: (using board : *Board, coord : Coord) {
     if grabbedCoord == coord then return;
     oldCoord := grabbedCoord;
     grabbedCoord = coord;
-    send(.BoardStateGrabbedCoordChanged, oldCoord);
+    send(.BoardGrabbedCoordChanged, oldCoord);
 }
 
-board_state_hint_coords :: (using boardState : *BoardState, coords : []Coord) {
+board_hint_coords :: (using board : *Board, coords : []Coord) {
     Basic.array_copy(*hintedCoords, coords);
-    send(.BoardStateHintedCoordsChanged);
+    send(.BoardHintedCoordsChanged);
 }
 
-board_state_start_pawn_promotion_selection :: (using boardState : *BoardState, sourceCoord : Coord, targetCoord : Coord) {
+board_start_pawn_promotion_selection :: (using board : *Board, sourceCoord : Coord, targetCoord : Coord) {
     pawnPromotionSourceCoord = sourceCoord;
     pawnPromotionTargetCoord = targetCoord;
-    send(.BoardStatePawnPromotionSelectionStarted);
+    send(.BoardPawnPromotionSelectionStarted);
 }
 
-board_state_ui_trigger :: (using boardState : *BoardState, trigger : Sill.UiTrigger) {
+board_ui_trigger :: (using board : *Board, trigger : Sill.UiTrigger) {
     if position == null then return;
     if !interactive then return;
 
     if trigger.flags & .ClickStart {
         if trigger.event.mouseButton.which == .Left {
             // Select a piece if there's one, or move the selected piece.
-            if _update_coord_for_piece_movement(boardState, hoveredCoord, playAllowed = instance.config.board.clickClickMove.enabled) {
-                board_state_select_coord(boardState, hoveredCoord);
+            if _update_coord_for_piece_movement(board, hoveredCoord, playAllowed = instance.config.board.clickClickMove.enabled) {
+                board_select_coord(board, hoveredCoord);
             } else {
                 position_clear_highlights(position);
-                board_state_select_coord(boardState, 0xFF);
+                board_select_coord(board, 0xFF);
             }
         }
         if trigger.event.mouseButton.which == instance.config.board.destinationSquareMove.mouseButton {
-            _destination_square_piece_movement(boardState, hoveredCoord);
+            _destination_square_piece_movement(board, hoveredCoord);
         }
     } else if trigger.flags & .ClickStop {
         if trigger.event.mouseButton.which == .Left {
             if !instance.config.board.clickClickMove.enabled {
-                board_state_select_coord(boardState, 0xFF);
+                board_select_coord(board, 0xFF);
             }
         } else if trigger.event.mouseButton.which == .Right && hoveredCoord != 0xFF {
-            _toggle_hovered_coord_square_highlight(boardState);
+            _toggle_hovered_coord_square_highlight(board);
         }
     } else if trigger.flags & .DragStart {
         if trigger.event.mouseButton.which == .Left {
             if instance.config.board.dragAndDropMove.enabled {
-                board_state_grab_coord(boardState, selectedCoord);
+                board_grab_coord(board, selectedCoord);
             }
         } else if trigger.event.mouseButton.which == .Right {
             arrowingStartCoord = hoveredCoord;
         }
     } else if trigger.flags & .DragStop {
         if grabbedCoord != 0xFF {
-            if !instance.config.board.clickClickMove.enabled then board_state_select_coord(boardState, 0xFF);
-            board_state_grab_coord(boardState, 0xFF);
+            if !instance.config.board.clickClickMove.enabled then board_select_coord(board, 0xFF);
+            board_grab_coord(board, 0xFF);
         } else {
             arrowingStartCoord = 0xFF;
         }
     } else if trigger.flags & .DragDrop {
         if grabbedCoord != 0xFF {
-            board_state_grab_coord(boardState, 0xFF);
-            _update_coord_for_piece_movement(boardState, hoveredCoord, selectAllowed = false);
+            board_grab_coord(board, 0xFF);
+            _update_coord_for_piece_movement(board, hoveredCoord, selectAllowed = false);
         } else {
             if arrowingStartCoord == hoveredCoord {
-                _toggle_hovered_coord_square_highlight(boardState);
+                _toggle_hovered_coord_square_highlight(board);
             } else {
                 arrowHighlight : ArrowHighlight;
                 arrowHighlight.color = highlight_color();
                 arrowHighlight.fromCoord = arrowingStartCoord;
                 arrowHighlight.toCoord = hoveredCoord;
-                position_add_arrow_highlight(*instance.game.ply.position, arrowHighlight);
+                position_add_arrow_highlight(*instance.currentGame.ply.position, arrowHighlight);
             }
         }
     } else if trigger.flags & .FocusStart {
         focus = true;
-        send(.BoardStateFocusChanged);
+        send(.BoardFocusChanged);
     } else if trigger.flags & .FocusStop {
         focus = false;
-        send(.BoardStateFocusChanged);
+        send(.BoardFocusChanged);
     }
 }
 
-board_state_set_position :: (boardState : *BoardState, position : *Position) {
-    if boardState.position == position then return;
-    boardState.position = position;
-    send(.BoardStatePositionChanged);
+board_set_position :: (board : *Board, position : *Position) {
+    if board.position == position then return;
+    board.position = position;
+    send(.BoardPositionChanged);
 
-    board_state_select_coord(boardState, 0xFF);
+    board_select_coord(board, 0xFF);
 }
 
-board_state_try_play_move :: (using boardState : *BoardState, sourceCoord : Coord, targetCoord : Coord) {
+board_try_play_move :: (using board : *Board, sourceCoord : Coord, targetCoord : Coord) {
     selectedCoord = sourceCoord;
-    _update_coord_for_piece_movement(boardState, targetCoord, selectAllowed = false);
+    _update_coord_for_piece_movement(board, targetCoord, selectAllowed = false);
 }
 
-board_state_play_pawn_promotion :: (using boardState : *BoardState, pieceKind : PieceKind) {
+board_play_pawn_promotion :: (using board : *Board, pieceKind : PieceKind) {
     if position_move_legal(position, pawnPromotionSourceCoord, pawnPromotionTargetCoord, pieceKind) {
-        game_play_move(*instance.game, pawnPromotionSourceCoord, pawnPromotionTargetCoord, pieceKind);
+        game_play_move(instance.currentGame, pawnPromotionSourceCoord, pawnPromotionTargetCoord, pieceKind);
     }
-    send(.BoardStatePawnPromotionSelectionStopped);
+    send(.BoardPawnPromotionSelectionStopped);
 }
 
-board_state_prepare_move :: (using boardState : *BoardState, sourceCoord : Coord, targetCoord : Coord) {
-    board_state_select_coord(boardState, sourceCoord, updateTargetableCoords = false);
+board_prepare_move :: (using board : *Board, sourceCoord : Coord, targetCoord : Coord) {
+    board_select_coord(board, sourceCoord, updateTargetableCoords = false);
 
     if targetCoord != 0xFF {
-        Basic.array_resize(*boardState.targetableCoords, 1);
-        boardState.targetableCoords[0] = targetCoord;
-        send(.BoardStateTargetableCoordsChanged);
+        Basic.array_resize(*board.targetableCoords, 1);
+        board.targetableCoords[0] = targetCoord;
+        send(.BoardTargetableCoordsChanged);
     } else {
-        boardState.targetableCoords.count = 0;
-        send(.BoardStateTargetableCoordsChanged);
+        board.targetableCoords.count = 0;
+        send(.BoardTargetableCoordsChanged);
     }
 }
 
@@ -172,7 +174,7 @@ board_state_prepare_move :: (using boardState : *BoardState, sourceCoord : Coord
 
 // Called each time a square is simply-clicked.
 // Return true if a coord is selected.
-_update_coord_for_piece_movement :: (using boardState : *BoardState, targetCoord : Coord, selectAllowed := true, playAllowed := true) -> bool {
+_update_coord_for_piece_movement :: (using board : *Board, targetCoord : Coord, selectAllowed := true, playAllowed := true) -> bool {
     // If we're selecting a piece of our color, just select that square.
     if selectAllowed {
         piece := piece_at_coord(targetCoord);
@@ -191,46 +193,46 @@ _update_coord_for_piece_movement :: (using boardState : *BoardState, targetCoord
         promotionPieceKind := ifx isPromotion then PieceKind.Queen else .None;
 
         if position_move_legal(position, selectedCoord, targetCoord, promotionPieceKind) {
-            if isPromotion then board_state_start_pawn_promotion_selection(boardState, selectedCoord, targetCoord);
-            else game_play_move(*instance.game, selectedCoord, targetCoord, .None);
+            if isPromotion then board_start_pawn_promotion_selection(board, selectedCoord, targetCoord);
+            else game_play_move(instance.currentGame, selectedCoord, targetCoord, .None);
         }
     }
 
     return false;
 }
 
-_toggle_hovered_coord_square_highlight :: (using boardState : *BoardState) {
+_toggle_hovered_coord_square_highlight :: (using board : *Board) {
     squareHighlight : SquareHighlight;
     squareHighlight.coord = hoveredCoord;
     squareHighlight.color = highlight_color();
     position_toggle_highlight(position, squareHighlight);
 }
 
-_destination_square_piece_movement :: (using boardState : *BoardState, targetCoord : Coord) {
+_destination_square_piece_movement :: (using board : *Board, targetCoord : Coord) {
     if !instance.config.board.destinationSquareMove.enabled then return;
     colorToPlay := position_color_to_play(position);
 
     if position.board[targetCoord].kind != .None && position.board[targetCoord].color == colorToPlay {
-        board_state_hint_coords(boardState, .[]);
+        board_hint_coords(board, .[]);
         return;
     }
 
     sourceCoords := position_square_source_pieces(position, targetCoord, colorToPlay);
 
     if sourceCoords.count == 0 {
-        board_state_hint_coords(boardState, .[]);
+        board_hint_coords(board, .[]);
     } else if sourceCoords.count == 1 {
-        board_state_try_play_move(boardState, sourceCoords[0], targetCoord);
+        board_try_play_move(board, sourceCoords[0], targetCoord);
     } else {
         if instance.config.board.destinationSquareMove.disambiguateWithLastMovedPiece {
-            previousPly := ply_previous_ply(instance.game.ply);
+            previousPly := ply_previous_ply(instance.currentGame.ply);
             if previousPly && Basic.array_find(sourceCoords, previousPly.position.lastMove.targetCoord) {
-                board_state_try_play_move(boardState, previousPly.position.lastMove.targetCoord, targetCoord);
+                board_try_play_move(board, previousPly.position.lastMove.targetCoord, targetCoord);
                 return;
             }
         }
 
-        board_state_select_coord(boardState, 0xFF);
-        board_state_hint_coords(boardState, sourceCoords);
+        board_select_coord(board, 0xFF);
+        board_hint_coords(board, sourceCoords);
     }
 }

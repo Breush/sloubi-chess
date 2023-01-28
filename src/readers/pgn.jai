@@ -1,12 +1,7 @@
-
-load_pgn :: (filename : string) -> bool {
-    fileBytes, readOk := File.read_entire_file(filename);
-    Chamber._CHECK(readOk, Basic.tprint("Unable to read PGN file: %", filename)); // @todo Hard quitting is probably a bad idea.
-    defer Basic.free(fileBytes);
-
-    bytes := fileBytes;
-    _skip_bom(*bytes);
-    _skip_blanks(*bytes);
+// @note: Should not be called directly.
+load_pgn :: (bytes : string, game : *Game) -> bool {
+    skip_bom(*bytes);
+    skip_blanks(*bytes);
 
     read_tag :: inline (bytes : *string) -> string {
         tag := _parse_to_end_of_string(bytes);
@@ -14,10 +9,8 @@ load_pgn :: (filename : string) -> bool {
         return Basic.copy_string(tag);
     }
 
-    // Parsing each game
+    // Parsing each game - @todo should warn about bad usage of this function, then.
     while bytes.count > 0 && bytes[0] == #char "[" {
-        game := *instance.game; // Filling the global game for now.
-        game_cleanup(game);
         game_setup_main_variation(game);
         rootPly := variation_add_ply(game.mainVariation);
         rootPly.position = get_starting_position();
@@ -25,7 +18,7 @@ load_pgn :: (filename : string) -> bool {
         // Parsing tags
         while bytes[0] == #char "[" {
             Basic.advance(*bytes);
-            tagName := _parse_word(*bytes);
+            tagName := parse_word(*bytes);
             Basic.advance(*bytes);
             Basic.advance(*bytes); // Skipping the quote.
 
@@ -50,69 +43,67 @@ load_pgn :: (filename : string) -> bool {
             }
 
             _skip_to_end_of_tag(*bytes);
-            _skip_blanks(*bytes);
+            skip_blanks(*bytes);
         }
 
         // Parsing main variation (and therefore its subvariations)
-        _parse_variation(*bytes, game.mainVariation, position_color_to_play(*rootPly.position));
-        _skip_blanks(*bytes);
+        _parse_variation(*bytes, game, game.mainVariation, position_color_to_play(*rootPly.position));
+        skip_blanks(*bytes);
     }
 
-    bytes.count = Basic.min(bytes.count, 200);
-    Chamber._CHECK(bytes.count == 0, Basic.tprint("Leftovers: %", bytes));
-
-    instance.game.pgnFileName = Basic.copy_string(filename);
-    // game_show(*instance.game);
+    Chamber._CHECK(bytes.count == 0, "PGN file parsing has some unparsed leftovers.");
 
     return true;
 }
 
-save_pgn :: (filename : string) {
-    Basic.push_allocator(Basic.temp);
-    Basic.auto_release_temp();
+write_pgn :: (sb : *Basic.String_Builder, game : *Game) {
+    if game.mainVariation == null {
+        gameBytes := String.trim_right(game.bytes, "\r\n\t ");
+        Basic.print_to_builder(sb, "%\n", gameBytes);
+    } else {
+        write_pgn_from_plies(sb, game);
+    }
+}
 
-    Basic.log("Saving PGN file %.", filename);
-
-    builder : Basic.String_Builder;
-
-    tag_or_qmark :: inline (tag : string) -> string {
-        return ifx tag == "" then "?" else tag;
+write_pgn_from_plies :: (sb : *Basic.String_Builder, game : *Game) {
+    tag_or_qmark :: inline (tag : string, qmark := "?") -> string {
+        return ifx tag != "" then tag else qmark;
     }
 
     // Standard tags
-    Basic.print_to_builder(*builder, "[Event \"%\"]\n", tag_or_qmark(instance.game.tags.event));
-    Basic.print_to_builder(*builder, "[Site \"%\"]\n", tag_or_qmark(instance.game.tags.site));
-    Basic.print_to_builder(*builder, "[Date \"%\"]\n", tag_or_qmark(instance.game.tags.date)); // @todo Not valid by spec, should be "????.??.??"
-    Basic.print_to_builder(*builder, "[Round \"%\"]\n", tag_or_qmark(instance.game.tags.round));
-    Basic.print_to_builder(*builder, "[White \"%\"]\n", tag_or_qmark(instance.game.tags.white));
-    Basic.print_to_builder(*builder, "[Black \"%\"]\n", tag_or_qmark(instance.game.tags.black));
-    Basic.print_to_builder(*builder, "[Result \"%\"]\n", game_result_to_string(instance.game.result));
+    Basic.print_to_builder(sb, "[Event \"%\"]\n", tag_or_qmark(game.tags.event));
+    Basic.print_to_builder(sb, "[Site \"%\"]\n", tag_or_qmark(game.tags.site));
+    Basic.print_to_builder(sb, "[Date \"%\"]\n", tag_or_qmark(game.tags.date, "????.??.??"));
+    Basic.print_to_builder(sb, "[Round \"%\"]\n", tag_or_qmark(game.tags.round));
+    Basic.print_to_builder(sb, "[White \"%\"]\n", tag_or_qmark(game.tags.white));
+    Basic.print_to_builder(sb, "[Black \"%\"]\n", tag_or_qmark(game.tags.black));
+    Basic.print_to_builder(sb, "[Result \"%\"]\n", game_result_to_string(game.result));
 
     // Custom tags
-    if instance.game.tags.whiteElo != 0 {
-        Basic.print_to_builder(*builder, "[WhiteElo \"%\"]\n", instance.game.tags.whiteElo);
+    if game.tags.whiteElo != 0 {
+        Basic.print_to_builder(sb, "[WhiteElo \"%\"]\n", game.tags.whiteElo);
     }
-    if instance.game.tags.blackElo != 0 {
-        Basic.print_to_builder(*builder, "[BlackElo \"%\"]\n", instance.game.tags.blackElo);
+    if game.tags.blackElo != 0 {
+        Basic.print_to_builder(sb, "[BlackElo \"%\"]\n", game.tags.blackElo);
     }
-    if instance.game.boardOrientation != .White {
-        Basic.print_to_builder(*builder, "[BoardOrientation \"%\"]\n", instance.game.boardOrientation);
+    if game.boardOrientation != .White {
+        Basic.print_to_builder(sb, "[BoardOrientation \"%\"]\n", game.boardOrientation);
     }
-    if !position_is_starting_one(instance.game.mainVariation.plies[0].position) {
-        Basic.append(*builder, "[SetUp \"1\"]\n");
-        Basic.print_to_builder(*builder, "[FEN \"%\"]\n", position_to_fen(instance.game.mainVariation.plies[0].position));
+    if !position_is_starting_one(game.mainVariation.plies[0].position) {
+        Basic.append(sb, "[SetUp \"1\"]\n");
+        Basic.print_to_builder(sb, "[FEN \"%\"]\n", position_to_fen(game.mainVariation.plies[0].position));
     }
 
     // Extra tags
-    for tag : instance.game.tags.extra {
-        Basic.print_to_builder(*builder, "[% \"%\"]\n", tag.name, tag.value);
+    for tag : game.tags.extra {
+        Basic.print_to_builder(sb, "[% \"%\"]\n", tag.name, tag.value);
     }
-    Basic.append(*builder, "\n");
+    Basic.append(sb, "\n");
 
     // The game itself
     gameBuilder : Basic.String_Builder;
-    _write_variation(*gameBuilder, instance.game.mainVariation);
-    Basic.print_to_builder(*gameBuilder, " %", game_result_to_string(instance.game.result));
+    _write_variation(*gameBuilder, game.mainVariation);
+    Basic.print_to_builder(*gameBuilder, " %", game_result_to_string(game.result));
 
     // There is officially a column limit of 80 for PGNs,
     // so we can't write that as it is.
@@ -127,12 +118,10 @@ save_pgn :: (filename : string) {
         lineString : string;
         lineString.data = gameString.data;
         lineString.count = endOfLineIndex;
-        Basic.print_to_builder(*builder, "%\n", lineString);
+        Basic.print_to_builder(sb, "%\n", lineString);
         Basic.advance(*gameString, endOfLineIndex + 1);
     }
-    Basic.print_to_builder(*builder, "%\n", gameString);
-
-    File.write_entire_file(filename, *builder);
+    Basic.print_to_builder(sb, "%\n", gameString);
 }
 
 _write_variation :: (builder : *Basic.String_Builder, variation : *VariationEntity) {
@@ -141,7 +130,20 @@ _write_variation :: (builder : *Basic.String_Builder, variation : *VariationEnti
 
         if plyIndex != 0 {
             moveIndex := (ply.position.moveIndex + 1) / 2;
-            Basic.print_to_builder(builder, "%.% %", moveIndex, ifx ply.position.moveIndex % 2 then "" else "..", position_last_move_to_san(ply.position, annotations = false));
+
+            // Don't write black move index if context is clear (no comment nor variation before).
+            needMoveIndex := true;
+            if ply.position.moveIndex % 2 == 0 {
+                previousPly := variation.plies[plyIndex - 1];
+                if previousPly.position.comment.count == 0 && previousPly.variations.count == 0 {
+                    needMoveIndex = false;
+                }
+            }
+            if needMoveIndex {
+                Basic.print_to_builder(builder, "%.% ", moveIndex, ifx ply.position.moveIndex % 2 then "" else "..");
+            }
+
+            Basic.append(builder, position_last_move_to_san(ply.position, annotations = false));
             _write_nags(builder, *ply.position);
         }
 
@@ -211,6 +213,7 @@ _write_escaped_comment :: (builder : *Basic.String_Builder, comment : string) {
     for i : 0..comment.count - 1 {
         if comment[i] == #char "}" then Basic.append(builder, "\\}");
         else if comment[i] == #char "[" then Basic.append(builder, "\\[");
+        else if comment[i] == #char "\n" then Basic.append(builder, "\\n");
         else Basic.append(builder, comment[i]);
     }
     Basic.append(builder, "}");
@@ -417,41 +420,12 @@ _annotation_to_nag :: (observationAnnotation : ObservationAnnotation) -> Nag {
     return .None;
 }
 
-_skip_bom :: (bytes : *string) {
-    // UTF-8
-    if (<<bytes)[0] == 0xEF && (<<bytes)[1] == 0xBB && (<<bytes)[2] == 0xBF {
-        Basic.advance(bytes, 3);
-    }
-}
-
-_skip_blanks :: (bytes : *string) {
-    while bytes.count > 0 &&
-          ((<<bytes)[0] == #char " " || (<<bytes)[0] == #char "\t" ||
-           (<<bytes)[0] == #char "\r" || (<<bytes)[0] == #char "\n") {
-        Basic.advance(bytes);
-    }
-}
-
-_skip_to_end_of_tag :: (bytes : *string) {
-    c := (<<bytes)[0];
-    while c != #char "]" {
-        Basic.advance(bytes);
-        c = (<<bytes)[0];
-    }
-    Basic.advance(bytes);
+_skip_to_end_of_tag :: inline (bytes : *string) {
+    skip_until(bytes, #char "]");
 }
 
 _parse_to_end_of_string :: (bytes : *string) -> string {
-    result := <<bytes;
-    result.count = 0;
-    c := (<<bytes)[0];
-    while c != #char "\"" {
-        Basic.advance(bytes);
-        result.count += 1;
-        c = (<<bytes)[0];
-    }
-    Basic.advance(bytes);
-    return result;
+    return parse_until(bytes, .[ #char "\"" ]);
 }
 
 _parse_move_number :: (bytes : *string) {
@@ -473,7 +447,7 @@ _parse_move_number :: (bytes : *string) {
         Basic.advance(bytes);
     }
 
-    _skip_blanks(bytes);
+    skip_blanks(bytes);
 }
 
 _parse_potential_move_number :: (bytes : *string) -> bool {
@@ -554,7 +528,7 @@ _parse_potential_move :: (bytes : *string, variation : *VariationEntity, color :
 
     _parse_potential_check(bytes);
     _parse_potential_mate(bytes);
-    _skip_blanks(bytes);
+    skip_blanks(bytes);
 
     // Updating the game
     if coord_is_valid(sourceCoord) {
@@ -708,7 +682,7 @@ _parse_potential_comment :: (bytes : *string, position : *Position) -> (string, 
     if bytes.count == 0 then return ("", false);
     if (<<bytes)[0] != #char "{" then return ("", false);
     Basic.advance(bytes);
-    _skip_blanks(bytes);
+    skip_blanks(bytes);
 
     sb : Basic.String_Builder;
     Basic.init_string_builder(*sb);
@@ -716,16 +690,24 @@ _parse_potential_comment :: (bytes : *string, position : *Position) -> (string, 
     whitespacesToTrim := 0;
     previousIsBackslash := false;
     while previousIsBackslash || (<<bytes)[0] != #char "}" {
+        if previousIsBackslash {
+            if (<<bytes)[0] == #char "n" then Basic.append(*sb, #char "\n");
+            else Basic.append(*sb, (<<bytes)[0]);
+            previousIsBackslash = false;
+            Basic.advance(bytes);
+            continue;
+        }
+
         previousIsBackslash = !previousIsBackslash && (<<bytes)[0] == #char "\\";
         if (<<bytes)[0] == #char " " then whitespacesToTrim += 1;
         else whitespacesToTrim = 0;
 
         if (<<bytes)[0] == #char "\n" then Basic.append(*sb, #char " ");
         else if !previousIsBackslash {
-            // Special command. @todo Detect arrows and circles!
+            // Special command.
             if (<<bytes)[0] == #char "[" && (<<bytes)[1] == #char "%" {
                 Basic.advance(bytes, 2);
-                commandName := _parse_word(bytes);
+                commandName := parse_word(bytes);
                 Basic.advance(bytes);
 
                 // Square highlight command.
@@ -742,10 +724,9 @@ _parse_potential_comment :: (bytes : *string, position : *Position) -> (string, 
             }
         }
         Basic.advance(bytes);
-
     }
     Basic.advance(bytes);
-    _skip_blanks(bytes);
+    skip_blanks(bytes);
 
     str := Basic.builder_to_string(*sb);
     str.count -= whitespacesToTrim;
@@ -773,27 +754,27 @@ _parse_potential_comments :: (bytes : *string, variation : *VariationEntity) {
     Basic.peek(variation.plies).position.comment = Basic.copy_string(fullComment);
 }
 
-_parse_potential_variation :: (bytes : *string, parentVariation : *VariationEntity, color : Color) -> bool {
+_parse_potential_variation :: (bytes : *string, game : *Game, parentVariation : *VariationEntity, color : Color) -> bool {
     if (<<bytes)[0] != #char "(" then return false;
     Basic.advance(bytes);
 
     lastPly := Basic.peek(parentVariation.plies);
-    variation := game_add_variation(*instance.game, lastPly);
+    variation := game_add_variation(game, lastPly);
 
     ply := variation_add_ply(variation);
 
     position_copy_state_from(*ply.position, parentVariation.plies[parentVariation.plies.count - 2].position);
 
-    _skip_blanks(bytes);
-    _parse_variation(bytes, variation, color);
+    skip_blanks(bytes);
+    _parse_variation(bytes, game, variation, color);
 
-    _skip_blanks(bytes);
+    skip_blanks(bytes);
     _parse_expected(bytes, #char ")");
-    _skip_blanks(bytes);
+    skip_blanks(bytes);
     return true;
 }
 
-_parse_variation :: (bytes : *string, variation : *VariationEntity, firstColor := Color.White) {
+_parse_variation :: (bytes : *string, game : *Game, variation : *VariationEntity, firstColor := Color.White) {
     _parse_potential_comments(bytes, variation);
 
     firstLoop := true;
@@ -801,21 +782,21 @@ _parse_variation :: (bytes : *string, variation : *VariationEntity, firstColor :
     while bytes.count > 0 && bytes.count != lastBytesCount {
         lastBytesCount = bytes.count;
         if !firstLoop || firstColor == .White {
-            while _parse_potential_variation(bytes, variation, .Black) {}
+            while _parse_potential_variation(bytes, game, variation, .Black) {}
             if (<<bytes)[0] == #char ")" then break; // End of variation
-            if !_parse_potential_annotated_move(bytes, variation, .White) then break;
+            if !_parse_potential_annotated_move(bytes, game, variation, .White) then break;
         }
 
-        while _parse_potential_variation(bytes, variation, .White) {}
+        while _parse_potential_variation(bytes, game, variation, .White) {}
         if (<<bytes)[0] == #char ")" then break;
-        if !_parse_potential_annotated_move(bytes, variation, .Black) then break;
+        if !_parse_potential_annotated_move(bytes, game, variation, .Black) then break;
 
         firstLoop = false;
     }
 }
 
 // Returns false if this is the last move a variation.
-_parse_potential_annotated_move :: (bytes : *string, variation : *VariationEntity, color : Color) -> bool {
+_parse_potential_annotated_move :: (bytes : *string, game : *Game, variation : *VariationEntity, color : Color) -> bool {
     // position_debug_dump(Basic.peek(variation.plies).position);
 
     _parse_potential_move_number(bytes);
@@ -829,7 +810,7 @@ _parse_potential_annotated_move :: (bytes : *string, variation : *VariationEntit
 
     foundResult, result := _parse_potential_result(bytes);
     if foundResult then {
-        instance.game.result = result;
+        game.result = result;
         return false;
     }
 
@@ -862,7 +843,7 @@ _parse_potential_annotation :: (bytes : *string, variation : *VariationEntity) -
         else nag = .Mistake;
     }
 
-    _skip_blanks(bytes);
+    skip_blanks(bytes);
 
     if nag != .None {
         position := *Basic.peek(variation.plies).position;
@@ -887,7 +868,7 @@ _parse_square_highlights :: (bytes : *string, position : *Position) {
     Basic.push_allocator(context.default_allocator);
 
     while true {
-        coloredSquare := _parse_until(bytes, .[#char "]", #char " ", #char ","]);
+        coloredSquare := parse_until(bytes, .[#char "]", #char " ", #char ","]);
         if coloredSquare.count != 0 {
             squareHighlight := Basic.array_add(*position.highlights.squares);
             squareHighlight.color = highlight_color(coloredSquare[0]);
@@ -895,7 +876,7 @@ _parse_square_highlights :: (bytes : *string, position : *Position) {
             squareHighlight.coord = algebraic_to_coord(coloredSquare);
         }
 
-        _skip_blanks(bytes);
+        skip_blanks(bytes);
         if (<<bytes)[0] == #char "]" then break;
         Basic.advance(bytes);
     }
@@ -905,17 +886,21 @@ _parse_arrow_highlights :: (bytes : *string, position : *Position) {
     Basic.push_allocator(context.default_allocator);
 
     while true {
-        coloredArrow := _parse_until(bytes, .[#char "]", #char " ", #char ","]);
+        coloredArrow := parse_until(bytes, .[#char "]", #char " ", #char ","]);
         if coloredArrow.count != 0 {
-            arrowHighlight := Basic.array_add(*position.highlights.arrows);
+            arrowHighlight : ArrowHighlight;
             arrowHighlight.color = highlight_color(coloredArrow[0]);
             Basic.advance(*coloredArrow);
             arrowHighlight.fromCoord = algebraic_to_coord(coloredArrow);
             Basic.advance(*coloredArrow, 2);
             arrowHighlight.toCoord = algebraic_to_coord(coloredArrow);
+
+            if coord_is_valid(arrowHighlight.fromCoord) && coord_is_valid(arrowHighlight.toCoord) {
+                Basic.array_add(*position.highlights.arrows, arrowHighlight);
+            }
         }
 
-        _skip_blanks(bytes);
+        skip_blanks(bytes);
         if (<<bytes)[0] == #char "]" then break;
         Basic.advance(bytes);
     }
@@ -924,31 +909,11 @@ _parse_arrow_highlights :: (bytes : *string, position : *Position) {
 _parse_clock :: (bytes : *string, position : *Position) {
     Basic.push_allocator(context.default_allocator);
 
-    clock := _parse_until(bytes, .[#char "]", #char " "]);
+    clock := parse_until(bytes, .[#char "]", #char " "]);
 
     if position_color_to_play(position) == .White {
         position.blackClock = Basic.copy_string(clock);
     } else {
         position.whiteClock = Basic.copy_string(clock);
     }
-}
-
-_parse_until :: (bytes : *string, characters : []u8) -> string {
-    word : string;
-    word.data = bytes.data;
-
-    while true {
-        for character : characters {
-            if (<<bytes)[0] == character then return word;
-        }
-
-        word.count += 1;
-        Basic.advance(bytes);
-    }
-
-    return word;
-}
-
-_parse_word :: (bytes : *string) -> string {
-    return _parse_until(bytes, .[#char " ", #char "\n"]);
 }

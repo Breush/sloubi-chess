@@ -1,10 +1,13 @@
 /* A "Game" can be understood as a collections of variations starting from one position. */
 Game :: struct {
-    mainVariation : *VariationEntity;
+    study : *Study; @NoSerialize
+    view : *GameView; @NoSerialize
+
+    mainVariation : *VariationEntity; @NoSerialize
+    ply : *PlyEntity; @NoSerialize // Selected ply.
 
     boardOrientation : Color;
     result : Result;
-    pgnFileName : string;
     tags : struct {
         // PGN standard tags, except Result.
         event : string;
@@ -19,30 +22,93 @@ Game :: struct {
 
         // Other tags, not used internally. @note Not a hash-table to keep order.
         extra : [..]struct { name : string; value : string; };
-    }
+    } @NoSerialize
 
-    ply : *PlyEntity; // Selected ply.
+    bytes : string; @NoSerialize // View from the bytes array in study, showing one game in PGN format.
+    title : string;
+    summary : GameSummary;
+    computeFlags : ComputeFlags;
 
-    Result :: enum {
+    Result :: enum u8 {
         Unknown :: 0;
         WhiteWin;
         BlackWin;
         Draw;
     }
+
+    // What knowledge we have/want about the game.
+    ComputeFlags :: enum_flags u8 {
+        Summary;    // summary is valid
+        Plies;      // mainVariation is valid
+    }
 }
 
-game_show :: (game : *Game) {
-    send(.ModeGameStarted);
+GameSummary :: struct {
+    lastBoardPosition : CompactBoardPosition;
+    lastMove : SimpleMove;
+}
+
+load_game :: (filename : string, gameIndex : u32, computeFlags : Game.ComputeFlags = 0) -> *Game {
+    study := load_study(filename);
+
+    // @note We try not to load the GamesBytes if we don't need to,
+    // therefore we just look as if the study exists and has a valid summary for the game first.
+    if study == null then return null;
+    if study.games.count > gameIndex && study.games[gameIndex].computeFlags & computeFlags then return *study.games[gameIndex];
+
+    game : *Game;
+    if study.games.count > gameIndex then game = *study.games[gameIndex];
+
+    // Load the bytes and the PGN only if the game is not already in memory.
+    if game == null || game.mainVariation == null {
+        study = load_study(filename, .GamesBytes);
+        if study == null || study.games.count <= gameIndex then return null;
+        game = *study.games[gameIndex];
+        load_pgn(game.bytes, game);
+        game.computeFlags |= .Plies;
+    }
+
+    if computeFlags == 0 || game.computeFlags & computeFlags then return game;
+
+    if computeFlags & .Summary && !(game.computeFlags & .Summary) {
+        _load_game_summary(game);
+    }
+
+    return game;
+}
+
+game_create :: (game : *Game) {
+    if game.mainVariation == null {
+        load_pgn(game.bytes, game);
+    }
+
+    game.view = game_view_create(game);
+    game_show(game);
     game_update_to(game, game.mainVariation.plies[0]);
 }
 
+game_close :: (game : *Game) {
+    if game == null || game.mainVariation == null then return;
+
+    variation_cleanup(game.mainVariation);
+    game.mainVariation = null;
+
+    if game.view != null {
+        Sill.destroy_entity(game.view);
+        game.view = null;
+    }
+
+    if instance.currentGame == game then game_show(null);
+}
+
 game_cleanup :: (game : *Game) {
-    send(.ModeGameStopped);
+    if game == null then return;
 
-    game.ply = null;
-    if game.mainVariation != null then variation_cleanup(game.mainVariation);
+    if game.mainVariation != null {
+        variation_cleanup(game.mainVariation);
+        game.mainVariation = null;
+    }
 
-    Basic.free(game.pgnFileName);
     Basic.free(game.tags.event);
     Basic.free(game.tags.site);
     Basic.free(game.tags.date);
@@ -54,8 +120,20 @@ game_cleanup :: (game : *Game) {
         Basic.free(extraTag.value);
     }
     Basic.array_free(game.tags.extra);
+    Basic.free(game.title);
 
-    (<<game) = .{};
+    if game.view != null {
+        Sill.destroy_entity(game.view);
+        game.view = null;
+    }
+
+    game_show(null);
+}
+
+game_show :: (game : *Game) {
+    if (instance.currentGame == game) return;
+    instance.currentGame = game;
+    send(.CurrentGameChanged);
 }
 
 game_setup_main_variation :: (game : *Game) {
@@ -77,7 +155,7 @@ game_update_to :: (game : *Game, ply : *PlyEntity) {
     oldPly := game.ply;
     game.ply = ply;
 
-    send(.GameSelectedPlyChanged, oldPly);
+    send(.SelectedPlyChanged, oldPly);
 }
 
 game_go_to_first_ply :: (game : *Game) {
@@ -165,6 +243,9 @@ game_play_move :: (game : *Game, sourceCoord : Coord, targetCoord : Coord, promo
 
     ply_init(ply);
     game_update_to(game, ply);
+
+    // @todo Technically, it would be better to send a message.
+    study_mark_unsaved_modifications(game.study);
 }
 
 game_edit_ply_comment :: (game : *Game) {
@@ -183,4 +264,12 @@ game_result_to_string :: (result : Game.Result) -> string {
 
 game_debug_dump :: (game : Game) {
     variation_debug_dump(game.mainVariation, 0);
+}
+
+#scope_file
+
+_load_game_summary :: (game : *Game) {
+    game.computeFlags |= .Summary;
+    game.summary.lastBoardPosition = compact_board_position(Basic.peek(game.mainVariation.plies).position.board);
+    game.summary.lastMove = Basic.peek(game.mainVariation.plies).position.lastMove;
 }

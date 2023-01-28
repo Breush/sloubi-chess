@@ -12,7 +12,7 @@ background_create :: () -> *BackgroundEntity {
 
     primitive := create_rect_mesh();
     primitive.material = Magma.create_material(instance.shaders.monochrome);
-    Magma.material_set(primitive.material, "color", instance.config.env.backgroundColor);
+    Magma.material_set_color(primitive.material, "color", instance.config.env.backgroundColor);
 
     node := Basic.array_add(*mesh.nodes);
     Basic.array_add(*node.primitives, primitive);
@@ -34,8 +34,7 @@ _on_message :: (background : *BackgroundEntity, message : *Message) {
 }
 
 _reflow :: (using background : *BackgroundEntity) {
-    extent := Crater.window_get_extent(instance.engine.window);
-    mesh.nodes[0].transform.scaling.x = cast(float) extent.width;
-    mesh.nodes[0].transform.scaling.y = cast(float) extent.height;
+    extent := Crater.window_get_extent(instance.engine.window, Chamber.vec2);
+    mesh.nodes[0].transform.scaling.xy = extent;
     Sill.mesh_commit_nodes(*mesh, instantly = true);
 }

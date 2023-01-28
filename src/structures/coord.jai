@@ -6,9 +6,9 @@ CoordCount : Coord : 64;
 
 coord :: (row : $T1, col : $T2) -> Coord {
     coord : Coord;
-    if row >= 8 then coord |= 0b10_000_000;
+    if row < 0 || row >= 8 then coord |= 0b10_000_000;
     else coord |= (cast(u8) row) << 3;
-    if col >= 8 then coord |= 0b01_000_000;
+    if col < 0 || col >= 8 then coord |= 0b01_000_000;
     else coord |= cast(u8) col;
     return coord;
 }

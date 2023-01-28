@@ -66,9 +66,7 @@ ply_init :: (ply : *PlyEntity, place := true) {
         moveIndex := (ply.position.moveIndex + 1) / 2;
         moveText := Basic.tprint("%.% %", moveIndex, ifx ply.position.moveIndex % 2 then "" else ".. ", position_last_move_to_san(ply.position, annotations = true));
         fontId := ifx ply.parentVariation.depth == 0 then "mainBold" else "mainLight";
-        charInfos := text_mesh_update(ply.moveMeshNode.primitives[0], moveText, fontId, ply.moveColor);
-        ply.moveTextWidth = Basic.peek(charInfos.infos).effective.xEnd;
-        Basic.array_free(charInfos.infos);
+        ply.moveTextWidth = text_mesh_update(ply.moveMeshNode.primitives[0], moveText, fontId, ply.moveColor);
     }
 
     // ----- Comment
@@ -76,13 +74,15 @@ ply_init :: (ply : *PlyEntity, place := true) {
     Basic.array_add(*ply.mesh.nodes, .{});
     Basic.array_add(*Basic.peek_pointer(ply.mesh.nodes).primitives, create_text_mesh());
     ply.commentMeshNode = Basic.peek_pointer(ply.mesh.nodes);
-    ply.charInfos = text_mesh_update(ply.commentMeshNode.primitives[0], ply.position.comment, "mainLight", instance.config.moves.mainColor);
+    textWidth : float;
+    textWidth, ply.charInfos = text_mesh_update(ply.commentMeshNode.primitives[0], ply.position.comment, "mainLight", instance.config.moves.mainColor, computeCharInfos = true);
     Basic.array_add(*ply.collider.boxShapes, .{});
 
     Sill.ui_on_trigger(*ply.ui, (trigger : Sill.UiTrigger, ply : *PlyEntity) {
         // Either select the ply, or start editing the comment if already selected
-        if instance.game.ply != ply {
-            game_update_to(*instance.game, ply);
+        gameView := cast(*GameView) ply.parent;
+        if gameView.game.ply != ply {
+            game_update_to(gameView.game, ply);
         } else {
             ply_edit_comment(ply, textCursorAtMouse = true);
         }
@@ -90,9 +90,9 @@ ply_init :: (ply : *PlyEntity, place := true) {
 
     Sill.ui_on_trigger(*ply.ui, (trigger : Sill.UiTrigger, ply : *PlyEntity) {
         if trigger.flags & .FocusStart {
-            send(.ModePlyEditCommentStarted);
+            send(.PlyCommentEditStarted);
         } else {
-            send(.ModePlyEditCommentStopped);
+            send(.PlyCommentEditStopped);
         }
     }, Sill.UiCallbackFlags.FocusStart | .FocusStop, ply);
 
@@ -102,7 +102,7 @@ ply_init :: (ply : *PlyEntity, place := true) {
 
         if trigger.event.kind == .TextEntered {
             // :RelativePointerIssue
-            length := Basic.c_style_strlen(*trigger.event.text.utf8[0]);
+            length := c_style_strlen(*trigger.event.text.utf8[0]);
             Chamber.insert_after_byte(*ply.position.comment, ply.textCursorPosition, Basic.to_string(*trigger.event.text.utf8[0], length));
             ply.textCursorPosition += cast(u32) length;
             textChanged = true;
@@ -124,6 +124,10 @@ ply_init :: (ply : *PlyEntity, place := true) {
             } else if trigger.event.key.which == .Right {
                 if ply.textCursorPosition == ply.position.comment.count then return;
                 ply.textCursorPosition += Chamber.utf8_word_length_after_byte(ply.position.comment, ply.textCursorPosition);
+            } else if trigger.event.key.which == .Return {
+                Chamber.insert_after_byte(*ply.position.comment, ply.textCursorPosition, "\n");
+                ply.textCursorPosition += 1;
+                textChanged = true;
             } else {
                 return;
             }
@@ -135,8 +139,10 @@ ply_init :: (ply : *PlyEntity, place := true) {
         // @todo Do a clever diff instead of regenerating everything?
         if textChanged then {
             Basic.array_free(ply.charInfos.infos);
-            ply.charInfos = text_mesh_update(ply.commentMeshNode.primitives[0], ply.position.comment, "mainLight", instance.config.moves.mainColor);
+            textWidth : float;
+            textWidth, ply.charInfos = text_mesh_update(ply.commentMeshNode.primitives[0], ply.position.comment, "mainLight", instance.config.moves.selectedCommentColor, computeCharInfos = true);
             ply_place(ply, propagate = true);
+            study_mark_unsaved_modifications(instance.currentGame.study);
         }
 
         send(.PlyTextCursorPositionChanged, ply);
@@ -164,7 +170,8 @@ ply_init :: (ply : *PlyEntity, place := true) {
         if ply.commentMeshNode {
             distance := Sill.collider_distance_from(*ply.collider, ray);
             if distance > 0.0 {
-                pointerStyle := ifx instance.game.ply == ply then Crater.PointerStyle.Text else .HandPointing;
+                gameView := cast(*GameView) ply.parent;
+                pointerStyle := ifx gameView.game.ply == ply then Crater.PointerStyle.Text else .HandPointing;
                 Crater.window_pointer_style(instance.engine.window, pointerStyle);
                 return true;
             }
@@ -193,8 +200,10 @@ ply_cleanup :: (ply : *PlyEntity) {
 // Which means that the comment mesh ply might be offseted to the left
 // for black moves.
 ply_place :: (ply : *PlyEntity, propagate := false, hidden := false) {
+    gameView := cast(*GameView) ply.parent; // ply.parent is scroll, and its parent is gameView
+
     variationOffset := ply.parentVariation.depth * UiConstants.PaddingHorizontalVariation;
-    maxWidth := instance.list.ui.extent.width - variationOffset;
+    maxWidth := gameView.ui.extent.width - variationOffset;
     offsetToBlack := (maxWidth + UiConstants.PaddingHorizontalSplit) / 2;
     parentVariationCollapsed := ply.parentVariation.collapsed;
 
@@ -217,6 +226,7 @@ ply_place :: (ply : *PlyEntity, propagate := false, hidden := false) {
     }
 
     // Detect whether the comment mesh will be visible or not
+    if ply.commentMeshNode == null then return;
     ply.commentMeshNode.primitives[0].disabled &= ~.Application;
     Basic.peek_pointer(ply.collider.boxShapes).disabled = false;
     Sill.entity_set_disabled(ply, hidden || parentVariationCollapsed);
@@ -235,7 +245,7 @@ ply_place :: (ply : *PlyEntity, propagate := false, hidden := false) {
     // Position the comment mesh based on its location.
     // Make the text fit the specified size.
     // @note Waiting for the comment mesh ply to be positioned so that we can place the collider accordingly.
-    if !ply.disabled {
+    if !(ply.flags & .Disabled) {
         commentHeight : float;
         needCommentMeshUpdate := false;
         if !parentVariationCollapsed {
@@ -351,7 +361,7 @@ ply_next_ply :: (ply : *PlyEntity) -> *PlyEntity {
     return ply.parentVariation.plies[ply.index + 1];
 }
 
-// List of all plies after this one that already exist in the current game.
+// gameView of all plies after this one that already exist in the current game.
 ply_next_plies :: (ply : *PlyEntity) -> []*PlyEntity {
     nextPly := ply_next_ply(ply);
     if nextPly == null then return .[];
@@ -371,8 +381,9 @@ ply_next_plies :: (ply : *PlyEntity) -> []*PlyEntity {
 
 _on_message :: (ply : *PlyEntity, message : *Message) {
     if message.kind == {
-    case .GameSelectedPlyChanged;
-        if message.oldPly == ply || instance.game.ply == ply {
+    case .SelectedPlyChanged;
+        gameView := cast(*GameView) ply.parent;
+        if message.oldPly == ply || gameView.game.ply == ply {
             _update_from_selected(ply);
         }
     case .VariationCollapsedChanged;
@@ -383,17 +394,19 @@ _on_message :: (ply : *PlyEntity, message : *Message) {
 }
 
 _update_from_selected :: (ply : *PlyEntity) {
+    gameView := cast(*GameView) ply.parent;
+
     for *meshNode : ply.mesh.nodes {
         color :=  ply.moveColor;
-        if instance.game.ply == ply {
-            if meshNode == instance.game.ply.commentMeshNode {
+        if gameView.game.ply == ply {
+            if meshNode == gameView.game.ply.commentMeshNode {
                 color = instance.config.moves.selectedCommentColor;
             } else {
                 color = instance.config.moves.selectedColor;
             }
         }
 
-        Magma.material_set(meshNode.primitives[0].material, "color", color);
+        Magma.material_set_color(meshNode.primitives[0].material, "color", color);
     }
 }
 
@@ -434,7 +447,7 @@ _detect_comment_location :: (ply : *PlyEntity) -> CommentLocation {
         commentLocation.style = .Full;
     }
 
-    // Always preflush if after a variation list or if at the start of a variation.
+    // Always preflush if after a variation gameView or if at the start of a variation.
     if variation.plies[ply.index - 1].variations.count > 0 {
         commentLocation.preflushed = true;
         commentLocation.spaced = (variation.depth == 0);

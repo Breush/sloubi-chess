@@ -1,14 +1,13 @@
 {
     "version": 0,
     "env": {
-        "backgroundColor": [0.173, 0.173, 0.173],           // RGB color, 0 to 1 values
-        "secondaryBackgroundColor": [0.233, 0.233, 0.233],  // RGB color, 0 to 1 values
-        "buttonBackgroundColor": [0.173, 0.173, 0.3],       // RGB color, 0 to 1 values
-        "selectedButtonBackgroundColor": [0.3, 0.3, 0.4],   // RGB color, 0 to 1 values
-        "textColor": [1, 1, 1],                             // RGB color, 0 to 1 values
+        "backgroundColor": [0.173, 0.173, 0.173],   // RGB color, 0 to 1 values
+        "contrastColor": [0.233, 0.233, 0.233],     // RGB color, 0 to 1 values
+        "hoverColor": [0.293, 0.293, 0.293],        // RGB color, 0 to 1 values
+        "textColor": [1, 1, 1],                     // RGB color, 0 to 1 values
         "fontFamily": "Ubuntu", // Currently has to be in assets/fonts/, Light, LightItalic and Bold variants should exist.
         "monoFontFamily": "SpaceMono", // Currently has to be in assets/fonts/, Regular variant should exists.
-        "fontSize": 16,
+        "fontSize": 14,
         // Prefered representation for short name of pieces.
         //  - English ones are ["R", "N", "B", "Q", "K"]
         //  - French ones are ["T", "C", "F", "D", "R"]
@@ -72,6 +71,22 @@
         // Go to an alternative on the current ply.
         "nextVariation": "Down",
         "previousVariation": "Up"
+    },
+    "library": {
+        // Where all the books and associated files are stored.
+        // The character "%" is a special token that is replaced
+        // with "%APPDATA%/.sloubi-chess" on Windows and "~/.sloubi-chess" on Linux.
+        "path": "%/library",
+        // Within a study, how the games' titles should be formatted.
+        // Use PGN's seven tag roster information as you wish:
+        // - %1 = Event     Name of the tournament or match event.
+        // - %2 = Site      Location of the event.
+        // - %3 = Date      Starting date of the game.
+        // - %4 = Round     Playing round ordinal of the game.
+        // - %5 = White     Player of the white pieces.
+        // - %6 = Black     Player of the black pieces.
+        // - %7 = Result    Result of the game.
+        "gameTitleFormat": "%5 / %6 - %2 %3"
     },
     "moves": {
         "mainColor": [1, 1, 1],                 // RGB color, 0 to 1 values

@@ -1,11 +1,11 @@
-// Holds both the board and extra data.
+// Holds both the boardView and extra data.
 MetaBoardEntity :: struct {
     using #as entity : Sill.Entity;
 
     transform : Sill.TransformComponent;
     listener : Sill.ListenerComponent;
 
-    board : BoardEntity;
+    boardView : BoardView;
     whitePlayerName : PlayerInfoEntity;
     blackPlayerName : PlayerInfoEntity;
     whiteClock : PlayerInfoEntity;
@@ -27,13 +27,13 @@ meta_board_create :: () -> *MetaBoardEntity {
     using metaBoard := SillMeta.create_meta_board_entity(instance.engine);
     Sill.listener_on_message(*listener, _on_message);
     _init_meshes(metaBoard);
-    board_init(*board);
+    board_view_init(*boardView);
     smart_mover_init(*smartMover);
 
     Sill.entity_set_parent(*whitePlayerName, metaBoard);
     Sill.entity_set_parent(*blackPlayerName, metaBoard);
     Sill.entity_set_parent(*smartMover, metaBoard);
-    Sill.entity_set_parent(*board, metaBoard);
+    Sill.entity_set_parent(*boardView, metaBoard);
 
     return metaBoard;
 }
@@ -44,20 +44,20 @@ _on_message :: (using metaBoard : *MetaBoardEntity, message : *Message) {
     if message.kind == {
     case .SystemReflow;
         _reflow(metaBoard);
-    case .ModeGameStarted;
-        _show(metaBoard, instance.game);
-    case .GameSelectedPlyChanged;
-        _update_to_position(metaBoard, *instance.game.ply.position);
+    case .CurrentGameChanged;
+        _show(metaBoard, instance.currentGame);
+    case .SelectedPlyChanged;
+        _update_to_position(metaBoard, *instance.currentGame.ply.position);
     }
 }
 
 _reflow :: (using metaBoard : *MetaBoardEntity) {
-    // We want to fit the board in the left part of the screen nicely à 95% of the available space.
+    // We want to fit the boardView in the left part of the screen nicely à 95% of the available space.
     eye := Magma.renderer_get_eye(engine.renderer, 0);
     size := 0.95 * Basic.min(eye.extent.width / 2.0, cast(float) eye.extent.height);
     transform.translation.x = -size / 2.0;
 
-    board_update_to_size(*board, size);
+    board_view_update_to_size(*boardView, size);
 
     whitePlayerName.transform.translation.x = -size / 2;
     whitePlayerName.transform.translation.y =  size / 2 + instance.config.env.fontSize / 2 + UiConstants.PaddingVerticalSmall;
@@ -78,13 +78,16 @@ _reflow :: (using metaBoard : *MetaBoardEntity) {
     Sill.transform_commit(*transform);
 }
 
-_show :: (using metaBoard : *MetaBoardEntity, game : Game) {
-    Sill.entity_set_disabled(*whitePlayerName, true);
-    Sill.entity_set_disabled(*blackPlayerName, true);
+_show :: (using metaBoard : *MetaBoardEntity, game : *Game) {
+    Sill.entity_set_disabled(*whitePlayerName, game == null);
+    Sill.entity_set_disabled(*blackPlayerName, game == null);
+    Sill.entity_set_disabled(*whiteClock, game == null);
+    Sill.entity_set_disabled(*blackClock, game == null);
+    if game == null then return;
 
     _set_name :: (playerName : *PlayerInfoEntity, name : string) {
         Sill.entity_set_disabled(playerName, false);
-        text_mesh_update(playerName.mesh.nodes[0].primitives[0], name, "mainBold", instance.config.env.textColor, computeCharInfos = false);
+        text_mesh_update(playerName.mesh.nodes[0].primitives[0], name, "mainBold", instance.config.env.textColor);
     }
 
     if game.tags.white != "" {
@@ -101,17 +104,17 @@ _show :: (using metaBoard : *MetaBoardEntity, game : Game) {
 
     orientation = game.boardOrientation;
 
-    board_update_from_orientation(*board, orientation);
+    board_view_update_from_orientation(*boardView, orientation);
     _reflow(metaBoard);
 }
 
 _update_to_position :: (using metaBoard : *MetaBoardEntity, position : *Position) {
-    board_state_set_position(*board, position);
+    board_set_position(*boardView, position);
 
     Sill.entity_set_disabled(*whiteClock, true);
     if position.whiteClock.count != 0 {
         Sill.entity_set_disabled(*whiteClock, false);
-        _, width := text_mesh_update(whiteClock.mesh.nodes[0].primitives[0], position.whiteClock, "mono", instance.config.env.textColor, computeCharInfos = false);
+        width := text_mesh_update(whiteClock.mesh.nodes[0].primitives[0], position.whiteClock, "mono", instance.config.env.textColor);
         whiteClock.mesh.nodes[0].transform.translation.x = -Math.floor(width + 0.5);
         Sill.mesh_commit_nodes(*whiteClock.mesh, instantly = true);
     }
@@ -119,7 +122,7 @@ _update_to_position :: (using metaBoard : *MetaBoardEntity, position : *Position
     Sill.entity_set_disabled(*blackClock, true);
     if position.blackClock.count != 0 {
         Sill.entity_set_disabled(*blackClock, false);
-        _, width := text_mesh_update(blackClock.mesh.nodes[0].primitives[0], position.blackClock, "mono", instance.config.env.textColor, computeCharInfos = false);
+        width := text_mesh_update(blackClock.mesh.nodes[0].primitives[0], position.blackClock, "mono", instance.config.env.textColor);
         blackClock.mesh.nodes[0].transform.translation.x = -Math.floor(width + 0.5);
         Sill.mesh_commit_nodes(*blackClock.mesh, instantly = true);
     }

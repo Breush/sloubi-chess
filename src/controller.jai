@@ -34,23 +34,16 @@ controller_create :: () -> *ControllerEntity {
     Sill.input_action_bind(instance.engine, "game.variation.previous", controls.previousVariation);
     Sill.input_action_bind(instance.engine, "game.variation.next", controls.nextVariation);
 
-    Sill.input_axis_bind(instance.engine, "list.scroll", .MouseWheelY);
-
     Sill.behavior_on_update(*behaviorComponent, xx (dt : float64, using instance : *Instance) {
-        if game.ply == null then return;
+        if currentGame == null then return;
 
-        if Sill.input_action_just_activated(engine, "game.ply.previous", true)         then game_go_to_previous_move(*game);
-        if Sill.input_action_just_activated(engine, "game.ply.next", true)             then game_go_to_next_move(*game);
-        if Sill.input_action_just_activated(engine, "game.ply.first", true)            then game_go_to_first_ply(*game);
-        if Sill.input_action_just_activated(engine, "game.ply.last", true)             then game_go_to_last_ply(*game);
-        if Sill.input_action_just_activated(engine, "game.ply.comment.edit", true)     then game_edit_ply_comment(*game);
-        if Sill.input_action_just_activated(engine, "game.variation.previous", true)   then game_go_to_previous_variation(*game);
-        if Sill.input_action_just_activated(engine, "game.variation.next", true)       then game_go_to_next_variation(*game);
-
-        // @todo This should be UI job, somehow.
-        if Sill.input_axis_changed(engine, "list.scroll") {
-            list_scroll(list, 25.0 * Sill.input_axis_value(engine, "list.scroll"));
-        }
+        if Sill.input_action_just_activated(engine, "game.ply.previous", true)         then game_go_to_previous_move(currentGame);
+        if Sill.input_action_just_activated(engine, "game.ply.next", true)             then game_go_to_next_move(currentGame);
+        if Sill.input_action_just_activated(engine, "game.ply.first", true)            then game_go_to_first_ply(currentGame);
+        if Sill.input_action_just_activated(engine, "game.ply.last", true)             then game_go_to_last_ply(currentGame);
+        if Sill.input_action_just_activated(engine, "game.ply.comment.edit", true)     then game_edit_ply_comment(currentGame);
+        if Sill.input_action_just_activated(engine, "game.variation.previous", true)   then game_go_to_previous_variation(currentGame);
+        if Sill.input_action_just_activated(engine, "game.variation.next", true)       then game_go_to_next_variation(currentGame);
     }, *instance);
 
     // Debug 3D
@@ -96,6 +89,12 @@ _on_message :: (using controller : *ControllerEntity, message : *Message) {
     if message.kind == {
     case .SystemReflow;
         _setup_orthographic_camera(controller);
+    case .SelectTab;
+        if message.entity.typeInfo == type_info(StudyView) {
+            game_show((cast(*StudyView) message.entity).study.currentGame);
+        } else {
+            game_show(null);
+        }
     }
 }
 

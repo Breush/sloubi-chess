@@ -8,8 +8,10 @@
             "name": "(gdb) Lancer",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/bin/sloubi-chess",
+            "program": "${workspaceFolder}/sloubi-chess",
             "args": [],
+            // "args": ["-pgn", "./assets/pgns/benko-revealed-intro.pgn"],
+            // "args": ["-pgn", "/home/alexis/.sloubi-chess/library/Great games.pgn"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [

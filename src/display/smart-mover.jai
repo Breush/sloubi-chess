@@ -32,7 +32,7 @@ smart_mover_init :: (using smartMover : *SmartMoverEntity) {
     if !instance.config.board.keyboardMove.enabled then return;
 
     Sill.listener_on_message(*smartMover.listener, _on_message);
-    Sill.entity_set_disabled(smartMover, true); // Start disabled, focusing the board will show it.
+    Sill.entity_set_disabled(smartMover, true); // Start disabled, focusing the boardView will show it.
 
     _init_meshes(smartMover);
 }
@@ -40,6 +40,7 @@ smart_mover_init :: (using smartMover : *SmartMoverEntity) {
 smart_mover_ui_trigger :: (using smartMover : *SmartMoverEntity, trigger : Sill.UiTrigger) {
     if !(trigger.flags & .Key) then return;
     if !instance.config.board.keyboardMove.enabled then return;
+    if smartMover.flags & .Disabled then return;
 
     if Basic.array_find(instance.config.board.keyboardMove.playSelected, trigger.event.key.which) {
         smart_mover_play_selected(smartMover);
@@ -86,7 +87,7 @@ smart_mover_play_selected :: (using smartMover : *SmartMoverEntity) {
 
     if movesDisplayOffset >= moves.count return;
 
-    game_play_move(*instance.game, moves[movesDisplayOffset].sourceCoord, moves[movesDisplayOffset].targetCoord, moves[movesDisplayOffset].promotionPieceKind);
+    game_play_move(instance.currentGame, moves[movesDisplayOffset].sourceCoord, moves[movesDisplayOffset].targetCoord, moves[movesDisplayOffset].promotionPieceKind);
 }
 
 smart_mover_select_next :: (using smartMover : *SmartMoverEntity) {
@@ -140,14 +141,13 @@ smart_mover_remove_last_key :: (using smartMover : *SmartMoverEntity) {
 #scope_file
 
 _on_message :: (using smartMover : *SmartMoverEntity, message : *Message) {
-    board := *(cast(*MetaBoardEntity) smartMover.parent).board;
-    if !board.state.interactive then return;
+    boardView := *(cast(*MetaBoardEntity) smartMover.parent).boardView;
 
     if message.kind == {
-    case .GameSelectedPlyChanged;
+    case .SelectedPlyChanged;
         smart_mover_reset(smartMover);
-    case .BoardStateFocusChanged;
-        Sill.entity_set_disabled(smartMover, !board.state.focus);
+    case .BoardFocusChanged;
+        Sill.entity_set_disabled(smartMover, !boardView.state.focus);
     case .SmartMoverMovesChanged;
         _update_from_moves(smartMover);
     case .SmartMoverDisplayedMovesChanged;
@@ -158,15 +158,15 @@ _on_message :: (using smartMover : *SmartMoverEntity, message : *Message) {
 }
 
 _update_from_moves :: (using smartMover : *SmartMoverEntity) {
-    board := *(cast(*MetaBoardEntity) smartMover.parent).board;
+    boardView := *(cast(*MetaBoardEntity) smartMover.parent).boardView;
 
     for move, moveIndex : moves {
         displayMoveIndex := (moves.count + moveIndex - movesDisplayOffset) % moves.count;
         if displayMoveIndex >= movesMeshNodes.count - 1 then continue;
 
-        moveText := position_move_to_san(board.state.position, move);
+        moveText := position_move_to_san(boardView.state.position, move);
         font := ifx displayMoveIndex == 0 then "mainBold" else "mainLight";
-        _, width := text_mesh_update(movesMeshNodes[displayMoveIndex].primitives[0], moveText, font, instance.config.env.textColor, computeCharInfos = false);
+        width := text_mesh_update(movesMeshNodes[displayMoveIndex].primitives[0], moveText, font, instance.config.env.textColor);
         movesMeshNodes[displayMoveIndex].transform.translation.x = -Math.floor(width / 2 + 0.5);
         Sill.mesh_commit_nodes(*smartMover.mesh);
     }
@@ -174,8 +174,8 @@ _update_from_moves :: (using smartMover : *SmartMoverEntity) {
     // Backward move
     if moves.count >= movesMeshNodes.count {
         displayMoveIndex := (moves.count + movesDisplayOffset - 1) % moves.count;
-        moveText := position_move_to_san(board.state.position, moves[displayMoveIndex]);
-        _, width := text_mesh_update(Basic.peek(movesMeshNodes).primitives[0], moveText, "mainLight", instance.config.env.textColor, computeCharInfos = false);
+        moveText := position_move_to_san(boardView.state.position, moves[displayMoveIndex]);
+        width := text_mesh_update(Basic.peek(movesMeshNodes).primitives[0], moveText, "mainLight", instance.config.env.textColor);
         Basic.peek(movesMeshNodes).transform.translation.x = -Math.floor(width / 2 + 0.5);
         Sill.mesh_commit_nodes(*smartMover.mesh);
     }
@@ -192,20 +192,20 @@ _update_from_moves :: (using smartMover : *SmartMoverEntity) {
     }
 
     if moves.count != 0 {
-        board_state_prepare_move(*board.state, moves[movesDisplayOffset].sourceCoord, moves[movesDisplayOffset].targetCoord);
+        board_prepare_move(*boardView.state, moves[movesDisplayOffset].sourceCoord, moves[movesDisplayOffset].targetCoord);
     } else {
-        board_state_prepare_move(*board.state, 0xFF, 0xFF);
+        board_prepare_move(*boardView.state, 0xFF, 0xFF);
     }
 }
 
 _reset_to_legal_moves :: (using smartMover : *SmartMoverEntity) {
-    boardState : *BoardState = *(cast(*MetaBoardEntity) smartMover.parent).board;
-    legalMoves := position_legal_moves(boardState.position);
+    board : *Board = *(cast(*MetaBoardEntity) smartMover.parent).boardView;
+    legalMoves := position_legal_moves(board.position);
     Basic.array_resize(*moves, legalMoves.count);
 
     for legalMove, moveIndex : legalMoves {
         moves[moveIndex].move = legalMove;
-        moves[moveIndex].sanKeys = position_move_to_san_keys(boardState.position, legalMove, showActions = false);
+        moves[moveIndex].sanKeys = position_move_to_san_keys(board.position, legalMove, showActions = false);
     }
 
     // Sort by the most centralizing moves first.
@@ -237,7 +237,7 @@ _filter_moves :: (using smartMover : *SmartMoverEntity, sanKeys : []SanKey) {
 }
 
 _update_from_keys :: (using smartMover : *SmartMoverEntity) {
-    _, width := text_mesh_update(keysMeshNode.primitives[0], keysText, "mono", instance.config.env.textColor, computeCharInfos = false);
+    width := text_mesh_update(keysMeshNode.primitives[0], keysText, "mono", instance.config.env.textColor);
     keysMeshNode.transform.translation.x = -Math.floor(width / 2 + 0.5);
     Sill.mesh_commit_nodes(*mesh);
 }
@@ -249,8 +249,10 @@ _init_meshes :: (using smartMover : *SmartMoverEntity) {
     Basic.array_add(*mesh.nodes[0].primitives, create_rect_mesh(SmartMoverEntity.WIDTH, 2 * UiConstants.HeightLine + 2 * UiConstants.PaddingVerticalMedium));
     mesh.nodes[0].transform.translation.y += UiConstants.HeightLine + UiConstants.PaddingVerticalMedium;
     mesh.nodes[0].primitives[0].material = Magma.create_material(instance.shaders.gradient);
-    Magma.material_set(mesh.nodes[0].primitives[0].material, "color", instance.config.env.secondaryBackgroundColor);
-    Magma.material_set(mesh.nodes[0].primitives[0].material, "fadeColor", instance.config.env.backgroundColor);
+    Magma.material_set_color(mesh.nodes[0].primitives[0].material, "color", instance.config.env.contrastColor);
+    Magma.material_set_color(mesh.nodes[0].primitives[0].material, "fadeColor", instance.config.env.backgroundColor);
+    Magma.material_set(mesh.nodes[0].primitives[0].material, "fadeInX", 0.25);
+    Magma.material_set(mesh.nodes[0].primitives[0].material, "fadeOutX", 0.75);
 
     // Moves
     for i : 0 .. 3 {
@@ -267,7 +269,7 @@ _init_meshes :: (using smartMover : *SmartMoverEntity) {
 
     // Dots
     Basic.array_add(*mesh.nodes[9].primitives, create_text_mesh());
-    text_mesh_update(mesh.nodes[9].primitives[0], "...", "mainLight", instance.config.env.textColor, computeCharInfos = false);
+    text_mesh_update(mesh.nodes[9].primitives[0], "...", "mainLight", instance.config.env.textColor);
     mesh.nodes[9].transform.translation.x = -120.0;
     mesh.nodes[9].transform.translation.y = UiConstants.PaddingVerticalMedium;
     mesh.nodes[9].transform.translation.z -= 10;

@@ -11,7 +11,7 @@
  * we won't required so much perf.
  */
 Position :: struct {
-    board : [CoordCount]Piece;
+    board : BoardPosition;
 
     comment : string;
     moveIndex : u16; // @note Therefore contains the color to play: even = white, odd = black.
@@ -32,26 +32,68 @@ Position :: struct {
     flags : PositionFlags;
 }
 
+BoardPosition :: [CoordCount]Piece;
+
 PositionFlags :: enum_flags u8 {
     None                            :: 0x00;
     Check                           :: 0x01;
     Mate                            :: 0x02;
-    WhiteKingsideCastlingAllowed    :: 0x04;
-    WhiteQueensideCastlingAllowed   :: 0x08;
-    BlackKingsideCastlingAllowed    :: 0x10;
-    BlackQueensideCastlingAllowed   :: 0x20;
+    StaleMate                       :: 0x04;
+    WhiteKingsideCastlingAllowed    :: 0x08;
+    WhiteQueensideCastlingAllowed   :: 0x10;
+    BlackKingsideCastlingAllowed    :: 0x20;
+    BlackQueensideCastlingAllowed   :: 0x40;
     CastlingAllowedMask             :: WhiteKingsideCastlingAllowed | WhiteQueensideCastlingAllowed | BlackKingsideCastlingAllowed | BlackQueensideCastlingAllowed;
 }
 
-Color :: enum u8 {
-    White :: 0;
-    Black;
+/*
+ * Compact board position.
+ * This is meant to represent a board position in a memory-efficiency way.
+ * It's not easy to manipulate, so reserve this for when you need to store a lot of positions.
+ *
+ * We could go down further, for instance by storing a bitboard (64 bits) to know whether
+ * a square is occupied, and then list of piece ids (4 bits each).
+ * Which would make the whole thing 64 + 4 * 32 = 192 bits max (and 72 bits min).
+ * But that would require dynamic allocations to store efficiently, which is a bit counter-productive.
+ *
+ * Therefore, I went for a flat array of 64 * 4 = 256 bits, which is less efficient,
+ * but definitively easier to maintain. You can consider it like 4 bitboards each describing
+ * a bit of a piece id.
+ */
+CompactBoardPosition :: [4]u64;
+
+board_position :: (cbp : CompactBoardPosition) -> BoardPosition {
+    bp : BoardPosition;
+    for coord : 0 .. CoordCount - 1 {
+        bit0 := cast(PieceId) ((cbp[0] >> coord) & 1);
+        bit1 := cast(PieceId) ((cbp[1] >> coord) & 1);
+        bit2 := cast(PieceId) ((cbp[2] >> coord) & 1);
+        bit3 := cast(PieceId) ((cbp[3] >> coord) & 1);
+        bp[coord] = piece_from_piece_id(bit0 | (bit1 << 1) | (bit2 << 2) | (bit3 << 3));
+    }
+    return bp;
+}
+
+compact_board_position :: (bp : BoardPosition) -> CompactBoardPosition {
+    cbp : CompactBoardPosition;
+    for coord : 0 .. CoordCount - 1 {
+        pieceId := cast(u64) piece_id(bp[coord]);
+        cbp[0] |= (pieceId & 1) << coord;
+        cbp[1] |= ((pieceId >> 1) & 1) << coord;
+        cbp[2] |= ((pieceId >> 2) & 1) << coord;
+        cbp[3] |= ((pieceId >> 3) & 1) << coord;
+    }
+    return cbp;
 }
 
 // @note We call "move" what litterature might call "half-move".
-Move :: struct {
+SimpleMove :: struct {
     sourceCoord : Coord = 0xFF;
     targetCoord : Coord = 0xFF;
+}
+
+Move :: struct {
+    using #as simpleMove : SimpleMove;
     promotionPieceKind := PieceKind.None;
 }
 
@@ -145,13 +187,13 @@ highlight_color :: (character : u8) -> HighlightColor {
 }
 
 highlight_color_to_string :: (highlightColor : HighlightColor) -> string {
-    if #complete highlightColor == {
-        case .None; return "";
+    if highlightColor == {
         case .Blue; return "B";
         case .Green; return "G";
         case .Red; return "R";
         case .Yellow; return "Y";
     }
+    return "";
 }
 
 highlight_color_to_vec4 :: (highlightColor : HighlightColor) -> Chamber.vec4 {
@@ -507,6 +549,15 @@ position_last_move_to_san :: (position : Position, annotations := false) -> stri
     check := ifx position.flags & .Mate then "#" else ifx position.flags & .Check then "+" else "";
     capture := ifx position.lastMove.capture then "x" else "";
 
+    annotationsStr : string;
+    if annotations {
+        annotationsStr = Basic.tprint("%", annotation_to_utf8(position.lastMove.annotation));
+        annotationsStr = Basic.tprint("%1%2", annotationsStr, annotation_to_utf8(position.annotation));
+        for annotation : position.observationAnnotations {
+            annotationsStr = Basic.tprint("%1%2", annotationsStr, annotation_to_utf8(annotation));
+        }
+    }
+
     promotion := "";
     if position.lastMove.promotionPieceKind != .None {
         promotion = Basic.tprint("=%", piece_kind_to_symbol(piece.kind));
@@ -520,9 +571,8 @@ position_last_move_to_san :: (position : Position, annotations := false) -> stri
         }
     } else if piece.kind == .King {
         // Detect castling
-        // @fixme Bug: no annotations in this case
-        if targetCol == sourceCol + 2 then return Basic.tprint("O-O%", check);
-        else if targetCol == sourceCol - 2 then return Basic.tprint("O-O-O%", check);
+        if targetCol == sourceCol + 2 then return Basic.tprint("O-O%1%2", check, annotationsStr);
+        else if targetCol == sourceCol - 2 then return Basic.tprint("O-O-O%1%2", check, annotationsStr);
 
         // King is alone, never duplicated sources.
         sourceRow, sourceCol = 0xFF, 0xFF;
@@ -543,15 +593,6 @@ position_last_move_to_san :: (position : Position, annotations := false) -> stri
             // @note SAN prefers the col is it is sufficient to disambiguate.
             if !colConflicts then sourceRow = 0xFF;
             else if !rowConflicts then sourceCol = 0xFF;
-        }
-    }
-
-    annotationsStr : string;
-    if annotations {
-        annotationsStr = Basic.tprint("%", annotation_to_utf8(position.lastMove.annotation));
-        annotationsStr = Basic.tprint("%1%2", annotationsStr, annotation_to_utf8(position.annotation));
-        for annotation : position.observationAnnotations {
-            annotationsStr = Basic.tprint("%1%2", annotationsStr, annotation_to_utf8(annotation));
         }
     }
 
@@ -763,12 +804,11 @@ position_play_move :: (position : *Position, sourceCoord : Coord, targetCoord : 
         kingCoord := position_find_piece(position, .King, colorNotToPlay);
         if kingCoord != 0xFF && position_square_controlled(position, kingCoord, piece.color) {
             position.flags |= .Check;
-            if position_legal_moves(position, promotionVariants = false).count == 0 {
-                position.flags |= .Mate;
-            }
         }
 
-        // @todo Detect stalemate.
+        if position_legal_moves(position, promotionVariants = false).count == 0 {
+            position.flags |= ifx position.flags & .Check then PositionFlags.Mate else .StaleMate;
+        }
     }
 }
 
@@ -783,13 +823,15 @@ position_square_controlled :: (position : Position, squareCoord : Coord, color :
     // Pawn captures
     pawnDirection := ifx color == .White then cast(u8) 1 else -1;
     row, col := row_col(squareCoord);
-    if col > 0 {
-        piece := position.board[coord(row - pawnDirection, col - 1)];
-        if piece.kind == .Pawn && piece.color == color return true;
-    }
-    if col < 7 {
-        piece := position.board[coord(row - pawnDirection, col + 1)];
-        if piece.kind == .Pawn && piece.color == color return true;
+    if row - pawnDirection >= 0 && row - pawnDirection <= 7 {
+        if col > 0 {
+            piece := position.board[coord(row - pawnDirection, col - 1)];
+            if piece.kind == .Pawn && piece.color == color return true;
+        }
+        if col < 7 {
+            piece := position.board[coord(row - pawnDirection, col + 1)];
+            if piece.kind == .Pawn && piece.color == color return true;
+        }
     }
 
     return false;

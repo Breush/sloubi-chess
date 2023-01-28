@@ -5,9 +5,8 @@ Config :: struct {
     version : s64;
     env : struct {
         backgroundColor : Chamber.vec3;
-        secondaryBackgroundColor : Chamber.vec3;
-        buttonBackgroundColor : Chamber.vec3;
-        selectedButtonBackgroundColor : Chamber.vec3;
+        contrastColor : Chamber.vec3;
+        hoverColor : Chamber.vec3;
         textColor : Chamber.vec3;
         fontFamily : string;
         monoFontFamily : string;
@@ -58,6 +57,10 @@ Config :: struct {
         nextVariation : Crater.Key;
         previousVariation : Crater.Key;
     }
+    library : struct {
+        path : string;
+        gameTitleFormat : string;
+    }
     moves : struct {
         mainColor : Chamber.vec3;
         interestingColor : Chamber.vec3;
@@ -96,6 +99,8 @@ config_cleanup :: (config : *Config) {
     Basic.array_free(config.board.keyboardMove.numbersMap);
     Basic.array_free(config.board.keyboardMove.selectNext);
     Basic.array_free(config.board.keyboardMove.playSelected);
+    Basic.free(config.library.path);
+    Basic.free(config.library.gameTitleFormat);
 }
 
 persistence_cleanup :: (persistence : *Persistence) {
