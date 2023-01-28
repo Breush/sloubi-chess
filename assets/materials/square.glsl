@@ -28,15 +28,6 @@ layout(std140, set = MATERIAL_DESCRIPTOR_SET_INDEX, binding = 0) uniform Materia
 
 layout(set = MATERIAL_DESCRIPTOR_SET_INDEX, binding = 1) uniform sampler2D pieceTexture;
 
-vec3 toLinear(vec3 sRGB)
-{
-    bvec3 cutoff = lessThan(sRGB, vec3(0.04045));
-    vec3 higher = pow((sRGB + vec3(0.055)) / vec3(1.055), vec3(2.4));
-    vec3 lower = sRGB / vec3(12.92);
-
-    return mix(higher, lower, cutoff);
-}
-
 void main() {
     outColor = material.color;
 
@@ -50,17 +41,17 @@ void main() {
     outColor.rgb = mix(outColor.rgb, material.highlightColor.rgb, f * material.highlightColor.a);
 
     // @todo Add config for these colors?
-    const float highlightThickness = 0.025;
-    float highlight = texture(pieceTexture, pieceUv + highlightThickness * vec2(1, 0)).a;
-    highlight += texture(pieceTexture, pieceUv + highlightThickness * vec2(-1, 0)).a;
-    highlight += texture(pieceTexture, pieceUv + highlightThickness * vec2(0, 1)).a;
-    highlight += texture(pieceTexture, pieceUv + highlightThickness * vec2(0, -1)).a;
-    highlight += texture(pieceTexture, pieceUv + highlightThickness * vec2(1, 1)).a;
-    highlight += texture(pieceTexture, pieceUv + highlightThickness * vec2(-1, 1)).a;
-    highlight += texture(pieceTexture, pieceUv + highlightThickness * vec2(1, -1)).a;
-    highlight += texture(pieceTexture, pieceUv + highlightThickness * vec2(-1, -1)).a;
-    highlight = clamp(highlight, 0, 1);
-    outColor.rgb = mix(outColor.rgb, vec3(0.88, 0.70, 0.50), highlight * float(material.selected));
+    const float selectionHighlightThickness = 0.025;
+    float selectionHighlight = texture(pieceTexture, pieceUv + selectionHighlightThickness * vec2(1, 0)).a;
+    selectionHighlight += texture(pieceTexture, pieceUv + selectionHighlightThickness * vec2(-1, 0)).a;
+    selectionHighlight += texture(pieceTexture, pieceUv + selectionHighlightThickness * vec2(0, 1)).a;
+    selectionHighlight += texture(pieceTexture, pieceUv + selectionHighlightThickness * vec2(0, -1)).a;
+    selectionHighlight += texture(pieceTexture, pieceUv + selectionHighlightThickness * vec2(1, 1)).a;
+    selectionHighlight += texture(pieceTexture, pieceUv + selectionHighlightThickness * vec2(-1, 1)).a;
+    selectionHighlight += texture(pieceTexture, pieceUv + selectionHighlightThickness * vec2(1, -1)).a;
+    selectionHighlight += texture(pieceTexture, pieceUv + selectionHighlightThickness * vec2(-1, -1)).a;
+    selectionHighlight = clamp(selectionHighlight, 0, 1);
+    selectionHighlight *= float(material.selected);
 
     outColor.rgb = mix(outColor.rgb, vec3(0.6, 0.6, 0.6), float(material.moved) * 0.5);
 
@@ -83,12 +74,12 @@ void main() {
     }
 
     // Alpha compositing to opaque background
-    vec4 pieceColor = texture(pieceTexture, pieceUv);
+    vec4 pieceTextureColor = texture(pieceTexture, pieceUv);
+    vec4 pieceColor = vec4(0.88, 0.70, 0.50, selectionHighlight);
+    pieceColor.rgb = mix(pieceColor.rgb, pieceTextureColor.rgb, pieceTextureColor.a);
+    pieceColor.a = max(pieceColor.a, pieceTextureColor.a);
     outColor.rgb = mix(outColor.rgb, pieceColor.rgb, (1 - material.pieceTranslucency) * pieceColor.a);
     outColor.a = pieceColor.a + outColor.a * (1 - pieceColor.a);
-
-    // @fixme Clarify, why would going to linear space needed?
-    outColor = vec4(toLinear(outColor.rgb), outColor.a);
 }
 
 #endif
