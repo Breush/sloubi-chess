@@ -1,4 +1,4 @@
-[Event "?"]
+[Event "Chapître 1"]
 [Site "?"]
 [Date "????.??.??"]
 [Round "?"]
@@ -13,8 +13,8 @@ contrôlent c5 et e5 dès leur premier coup.} 1... Nf6 {En réponse, les Noirs
 se développent et gagnent le contrôle d'e4.} 2. c4 {2. e4 étant impossible,
 les Blancs choisissent le deuxième meilleur coup pour ajouter un pion au centre
 et s'assurer le contrôle de d5.} (2. Nf3 {amène à la même réponse:} 2... c5
-3. d5 3... b5 {Plus d'infos sur cette variante à la fin du prochain chapitre.})
-2... c5 {La première confrontation directe après l'installation centrale
+3. d5 b5 {Plus d'infos sur cette variante à la fin du prochain chapitre.}) 2...
+c5 {La première confrontation directe après l'installation centrale
 tranquille. Ce pion pose une question à d4, et challenge le contrôle de c5 et
 e5 - trois cases noires du centre.} 3. d5 {Les Blancs concèdent les cases
 noires, mais a un avantage d'espace et espèrent créer une formidable chaîne
@@ -29,10 +29,10 @@ le pion pendouillant en d5 et était la dernière chance d'éviter le Benko avec
 3. Cf3! Bien que ce soit évidemment une (pseudo-) exagération, ceci explique
 pourquoi beaucoup de joueurs de Benko sont émoustillés à l'idée d'amener
 leur fou du roi en g7. C'est une diagonale de rêve, d'autant plus qu'en
-direction d'e7 le chemin est entravé par le pion c5.} (3. dxc5 $2 3... e6 {et
-les Noirs regagnent le pion avec un avantage de développement.}) (3. Nf3 {est
-une alternative commune pour éviter le Benko} 3... cxd4 4. Nxd4 {retombe dans
-une anglaise}) 3... b5 {Etant donné que dans le Benoni moderne, les blancs font
+direction d'e7 le chemin est entravé par le pion c5.} (3. dxc5 $2 e6 {et les
+Noirs regagnent le pion avec un avantage de développement.}) (3. Nf3 {est une
+alternative commune pour éviter le Benko} 3... cxd4 4. Nxd4 {retombe dans une
+anglaise}) 3... b5 {Etant donné que dans le Benoni moderne, les blancs font
 tout pour empêcher b5, pourquoi ne pas le jouer maintenant ? Si vous demandez
 à un joueur des années 1920 ce qu'il pense de ce coup, il vous dira que "ça
 perd juste un pion". Si vous demandez la même chose à David Bronstein pendant
@@ -40,79 +40,153 @@ les années 1950, il aurait baragouiné quelque chose à propos du Gambit de la
 Volga et d'une finale désavantageuse. De nos jours, pourtant, sa réponse
 serait probablement "Le Gambit Benko ? Une ouverture très intéressante". Nous
 y voilà, le sujet du livre : le Gambit Benko. Avec 3. b5, les Noirs jouent leur
-coup de pion favori avant qu'il puisse être restreint par Cc3.} (3... e5 {La
-Benoni tchèque, jouable mais après:} 4. Nc3 4... d6 5. e4 {l'avantage d'espace
-des Blancs devient éternel. Les Noirs veulent plus de fun que ce genre de
-combat.}) (3... g6 {Trop passif, car les Blancs construisent un centre
-imprenable avec:} 4. Nc3 4... Bg7 5. e4) (3... e6 {Tentative pour mettre le fou
-en g7 sans être trop passif.} 4. Nc3 4... exd5 5. cxd5 5... d6 6. e4 6... g6 7.
-Nf3 7... Bg7 8. Be2 8... O-O {C'est la Benoni moderne. Les Blancs ont l'avantage
-d'espace au centre mais les Noirs peuvent lui mettre la pression avec Te8 et
-Fg4. Les Noirs essayeront de stabiliser le centre et de créer du contre-jeu sur
-l'aile-dame grâce à b5, aidé par Tb8, a7 et même Da5. L'avancée b5 ferait
-des dégâts et les Blancs feront de leur mieux pour le restreindre à base de
-a4 et de plusieurs pièces pointant sur b5.}) 4. cxb5 {Les Blancs ne sont pas
-obligés d'accepter le pion, même si seul 4. Cf3 pose de réels problèmes.}
-4... a6 {L'idée-même du gambit. Les Noirs ouvrent la voie pour leurs pièces
-à l'aile-dame.} 5. bxa6 {Un moment critique. Même si accepter le premier pion
-est plus ou moins le meilleur coup pour les Blancs, à ce moment, les Blancs ont
-des alternatives. Mais ici nous suivrons la variante principale car elle
-révèle clairement ce que les noirs essayent d'atteindre avec leur sacrifice de
-pion.} (5. b6 {Ultra-solide.}) (5. Nc3 5... axb5 6. e4 6... b4 7. Nb5 {Plutôt
-fou.}) 5... g6 {Un deuxième sacrifice de pion ? Non, car le pion en a6 est
-juste pris au piège. L'idée de g6 directement est de contrer l'arrivée du fou
-adverse en g2 en gardant l'option de jouer Cxa6. Ce raisonnement sera expliqué
-plus en détails dans le chapitre Stratégie.} 6. Nc3 {Les Blancs mettent
-presque toujours leur cavalier en c3 dans la variante principale car il aide à
-protéger b2, e4 et d5.} 6... Bxa6 {Impératif car retarder permet 7. e4.} (6...
-Bg7 $2 7. e4 7... Bxa6 8. Bxa6 {et les Blancs ne perdent pas le droit de roquer.
-De plus, e5 des Blancs reste une menace.}) 7. e4 {Une importante décision car
-cela empêche le droit de roquer.} (7. Nf3 7... Bg7 (7... d6 8. e4 {retombe dans
-la variante principale}) 8. g3 {Un plan classique des Blancs pour roquer.}) 7...
-Bxf1 {Bien sûr, les Noirs sautent sur l'occasion d'échanger les fous et
-déroquent les Blancs. Mais est-ce si évident ? Dans les premières parties de
-Benko, les Noirs préfèrent 7... Fg7 8. Fxa6 Cxa6 et apprécient leur
-développement rapide du cavalier. Mais cela semble absurde car empêcher les
-Blancs de roquer est, sur le long terme, plus important que de garder le
-cavalier sur a6 - case d'où il n'est peut-être pas mieux que d7. Je suppose
-que quand le Benko a été testé les premières fois, les Noirs souhaitaient
-avoir le développement rapide que donnent les gambits habituellement : d'où
-l'envie d'amener le cavalier en a6. C'est uniquement quand l'ouverture est
-devenue plus sophistiquée que les Noirs ont réalisés qu'ils n'avaient pas
-d'attaque directe. Souvenez-vous que la compensation pour le pion est
-stratégique, pas tactique.} 8. Kxf1 8... d6 {Ce coup est bon par principe est
-ne peut être critiqué car il empêche e4-e5 et d5-d6 tout en solidifiant le
-centre des Noirs. Mais dans d'autres situations, il peut être un sérieux
-manque de temps amenant un affaiblissement non-nécessaire si les Noirs
+coup de pion favori avant qu'il puisse être restreint par Cc3.} (e5 {La Benoni
+tchèque, jouable mais après:} 4. Nc3 d6 5. e4 {l'avantage d'espace des Blancs
+devient éternel. Les Noirs veulent plus de fun que ce genre de combat.}) (g6
+{Trop passif, car les Blancs construisent un centre imprenable avec:} 4. Nc3 Bg7
+5. e4) (e6 {Tentative pour mettre le fou en g7 sans être trop passif.} 4. Nc3
+exd5 5. cxd5 d6 6. e4 g6 7. Nf3 Bg7 8. Be2 O-O {C'est la Benoni moderne. Les
+Blancs ont l'avantage d'espace au centre mais les Noirs peuvent lui mettre la
+pression avec Te8 et Fg4. Les Noirs essayeront de stabiliser le centre et de
+créer du contre-jeu sur l'aile-dame grâce à b5, aidé par Tb8, a7 et même
+Da5. L'avancée b5 ferait des dégâts et les Blancs feront de leur mieux pour
+le restreindre à base de a4 et de plusieurs pièces pointant sur b5.}) 4. cxb5
+{Les Blancs ne sont pas obligés d'accepter le pion, même si seul 4. Cf3 pose
+de réels problèmes.} 4... a6 {L'idée-même du gambit. Les Noirs ouvrent la
+voie pour leurs pièces à l'aile-dame.} 5. bxa6 {Un moment critique. Même si
+accepter le premier pion est plus ou moins le meilleur coup pour les Blancs, à
+ce moment, les Blancs ont des alternatives. Mais ici nous suivrons la variante
+principale car elle révèle clairement ce que les noirs essayent d'atteindre
+avec leur sacrifice de pion.} (5. b6 {Ultra-solide.}) (5. Nc3 axb5 6. e4 b4 7.
+Nb5 {Plutôt fou.}) 5... g6 {Un deuxième sacrifice de pion ? Non, car le pion
+en a6 est juste pris au piège. L'idée de g6 directement est de contrer
+l'arrivée du fou adverse en g2 en gardant l'option de jouer Cxa6. Ce
+raisonnement sera expliqué plus en détails dans le chapitre Stratégie.} 6.
+Nc3 {Les Blancs mettent presque toujours leur cavalier en c3 dans la variante
+principale car il aide à protéger b2, e4 et d5.} 6... Bxa6 {Impératif car
+retarder permet 7. e4.} (Bg7 $2 7. e4 Bxa6 8. Bxa6 {et les Blancs ne perdent pas
+le droit de roquer. De plus, e5 des Blancs reste une menace.}) 7. e4 {Une
+importante décision car cela empêche le droit de roquer.} (7. Nf3 Bg7 (d6 8.
+e4 {retombe dans la variante principale}) 8. g3 {Un plan classique des Blancs
+pour roquer.}) 7... Bxf1 {Bien sûr, les Noirs sautent sur l'occasion
+d'échanger les fous et déroquent les Blancs. Mais est-ce si évident ? Dans
+les premières parties de Benko, les Noirs préfèrent 7... Fg7 8. Fxa6 Cxa6 et
+apprécient leur développement rapide du cavalier. Mais cela semble absurde car
+empêcher les Blancs de roquer est, sur le long terme, plus important que de
+garder le cavalier sur a6 - case d'où il n'est peut-être pas mieux que d7. Je
+suppose que quand le Benko a été testé les premières fois, les Noirs
+souhaitaient avoir le développement rapide que donnent les gambits
+habituellement : d'où l'envie d'amener le cavalier en a6. C'est uniquement
+quand l'ouverture est devenue plus sophistiquée que les Noirs ont réalisés
+qu'ils n'avaient pas d'attaque directe. Souvenez-vous que la compensation pour
+le pion est stratégique, pas tactique.} 8. Kxf1 d6 {Ce coup est bon par
+principe est ne peut être critiqué car il empêche e4-e5 et d5-d6 tout en
+solidifiant le centre des Noirs. Mais dans d'autres situations, il peut être un
+sérieux manque de temps amenant un affaiblissement non-nécessaire si les Noirs
 prévoient de contre-attaquer le centre avec e6. Pour paraphraser Pillbury, les
 Noirs devrait jouer d6 parce qu'ils le veulent ou le doivent, pas parce qu'ils
 le peuvent.} 9. Nf3 {Un coup de développement sensé avant de décider quoi
 faire du roi.} 9... Bg7 {Enfin, le fou arrive sur sa case rêvée.} 10. g3 (10.
-h3 10... O-O 11. Kg1 11... Nbd7 12. Kh2 {Cela prend plus de temps d'amener le
-roi en h2, mais il y parait plus en sécurité qu'en g2. Contre ce plan, les
-Noirs doivent augmenter la pression sur l'aile-dame cat contre-attaquer le
-centre avec e6 serait moins efficace sans le roi cible en g2. Pour les Noirs,
-l'avantage est que la percée e5 des Blancs est moins inquiétante que le roi en
-h2 est sujet à des attaques sur la diagonale b8-h2.}) 10... Nbd7 {Les Noirs se
-développent. L'expérience des années aura montré que le cavalier est mieux
-placé ici qu'en a6. D'ici, il dissuade l'avancée e4-e5 et est prêt à aller
-en b6 pour attaquer l'aile-dame.} 11. Kg2 {Le roi blanc libère la tour h1.}
-11... O-O {Et le roi noir libère la tour h8. L'un des bons points du Benko,
-c'est que le roi noir n'est pas une cible directe grâce à son fou en
-fianchetto.} 12. Re1 {La meilleure case pour la tour, d'où elle défend e4 et
-en prépare sa poussée.} 12... Qa5 (12... Ra6 13. a4 13... Qa8 {Une
-alternative. Avec l'idée de casser le centre.}) 13. h3 {Les Blancs jouent
-souvent ce coup pour empêcher la manœuvre Cg5 Ce5 libérant le jeu des Noirs.
-Mais pour être honnête, ça n'avait pas l'air super intéressant de toute
-façon.} 13... Rfb8 {Les Noirs finissent leur développement. Ce genre de
-position active pour les tours est normalement l'apanage de la fin du milieu de
-jeu, pas dans le Benko.} 14. Re2 {En contraste, les tours blanches sont en
-défense.} 14... Ne8 $1 {Défensif contre e4-e5, manœuvre pour rejoindre b5, et
-aggressif car la menace est Fxc3.} 15. Rc2 {Blinde c3 et b2. Le plan des Blancs
-et de se regrouper calmement mais sûrement et de prendre l'initiative grâce à
-leur centre et à leur pion passé.} 15... Nb6 {D'ici, le cavalier vise a3 pour
-supprimer le défenseur de b2. Mais la structure des Blancs continue de tenir
-fermement. On a tracé le chemin des 15 premiers coups de la Benko et nous nous
-sommes familiarisés avec des idées clés. La discussion va s'étendre sur la
-chapitre de la stratégie. Mais d'abord, un petit aperçu historique de
-l'ouverture.} *
+h3 O-O 11. Kg1 Nbd7 12. Kh2 {Cela prend plus de temps d'amener le roi en h2,
+mais il y parait plus en sécurité qu'en g2. Contre ce plan, les Noirs doivent
+augmenter la pression sur l'aile-dame cat contre-attaquer le centre avec e6
+serait moins efficace sans le roi cible en g2. Pour les Noirs, l'avantage est
+que la percée e5 des Blancs est moins inquiétante que le roi en h2 est sujet
+à des attaques sur la diagonale b8-h2.}) 10... Nbd7 {Les Noirs se développent.
+L'expérience des années aura montré que le cavalier est mieux placé ici
+qu'en a6. D'ici, il dissuade l'avancée e4-e5 et est prêt à aller en b6 pour
+attaquer l'aile-dame.} 11. Kg2 {Le roi blanc libère la tour h1.} 11... O-O {Et
+le roi noir libère la tour h8. L'un des bons points du Benko, c'est que le roi
+noir n'est pas une cible directe grâce à son fou en fianchetto.} 12. Re1 {La
+meilleure case pour la tour, d'où elle défend e4 et en prépare sa poussée.}
+12... Qa5 (Ra6 13. a4 Qa8 {Une alternative. Avec l'idée de casser le centre.})
+13. h3 {Les Blancs jouent souvent ce coup pour empêcher la manœuvre Cg5 Ce5
+libérant le jeu des Noirs. Mais pour être honnête, ça n'avait pas l'air
+super intéressant de toute façon.} 13... Rfb8 {Les Noirs finissent leur
+développement. Ce genre de position active pour les tours est normalement
+l'apanage de la fin du milieu de jeu, pas dans le Benko.} 14. Re2 {En contraste,
+les tours blanches sont en défense.} 14... Ne8 $1 {Défensif contre e4-e5,
+manœuvre pour rejoindre b5, et aggressif car la menace est Fxc3.} 15. Rc2
+{Blinde c3 et b2. Le plan des Blancs et de se regrouper calmement mais sûrement
+et de prendre l'initiative grâce à leur centre et à leur pion passé.} 15...
+Nb6 {D'ici, le cavalier vise a3 pour supprimer le défenseur de b2. Mais la
+structure des Blancs continue de tenir fermement. On a tracé le chemin des 15
+premiers coups de la Benko et nous nous sommes familiarisés avec des idées
+clés. La discussion va s'étendre sur la chapitre de la stratégie. Mais
+d'abord, un petit aperçu historique de l'ouverture.} *
+
+[Event "Chapitre 2"]
+[Site "?"]
+[Date "????.??.??"]
+[Round "?"]
+[White "?"]
+[Black "?"]
+[Result "*"]
+[BoardOrientation "Black"]
+
+{Étudier les parties des pionniers d'une ouverture est un très bon moyen d'en
+découvrir les secrets. Au milieu des années 1970, alors même que le Benko a
+commencé à être populaire, les joueurs des Blancs n'étaient pas seulement
+ignores quant aux réponses sophistiquées au gambit, ils en étaient confus
+également. Les Noirs avaient alors souvent l'occasion de démontrer ses plans
+d'une manière claire sans grande résistance. Cela produisit une quantité de
+parties modèles.\nToutefois, ce chapitre remonte bien avant 1970.\nLe premier
+de nos héros est Capablanca, le Grand-Maïtre cubain Champion du Monde de 1921
+à 1927. Si être en avance sur son temps fait de vous un génie, alors
+Capablanca est peut-être bien le plus grand de tous dans le monde des échecs.
+Ses parties anticipent les avancées théoriques des trente dernières années
+au moins. Après tout, considérez ceci : il jouait l'Est-Indienne à La Havane
+en 1913 ; il employa un set-up de Benoni Moderne pour écraser Alekhine comme un
+enfant avec les Noirs à New York en 1927 ; et voici comment il jouait treize
+ans plus tôt contre Nimzowitsch à St. Pétersbourg.\n\nA. Nimzowitsch - J.
+Capablanca\nSt. Pétersbourg, 1914} 1. e4 e5 2. Nf3 Nc6 3. Nc3 Nf6 4. Bb5 d6 5.
+d4 Bd7 6. Bxc6 Bxc6 7. Qd3 exd4 8. Nxd4 g6 {Bien évidemment, les coups
+d'ouverture n'ont rien à voir avec la théorie du gambit Benko, mais le
+sacrifice de pion de Capablanca au coup 8 est parfaitement dans l'esprit. "Une
+idée novatrice, écrit Capablanca, créée sous l'impulsion du moment, avec
+l'intention d'amener les Blancs à gérer leurs ressources dans une forme de
+défense dont Nimzowitsch n'était pas familier."\nC'est une façon remarquable
+de décider d'un sacrifice positionnel, incompréhensible pour la plupart des
+gens dans le monde des échecs pendant 50 ans !} 9. Nxc6 bxc6 10. Qa6 {Tacticien
+dans l'âme, Nimzowitsch voit le gain d'un pion et la possibilité de créer un
+pion passé ! En 1914, cela semble être une bonne idée.} 10... Qd7 11. Qb7 Rc8
+12. Qxa7 Bg7 13. O-O O-O 14. Qa6 {Ayant attrapé son butin, la dame blanche
+retourne vers le centre.} 14... Rfe8 15. Qd3 Qe6 16. f3 {Un joueur moderne
+expérimenté reconnaîtrait dans la structure de pions les atouts de la
+Variante Principale de la Benko : les deux colonnes ouvertes sur l'aile dame
+pour les tours noires, le centre de pions noirs compact et le fou dominant en
+g7. Il concluerait aussi probablement que les Noirs ont obtenu une version
+avantageuse de la Benko : en particulier le pion en c6 qui protège la case d5 -
+un luxe que les Noirs n'ont pas d'habitude dans le gambit Benko. Le joueur
+moderne n'aurait peut-être pas vu les parties de Pal Benko, Lev Alburt ou
+d'autres joueurs de 1970, mais la théorie moderne s'est construite sur leur
+héritage - c'est pourquoi il est possible de d'affirmer que les Noirs ont
+suffisamment de compension pour le pion dans cette position.\nMais qu'est-ce que
+Nimzowitsch aurait pu savoir de tout cela en 1914, dans un monde à une
+génération de distance du gambit du Roi ? D'après les valeurs de son temps,
+il avait un pion net d'avance, sans réelle faiblesse dans sa position - en
+d'autres termes, il se pensait gagnant. On peut alors facilement imaginer sa
+confusion et son désespoir au fur et à mesure de la partie alors la victoire
+s'échappe - et même plus que ça, la nulle également !} {[%csl
+Bc6,Bd6,Bg7,Rd5]} {[%cal Ba8a2,Bb8b2,Bd6e5,Bd6c5,Bc6d5,Bc6b5,Bg7b2]} 16... Nd7
+$1 {Le cavalier commence une manoeuvre vers c4 pour attaquer les pions de l'aile
+dame.} {[%cal Bd7b6,Bb6c4]} 17. Bd2 Ne5 18. Qe2 Nc4 19. Rab1 Rca8 {Les tours
+noires s'installent sur les cases naturelles. Capablanca joue la position comme
+un Grand-Maître moderne - il n'y a rien de démodé dans sa façon de jouer. En
+face, Nimzowitsch n'a aucune idée de comment coordiner ses pièces dans cette
+position inhabituelle, principalement parce qu'il pense avoir l'avantage. Ici,
+par exemple, il pouvait tenter 20. b3 comme recommandé par Capablanca.} {[%cal
+Be8b8,Rb2b3]} 20. a4 ({Ici, par exemple, il pouvait tenter b3 comme recommendé
+par Capablanca. Mais il est difficile d'accepter :} 20. b3 Nxd2 21. Qxd2 Ra3
+{avec l'intention de jouer De5 pour faire bouger le cavalier et récupérer le
+pion. Les Blancs devant alors défendre la nulle.} {[%cal Be6e5,Be5c3]}) 20...
+Nxd2 21. Qxd2 Qc4 22. Rfd1 {Il était impératif de rendre un pion avec 22. Ce2,
+car dorénavant l'important pion b2 devient indéfendable.} 22... Reb8 23. Qe3
+Rb4 24. Qg5 Bd4+ 25. Kh1 Rab8 $1 ({Garder la pression positionnelle est bien
+plus important que de récupérer un pion. Dans la partie, une fois que le pion
+b2 tombe, le cavalier n'aura aucune bonne case. Et ne parlons même pas du pion
+c2. Du coup, Nimzowitsch accepte de perdre une qualité, mais la suite sera un
+massacre.} 25... Bxc3 $2) 26. Rxd4 Qxd4 27. Rd1 Qc4 28. h4 R4xb2 29. Qd2 Qc5 30.
+Re1 Qh5 31. Ra1 Qxh4+ 32. Kg1 Qh5 33. a5 Ra8 34. a6 Qc5+ 35. Kh1 Qc4 36. a7 Qc5
+37. e5 Qxe5 38. Ra4 Qh5+ 39. Kg1 Qc5+ 40. Kh2 d5 41. Rh4 Rxa7 42. Nd1 {Les
+Blancs abandonnent.} *
