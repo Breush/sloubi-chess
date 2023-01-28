@@ -15,13 +15,14 @@ String :: #import "String";
     // The real work is done in second.jai.
     options := Compiler.get_build_options();
     import_path: [..] string;
-    Basic.array_add(*import_path, "./lava/modules");
     Basic.array_add(*import_path, ..options.import_path);
+    Basic.array_add(*import_path, "../lava/modules");
     options.import_path = import_path;
+    options.intermediate_path = String.join(#filepath, "/../.build/");
 
     Compiler.set_build_options(options, workspace);
     Compiler.compiler_begin_intercept(workspace);
-    Compiler.add_build_file("./src/second.jai", workspace);
+    Compiler.add_build_file("./second.jai", workspace);
 
     while true {
         message := Compiler.compiler_wait_for_message();
@@ -55,14 +56,14 @@ ship :: () {
     File.make_directory_if_it_does_not_exist(folder);
 
     #if OS == .WINDOWS {
-        FileUtilities.copy_file("bin/sloubi-chess.exe", Basic.tprint("%/sloubi-chess.exe", folder));
+        FileUtilities.copy_file("sloubi-chess.exe", Basic.tprint("%/sloubi-chess.exe", folder));
         FileUtilities.copy_file("lava/bindings/Shaderc/libshaderc.dll", Basic.tprint("%/libshaderc.dll", folder));
         FileUtilities.copy_file("lava/bindings/StbTrueType/libstbtruetype.dll",  Basic.tprint("%/libstbtruetype.dll", folder));
         FileUtilities.copy_file("lava/bindings/Vulkan/libvulkan.dll",  Basic.tprint("%/libvulkan.dll", folder));
     } else {
         POSIX :: #import "POSIX";
         File.make_directory_if_it_does_not_exist(Basic.tprint("%/lib", folder));
-        FileUtilities.copy_file("bin/sloubi-chess", Basic.tprint("%/sloubi-chess", folder));
+        FileUtilities.copy_file("sloubi-chess", Basic.tprint("%/sloubi-chess", folder));
         POSIX.chmod(Basic.tprint("%/sloubi-chess\0", folder).data, 0x1FF); // Executable
         FileUtilities.copy_file("lava/bindings/Shaderc/libshaderc.so", Basic.tprint("%/lib/libshaderc.so", folder));
         FileUtilities.copy_file("lava/bindings/StbTrueType/libstbtruetype.so",  Basic.tprint("%/lib/libstbtruetype.so", folder));

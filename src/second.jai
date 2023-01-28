@@ -10,13 +10,13 @@ dummy_ide_check_message :: (message : *Compiler.Message) {
 
 #run () {
     Basic.set_working_directory(String.join(#filepath, "/.."));
-    File.make_directory_if_it_does_not_exist("./bin");
 
     workspace := Compiler.compiler_create_workspace("sloubi-chess");
 
     options := Compiler.get_build_options();
     options.output_executable_name  = "sloubi-chess";
-    options.output_path             = String.join(#filepath, "/../bin/");
+    options.output_path             = String.join(#filepath, "/../");
+    options.intermediate_path       = String.join(#filepath, "/../.build/");
     options.optimization_level      = .DEBUG;
     options.text_output_flags       = .OUTPUT_TIMING_INFO; // @note And not the linker lines.
     options.backend = .X64;
@@ -30,7 +30,7 @@ dummy_ide_check_message :: (message : *Compiler.Message) {
     }
 
     import_path: [..] string;
-    Basic.array_add(*import_path, "./lava/bindings");
+    Basic.array_add(*import_path, "../lava/bindings");
     Basic.array_add(*import_path, ..options.import_path);
     options.import_path = import_path;
 
@@ -40,17 +40,17 @@ dummy_ide_check_message :: (message : *Compiler.Message) {
         // (From https://stackoverflow.com/a/5260237)
         options.additional_linker_arguments = .["/subsystem:windows ", "/entry:mainCRTStartup"];
 
-        if !FileUtilities.file_exists("./bin/libshaderc.dll") then FileUtilities.copy_file("./lava/bindings/Shaderc/libshaderc.dll", "./bin/libshaderc.dll");
-        if !FileUtilities.file_exists("./bin/libstbtruetype.dll") then FileUtilities.copy_file("./lava/bindings/StbTrueType/libstbtruetype.dll", "./bin/libstbtruetype.dll");
-        if !FileUtilities.file_exists("./bin/libvulkan.dll") then FileUtilities.copy_file("./lava/bindings/Vulkan/libvulkan.dll", "./bin/libvulkan.dll");
+        if !FileUtilities.file_exists("./libshaderc.dll") then FileUtilities.copy_file("./lava/bindings/Shaderc/libshaderc.dll", "./libshaderc.dll");
+        if !FileUtilities.file_exists("./libstbtruetype.dll") then FileUtilities.copy_file("./lava/bindings/StbTrueType/libstbtruetype.dll", "./libstbtruetype.dll");
+        if !FileUtilities.file_exists("./libvulkan.dll") then FileUtilities.copy_file("./lava/bindings/Vulkan/libvulkan.dll", "./libvulkan.dll");
     } else {
         arguments: [..] string;
         Basic.array_add(*arguments, "-rpath='$ORIGIN/lib'");
 
         if options.optimization_level == .DEBUG {
-            Basic.array_add(*arguments, "-rpath='$ORIGIN/../lava/bindings/Shaderc'");
-            Basic.array_add(*arguments, "-rpath='$ORIGIN/../lava/bindings/StbTrueType'");
-            Basic.array_add(*arguments, "-rpath='$ORIGIN/../lava/bindings/Vulkan'");
+            Basic.array_add(*arguments, "-rpath='$ORIGIN/lava/bindings/Shaderc'");
+            Basic.array_add(*arguments, "-rpath='$ORIGIN/lava/bindings/StbTrueType'");
+            Basic.array_add(*arguments, "-rpath='$ORIGIN/lava/bindings/Vulkan'");
         }
 
         options.additional_linker_arguments = arguments;
@@ -62,10 +62,10 @@ dummy_ide_check_message :: (message : *Compiler.Message) {
     plugins : [..]*Compiler.Metaprogram_Plugin;
     MetaprogramPlugins.init_plugins(.["Sill/plugin"], *plugins, workspace);
 
-    for plugin : plugins if plugin.before_intercept then plugin.before_intercept(plugin);
+    for plugin : plugins if plugin.before_intercept then plugin.before_intercept(plugin, null);
 
     Compiler.compiler_begin_intercept(workspace);
-    Compiler.add_build_file("./src/main.jai", workspace);
+    Compiler.add_build_file("../src/main.jai", workspace);
 
     for plugin : plugins if plugin.add_source then plugin.add_source(plugin);
 
