@@ -59,7 +59,7 @@ study_cleanup :: (using study : *Study) {
         game_cleanup(game);
     }
 
-    Basic.array_reset(*games);
+    Basic.array_free(games);
     Basic.free(title);
     Basic.free(bytes);
 }
@@ -102,6 +102,7 @@ study_close :: (study : *Study) {
 
     if study.hasOutdatedBytes {
         Basic.free(study.bytes);
+        study.bytes.data = null;
         study.bytes.count = 0;
         study.computeFlags &= ~.GamesBytes;
     }
