@@ -52,9 +52,10 @@ for_expansion :: Hash.for_expansion;
 #load "message.jai";
 
 // Feature ideas:
+// @todo Manage "kinds", for puzzles and compositions. To reveal moves progressively.
 // @todo Improve demo library by adding a bunch more!
 // @todo Currently unable to add NAG graphically.
-// @todo Allow to show multiple plies as compact.
+// @todo Edit comments improvements: Up/Down, selection and copy-paste.
 // @todo Change the selected ply visual to a rect around the ply. (But issues with ply.index == 0?)
 // @todo Read comments to see if squares or moves are cited, and display arrows and such
 // @todo Rework _download_twic_database

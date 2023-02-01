@@ -1,0 +1,43 @@
+[Event "?"]
+[Site "?"]
+[Date "1921.??.??"]
+[Round "?"]
+[White "Réti, Richard"]
+[Black "?"]
+[Result "*"]
+[SetUp "1"]
+[FEN "7K/8/k1P5/7p/8/8/8/8 w - - 0 1"]
+[Kind "Composition"]
+
+{White to play and draw.} 1. Kg7 $1 h4 (Kb6 2. Kf6 h4 3. Ke5 h3 4. Kd6 h2 5. c7
+Kb7 6. Kd7) 2. Kf6 $1 Kb6 (h3 3. Ke7 h2 4. c7 Kb7 5. Kd7) 3. Ke5 $1 Kxc6 (h3 4.
+Kd6 h2 5. c7 Kb7 6. Kd7) 4. Kf4 h3 5. Kg3 h2 6. Kxh2 *
+
+[Event "The Chess Amateur"]
+[Site "?"]
+[Date "1922.??.??"]
+[Round "?"]
+[White "Ottó Bláthy"]
+[Black "?"]
+[Result "*"]
+[SetUp "1"]
+[FEN "8/8/8/2p5/1pp5/brpp4/qpprpK1P/1nkbn3 w - - 0 1"]
+[Kind "Composition"]
+
+{White to play and win. This is a grotesque problem, don't feel too bad for not
+solving it.} 1. Kxe1 Qa1 2. h3 $1 (2. h4 {draws, because we need to loose a
+tempo}) 2... Qa2 3. h4 Qa1 4. h5 Qa2 5. h6 Qa1 6. h7 Qa2 7. h8=N Qa1 8. Nf7 $1
+(8. Ng6 Qa2 9. Ne5 Qa1 10. Nxc4 Qa2 11. Na5 c4 12. Nxc4 Qa1 13. Na5 Qa2 {and the
+queen defends the mate}) 8... Qa2 9. Nd8 Qa1 10. Ne6 Qa2 11. Nxc5 Qa1 12. Ne4
+Qa2 13. Nd6 Qa1 14. Nxc4 Qa2 15. Na5 Qa1 16. Nxb3# *
+
+[Event "?"]
+[Site "?"]
+[Date "????.??.??"]
+[Round "?"]
+[White "?"]
+[Black "?"]
+[Result "*"]
+
+1. e4 e5 2. f4 f5 3. fxe5 fxe4 4. e6 dxe6 (d5 5. Nf3 exf3 6. gxf3 Be7 7. Bg2) 5.
+g3 e5 6. g4 g5 7. h4 gxh4 8. Rxh4 h5 9. Rxh5 Rxh5 10. gxh5 *

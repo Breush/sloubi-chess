@@ -72,6 +72,7 @@ Config :: struct {
         selectedColor : Chamber.vec3;
         selectedCommentColor : Chamber.vec3;
         variationsCollapsed : bool;
+        compactThreshold : s64;
         comments : struct {
             shortStyle : CommentStyle;
             normalStyle : CommentStyle;

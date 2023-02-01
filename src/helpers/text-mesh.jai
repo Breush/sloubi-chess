@@ -167,6 +167,11 @@ justify_char_infos :: (charInfos : *CharInfos, maxWidth : float, startingOffsetX
         return charInfos.justifyComputedHeight, false;
     }
 
+    // This allows us to break on a URL.
+    isSplitCharacter :: inline (charInfo : *CharInfo) -> bool {
+        return charInfo.glyphBlank || charInfo.glyphCodepoint == #char "/";
+    }
+
     charInfos.dirty = false;
     charInfos.justifyMaxWidth = maxWidth;
     charInfos.justifyStartingOffsetX = startingOffsetX;
@@ -177,9 +182,9 @@ justify_char_infos :: (charInfos : *CharInfos, maxWidth : float, startingOffsetX
     offset : Chamber.vec2;
     offset.x = startingOffsetX;
 
-    lastKnownBlankIndex := -1;
+    lastKnownSplitCharacterIndex := -1;
     for *charInfo, index : infos {
-        if charInfo.glyphBlank then lastKnownBlankIndex = index;
+        if isSplitCharacter(charInfo) then lastKnownSplitCharacterIndex = index;
 
         // There is a line break, we move the whole line down without justify.
         if charInfo.glyphCodepoint == #char "\n" {
@@ -196,17 +201,17 @@ justify_char_infos :: (charInfos : *CharInfos, maxWidth : float, startingOffsetX
             // When it does not fit and we don't have a previous blank, accept it.
             //      |      |
             //      aaaaaaaaaaa
-            if lastKnownBlankIndex == -1 then continue;
+            if lastKnownSplitCharacterIndex == -1 then continue;
 
             // Moving the whole word down to the next line.
-            for i : lastKnownBlankIndex + 1 .. index {
+            for i : lastKnownSplitCharacterIndex + 1 .. index {
                 infos[i].effective.glyphOffset.y += UiConstants.HeightLine;
                 infos[i].effective.yStart += UiConstants.HeightLine;
                 infos[i].effective.yEnd += UiConstants.HeightLine;
             }
 
             // Justify the whole previous line.
-            j := lastKnownBlankIndex;
+            j := lastKnownSplitCharacterIndex;
             blankCount := 0;
             while j >= 0 && infos[j].glyphBlank { j -= 1; } // Ignore ending blanks.
             while j >= 0 && infos[j].effective.yStart == infos[j + 1].effective.yStart && infos[j].glyphCodepoint != #char "\n" {
@@ -218,7 +223,7 @@ justify_char_infos :: (charInfos : *CharInfos, maxWidth : float, startingOffsetX
             //      |      |
             //      aaaaa bbbb
             if blankCount > 0 {
-                j = lastKnownBlankIndex;
+                j = lastKnownSplitCharacterIndex;
                 extraSpacePerBlank := (maxWidth - (offset.x + infos[j].glyphOffset.x + infos[j].glyphExtent.width)) / blankCount;
                 while j >= 0 && infos[j].glyphBlank {
                     infos[j].effective.glyphOffset.x += blankCount * extraSpacePerBlank;
@@ -232,7 +237,7 @@ justify_char_infos :: (charInfos : *CharInfos, maxWidth : float, startingOffsetX
             }
 
             // Leave the ending blank character to the line above.
-            i := lastKnownBlankIndex + 1;
+            i := lastKnownSplitCharacterIndex + 1;
             if i >= infos.count then break; // Last character is a blank, just stop here.
 
             offset.x = -infos[i].glyphOffset.x;
@@ -244,7 +249,7 @@ justify_char_infos :: (charInfos : *CharInfos, maxWidth : float, startingOffsetX
                 i += 1;
             }
 
-            lastKnownBlankIndex = -1;
+            lastKnownSplitCharacterIndex = -1;
         }
     }
 
