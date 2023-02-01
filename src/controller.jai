@@ -31,6 +31,8 @@ controller_create :: () -> *ControllerEntity {
     Sill.input_action_bind(instance.engine, "game.ply.first", controls.firstPly);
     Sill.input_action_bind(instance.engine, "game.ply.last", controls.lastPly);
     Sill.input_action_bind(instance.engine, "game.ply.comment.edit", controls.editPlyComment);
+    Sill.input_action_bind(instance.engine, "game.ply.comment.edit.word-modifier", .ControlLeft);
+    Sill.input_action_bind(instance.engine, "game.ply.comment.edit.word-modifier", .ControlRight);
     Sill.input_action_bind(instance.engine, "game.variation.previous", controls.previousVariation);
     Sill.input_action_bind(instance.engine, "game.variation.next", controls.nextVariation);
 

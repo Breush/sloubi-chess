@@ -115,7 +115,7 @@ ply_init :: (ply : *PlyEntity, place := true) {
 
     Sill.ui_on_trigger(*ply.ui, (trigger : Sill.UiTrigger, ply : *PlyEntity) {
         textChanged := false;
-        <<trigger.stopPropagation = true;
+        << trigger.stopPropagation = true;
 
         if trigger.event.kind == .TextEntered {
             // :RelativePointerIssue
@@ -127,24 +127,48 @@ ply_init :: (ply : *PlyEntity, place := true) {
             if trigger.event.key.which == .Escape {
                 Sill.ui_set_focused(*ply.ui, false);
             } else if trigger.event.key.which == .Delete {
-                deletedBytes := Chamber.delete_after_byte(*ply.position.comment, ply.textCursorPosition);
-                if deletedBytes == 0 then return;
+                if ply.textCursorPosition == ply.position.comment.count then return;
+                bytesToDelete : u32;
+                if input_action_active(instance.engine, "game.ply.comment.edit.word-modifier") {
+                    bytesToDelete = Chamber.word_length_after_byte(ply.position.comment, ply.textCursorPosition);
+                } else {
+                    bytesToDelete = Chamber.utf8_word_length_after_byte(ply.position.comment, ply.textCursorPosition);
+                }
+                if bytesToDelete == 0 then return;
+                Chamber.delete_after_byte(*ply.position.comment, ply.textCursorPosition, bytesToDelete);
                 textChanged = true;
             } else if trigger.event.key.which == .Backspace {
-                deletedBytes := Chamber.delete_before_byte(*ply.position.comment, ply.textCursorPosition);
-                if deletedBytes == 0 then return;
-                ply.textCursorPosition -= deletedBytes;
+                if ply.textCursorPosition == 0 then return;
+                bytesToDelete : u32;
+                if input_action_active(instance.engine, "game.ply.comment.edit.word-modifier") {
+                    bytesToDelete = Chamber.word_length_before_byte(ply.position.comment, ply.textCursorPosition);
+                } else {
+                    bytesToDelete = Chamber.utf8_word_length_before_byte(ply.position.comment, ply.textCursorPosition);
+                }
+                if bytesToDelete == 0 then return;
+                Chamber.delete_before_byte(*ply.position.comment, ply.textCursorPosition, bytesToDelete);
+                ply.textCursorPosition -= bytesToDelete;
                 textChanged = true;
             } else if trigger.event.key.which == .Left {
                 if ply.textCursorPosition == 0 then return;
-                ply.textCursorPosition -= Chamber.utf8_word_length_before_byte(ply.position.comment, ply.textCursorPosition);
+                if input_action_active(instance.engine, "game.ply.comment.edit.word-modifier") {
+                    ply.textCursorPosition -= Chamber.word_length_before_byte(ply.position.comment, ply.textCursorPosition);
+                } else {
+                    ply.textCursorPosition -= Chamber.utf8_word_length_before_byte(ply.position.comment, ply.textCursorPosition);
+                }
             } else if trigger.event.key.which == .Right {
                 if ply.textCursorPosition == ply.position.comment.count then return;
-                ply.textCursorPosition += Chamber.utf8_word_length_after_byte(ply.position.comment, ply.textCursorPosition);
+                if input_action_active(instance.engine, "game.ply.comment.edit.word-modifier") {
+                    ply.textCursorPosition += Chamber.word_length_after_byte(ply.position.comment, ply.textCursorPosition);
+                } else {
+                    ply.textCursorPosition += Chamber.utf8_word_length_after_byte(ply.position.comment, ply.textCursorPosition);
+                }
             } else if trigger.event.key.which == .Return {
                 Chamber.insert_after_byte(*ply.position.comment, ply.textCursorPosition, "\n");
                 ply.textCursorPosition += 1;
                 textChanged = true;
+            } else if trigger.event.key.which == .ControlLeft || trigger.event.key.which == .ControlRight {
+                << trigger.stopPropagation = false;
             } else {
                 return;
             }
