@@ -1,5 +1,9 @@
 # SloubiChess
 
+<p align="center">
+<img src="./docs/images/logo.avif" />
+</p>
+
 **SloubiChess** is a chess database program with focus on:
 - *variations* made to look *good* and *readable*, as most chess desktop apps are ugly ;
 - *training* by repeating your lines (next big feature, not yet implemented).
