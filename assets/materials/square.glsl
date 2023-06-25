@@ -53,7 +53,7 @@ void main() {
     selectionHighlight = clamp(selectionHighlight, 0, 1);
     selectionHighlight *= float(material.selected);
 
-    outColor.rgb = mix(outColor.rgb, vec3(0.6, 0.6, 0.6), float(material.moved) * 0.5);
+    outColor.rgb = mix(outColor.rgb, vec3(0.6, 0.6, 0.8), float(material.moved) * 0.6);
 
     if (material.targetable) {
         float factor = material.hovered ? 0.8 : 0.4;

@@ -13,7 +13,7 @@ load_fen :: (fen : string) -> Position {
         } else if c >= #char "1" && c <= #char "8" {
             col += c - #char "0";
         } else {
-            <<peek_piece_pointer(*position, cast(u8) row, cast(u8) col) = _fen_get_piece(c);
+            peek_piece_pointer(*position, cast(u8) row, cast(u8) col).* = _fen_get_piece(c);
             col += 1;
         }
 
@@ -56,6 +56,13 @@ load_fen :: (fen : string) -> Position {
     ok : bool;
     fullMoveNumber, ok, s = Basic.to_integer(s);
     position.moveIndex += cast(u16) (fullMoveNumber - 1) * 2;
+
+    // Count pieces.
+    for piece : position.board {
+        if piece.kind != .None {
+            position.piecesCount[piece_id(piece)] += 1;
+        }
+    }
 
     return position;
 }

@@ -46,7 +46,7 @@ ship :: () {
     _, output := Process.run_command("git", "tag", capture_and_return_output = true);
     versions := String.split(String.trim_right(output, "\n"), "\n");
     lastVersionParts := String.split(Basic.peek(versions), ".");
-    <<Basic.peek_pointer(lastVersionParts) = Basic.tprint("%", Basic.string_to_int(Basic.peek(lastVersionParts)) + 1);
+    Basic.peek_pointer(lastVersionParts).* = Basic.tprint("%", Basic.string_to_int(Basic.peek(lastVersionParts)) + 1);
     newVersion := String.join(..lastVersionParts, separator = ".");
 
     folder := Basic.tprint("releases/sloubi-chess-%-%", newVersion, ifx OS == .WINDOWS then "win64" else "linux64");
@@ -60,6 +60,7 @@ ship :: () {
         FileUtilities.copy_file("lava/bindings/Shaderc/libshaderc.dll", Basic.tprint("%/libshaderc.dll", folder));
         FileUtilities.copy_file("lava/bindings/StbTrueType/libstbtruetype.dll",  Basic.tprint("%/libstbtruetype.dll", folder));
         FileUtilities.copy_file("lava/bindings/Vulkan/libvulkan.dll",  Basic.tprint("%/libvulkan.dll", folder));
+        FileUtilities.copy_file("lava/bindings/VulkanMemoryAllocator/libvma.dll",  Basic.tprint("%/libvma.dll", folder));
     } else {
         POSIX :: #import "POSIX";
         File.make_directory_if_it_does_not_exist(Basic.tprint("%/lib", folder));
@@ -68,12 +69,13 @@ ship :: () {
         FileUtilities.copy_file("lava/bindings/Shaderc/libshaderc.so", Basic.tprint("%/lib/libshaderc.so", folder));
         FileUtilities.copy_file("lava/bindings/StbTrueType/libstbtruetype.so",  Basic.tprint("%/lib/libstbtruetype.so", folder));
         FileUtilities.copy_file("lava/bindings/Vulkan/libvulkan.so",  Basic.tprint("%/lib/libvulkan.so", folder));
+        FileUtilities.copy_file("lava/bindings/VulkanMemoryAllocator/libvma.so",  Basic.tprint("%/lib/libvma.so", folder));
     }
 
     File.make_directory_if_it_does_not_exist(Basic.tprint("%/assets", folder));
     FileUtilities.visit_files("assets", true, *folder, (info : *FileUtilities.File_Visit_Info, folder : *string) {
         if info.is_symlink then return;
-        targetFileName := Basic.tprint("%/%", <<folder, info.full_name);
+        targetFileName := Basic.tprint("%/%", folder.*, info.full_name);
         if info.is_directory {
             File.make_directory_if_it_does_not_exist(targetFileName);
         } else {

@@ -21,7 +21,6 @@ LibraryEntity :: struct {
     inExplorer : bool;
 
     on_cleanup :: (using this : *LibraryEntity) {
-        _cleanup_entries(this);
         Basic.free(rootPath);
         Basic.free(currentPath);
         Basic.array_free(entries);
@@ -60,6 +59,7 @@ EntryEntity :: struct {
     on_cleanup :: (using this : *EntryEntity) {
         Basic.free(data.name);
         Basic.free(data.path);
+        Basic.array_free(data.games);
     }
 }
 
@@ -69,6 +69,7 @@ library_create :: () -> *LibraryEntity {
     storagePath := Chamber.os_application_data_storage_path(Basic.temp);
     appStoragePath := Basic.tprint("%.sloubi-chess", storagePath);
     library.rootPath = Basic.sprint(instance.config.library.path, appStoragePath);
+    String.path_overwrite_separators(library.rootPath);
 
     library.tab.text = "Library";
     library.tab.icon = ForkAwesome.Bookmark;
@@ -107,10 +108,7 @@ _reload_from_disk :: (using library : *LibraryEntity) {
         backEntry := SillMeta.create_entry_entity(instance.engine);
         backEntry.data.kind = .Folder;
         backEntry.data.name = Basic.copy_string("..");
-
-        backPath := FileUtilities.parse_path(library.currentPath);
-        if backPath.words.count >= 1 then backPath.words.count -= 1;
-        backEntry.data.path = FileUtilities.path_to_string(backPath);
+        backEntry.data.path = Basic.copy_string(String.path_strip_filename(library.currentPath));
         Basic.array_add(*library.entries, backEntry);
     }
 
@@ -139,6 +137,7 @@ _reload_from_disk :: (using library : *LibraryEntity) {
         }
     }
 
+    Basic.log("Loading library from '%'", library.currentPath, flags = .VERBOSE_ONLY);
     FileUtilities.visit_files(library.currentPath, false, library, visitor, visit_directories = true, follow_symlinks = false);
 
     // Sort entries, showing folders-like first, and alphabetic sorting.
@@ -221,7 +220,6 @@ _cleanup_entries :: (using library : *LibraryEntity) {
         for gameEntry : entry.data.games {
             Sill.destroy_entity(gameEntry);
         }
-        Basic.array_free(entry.data.games);
         Sill.destroy_entity(entry);
     }
     library.entries.count = 0;
@@ -278,7 +276,7 @@ _make_entry :: (parent : *Sill.Entity, text : string, icon : string, fitWidth :=
         if entry.mesh.nodes.count == 0 then return; // Can happen if the entity is destroyed.
 
         if trigger.flags & .HoverStart {
-            <<trigger.stopPropagation = true;
+            trigger.stopPropagation.* = true;
             entry.mesh.nodes[0].primitives[1].disabled &= ~.Application;
             Crater.window_pointer_style(instance.engine.window, .HandPointing);
 
@@ -290,7 +288,7 @@ _make_entry :: (parent : *Sill.Entity, text : string, icon : string, fitWidth :=
             entry.mesh.nodes[0].primitives[1].disabled |= .Application;
             Crater.window_pointer_style(instance.engine.window, .Default);
         } else if trigger.flags & .ClickStop {
-            <<trigger.stopPropagation = true;
+            trigger.stopPropagation.* = true;
             if entry.callback != null then entry.callback(entry);
         }
     }, Sill.UiCallbackFlags.HoverStart | .HoverStop | .ClickStop, entry);
@@ -407,7 +405,17 @@ _refresh_ariane_thread :: (using library : *LibraryEntity) {
 }
 
 _on_create_new_study :: (using library : *LibraryEntity) {
-    study := Hash.table_add(*instance.studies, Basic.sprint("%/%", library.currentPath, "unsaved.pgn"), .{});
+    unsavedId : u32;
+    filename : string;
+
+    // @todo Would be better to just ask for name on save...
+    while true {
+        filename = Basic.tprint("%/unsaved-%.pgn", library.currentPath, unsavedId);
+        if Hash.table_find_pointer(*instance.studies, filename) == null && !FileUtilities.file_exists(filename) then break;
+        unsavedId += 1;
+    }
+
+    study := study_find_or_add(filename);
     study_add_game(study);
 }
 
@@ -430,19 +438,24 @@ _on_show_library :: (using library : *LibraryEntity) {
 
 _on_import_pgn_in_library :: (using library : *LibraryEntity) {
     // @todo Import the TWIC, based on config for the dates.
-    dialog_create("Import PGNs in library.",
-                  "Do you want to import the demo PGNs automatically, or your own manually?",
-                  .["Demo", "Manually", "Cancel"],
-                  (dialog : *DialogEntity, choiceIndex : u32, library : *LibraryEntity) {
+    dialogData : DialogData(LibraryEntity);
+    dialogData.mainText = "Import PGNs in library.";
+    dialogData.text = "Do you want to import the demo PGNs automatically, or your own manually?";
+    dialogData.choices = .["Demo", "Manually", "Cancel"];
+    dialogData.cancelChoiceIndex = 2;
+    dialogData.callback = (dialog : *DialogEntity, choiceIndex : u32, library : *LibraryEntity) {
         dialog_close(dialog);
 
         if choiceIndex == 1 {
-            os_open_file_explorer(library.rootPath);
-        } else if choiceIndex == 2 {
-            Chamber.copy_files_recursively("./assets/demo/library", library.currentPath);
+            Chamber.os_open_file_explorer(library.rootPath);
+        } else if choiceIndex == 0 {
+            srcDir := String.join(".", "assets", "demo", "library", separator = Chamber.PATH_SEPARATOR, allocator = Basic.temp);
+            Chamber.copy_files_recursively(srcDir, library.currentPath);
             _reload_from_disk(library);
         }
-    }, library);
+    };
+    dialogData.userData = library;
+    dialog_create(dialogData);
 }
 
 _download_twic_database :: () {

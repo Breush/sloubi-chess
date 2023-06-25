@@ -26,10 +26,12 @@ PieceKind :: enum u8 {
 
 PieceKindCount :: 7;
 
-// None :: 0;
-// WB; WK; WN; WP; WQ; WR;
-// BB; BK; BN; BP; BQ; BR;
-PieceId :: u8;
+
+PieceId :: enum u8 {
+    None :: 0;
+    WB; WK; WN; WP; WQ; WR;
+    BB; BK; BN; BP; BQ; BR;
+}
 PieceIdCount : PieceId : 13;
 
 make_piece :: (kind : PieceKind, color : Color) -> Piece {
@@ -38,12 +40,12 @@ make_piece :: (kind : PieceKind, color : Color) -> Piece {
 
 piece_id :: (piece : Piece) -> PieceId {
     if piece.kind == .None then return 0;
-    return 6 * cast(u8) piece.color + cast(u8) piece.kind;
+    return cast(PieceId) (6 * cast(u8) piece.color + cast(u8) piece.kind);
 }
 
 piece_id :: (kind : PieceKind, color : Color) -> PieceId {
     if kind == .None then return 0;
-    return 6 * cast(u8) color + cast(u8) kind;
+    return cast(PieceId) (6 * cast(u8) color + cast(u8) kind);
 }
 
 piece_from_piece_id :: (pieceId : PieceId) -> Piece {

@@ -11,7 +11,10 @@ SidebarEntity :: struct {
     tabButtons : [..]*SidebarButtonEntity;
 
     on_cleanup :: (using this : *SidebarEntity) {
-        Basic.array_free(tabButtons);
+        for tabButton : tabButtons {
+            tabButton.tab.linkedToSidebar = false;
+        }
+        Basic.array_reset(*tabButtons);
     }
 }
 
@@ -115,7 +118,7 @@ _make_button :: (button : *SidebarButtonEntity, icon : string, tooltipText : str
     button_commit(*button.button);
 
     Sill.ui_on_trigger(*button.ui, (trigger : Sill.UiTrigger, button : *SidebarButtonEntity) {
-        <<trigger.stopPropagation = true;
+        trigger.stopPropagation.* = true;
 
         if trigger.flags & .HoverStart || trigger.flags & .HoverStop {
             hovered := cast(bool) (trigger.flags & .HoverStart);

@@ -26,6 +26,7 @@ TabComponent :: struct {
 
     button : SidebarButtonEntity;
     page : TabPageEntity;
+    linkedToSidebar : bool;
 
     Action :: struct {
         text : string;
@@ -106,6 +107,7 @@ component_init :: (using iTab : *TabComponent) {
 
     Basic.array_add(*instance.sidebar.tabButtons, *button);
     instance.sidebar.tabButtonsDirty = true;
+    button.tab.linkedToSidebar = true;
 
     // -- Title
 
@@ -147,7 +149,7 @@ component_init :: (using iTab : *TabComponent) {
     _update_action_hovered(menuTextMeshNode);
 
     Sill.ui_on_trigger(*iTab.page.title.menu.ui, (trigger : Sill.UiTrigger, menu : *TabPageTitleMenuEntity) {
-        <<trigger.stopPropagation = true;
+        trigger.stopPropagation.* = true;
 
         if trigger.flags & .HoverStart || trigger.flags & .HoverStop {
             hovered := cast(bool) (trigger.flags & .HoverStart);
@@ -171,7 +173,7 @@ component_init :: (using iTab : *TabComponent) {
     Sill.ui_on_trigger(*iTab.page.content.ui, (trigger : Sill.UiTrigger, tab : *TabComponent) {
         if tab.entity.flags & .Disabled then return;
         tab_scroll(tab, 25 * trigger.event.mouseWheel.dy);
-        <<trigger.stopPropagation = true;
+        trigger.stopPropagation.* = true;
     }, .Scrolling, iTab);
 
     _reflow(iTab.entity);
@@ -190,7 +192,7 @@ component_cleanup :: (iTab : *TabComponent) {
     SillMeta.entity_cleanup(*iTab.page);
     SillMeta.entity_cleanup(*iTab.button);
 
-    sidebar_remove_tab_button(instance.sidebar, *iTab.button);
+    if iTab.linkedToSidebar then sidebar_remove_tab_button(instance.sidebar, *iTab.button);
 }
 
 component_update :: (iTab : *TabComponent, dt : float64) {
@@ -234,11 +236,7 @@ _on_message :: (entity : *Sill.Entity, message : *Message) {
         _reflow(entity);
     case .SelectTab;
         iTab := entity_get_component(entity, TabComponent);
-        if message.entity == entity {
-            Sill.entity_set_disabled(*iTab.page, false);
-            } else {
-            Sill.entity_set_disabled(*iTab.page, true);
-        }
+        Sill.entity_set_disabled(*iTab.page, message.entity != entity);
     }
 }
 
@@ -277,7 +275,7 @@ _refresh_actions :: (using iTab : *TabComponent) {
             _update_action_hovered(actionEntity.button.meshNode);
 
             Sill.ui_on_trigger(*actionEntity.ui, (trigger : Sill.UiTrigger, actionEntity : *TabPageTitleActionEntity) {
-                <<trigger.stopPropagation = true;
+                trigger.stopPropagation.* = true;
 
                 if trigger.flags & .HoverStart || trigger.flags & .HoverStop {
                     if actionEntity.flags & .Destroyed then return;
@@ -324,7 +322,7 @@ _refresh_menu :: (iTab : *TabComponent) {
     menu := *iTab.page.title.menu;
     selectedItem := *iTab.menu.items[iTab.menu.selectedItemIndex];
     icon := ifx iTab.menu.items.count > 1 then ForkAwesome.ChevronCircleRight else "";
-    textWidth := text_mesh_update(menu.mesh.nodes[1].primitives[0], Basic.tprint("%  %", icon, <<selectedItem), "mainLight", instance.config.env.textColor, anchor = .Left);
+    textWidth := text_mesh_update(menu.mesh.nodes[1].primitives[0], Basic.tprint("%  %", icon, selectedItem.*), "mainLight", instance.config.env.textColor, anchor = .Left);
     menu.ui.extent.height = UiConstants.SizeTabAction;
     menu.ui.extent.width = textWidth;
     menu.ui.anchor = .Left;
@@ -373,7 +371,7 @@ _refresh_menu_items :: (iTab : *TabComponent) {
             itemMeshNode.transform.translation.x = UiConstants.PaddingHorizontalMedium - UiConstants.SizeTabAction * leftActionCount;
 
             Sill.ui_on_trigger(*itemEntity.ui, (trigger : Sill.UiTrigger, itemEntity : *UiEntity) {
-                <<trigger.stopPropagation = true;
+                trigger.stopPropagation.* = true;
 
                 if trigger.flags & .HoverStart || trigger.flags & .HoverStop {
                     hovered := cast(bool) (trigger.flags & .HoverStart);
@@ -385,7 +383,7 @@ _refresh_menu_items :: (iTab : *TabComponent) {
                     menu.folded = true;
                     found, itemIndex := Basic.array_find(menu.items, itemEntity);
                     if found && menu.tabComponent.menu.onItemClick != null {
-                        menu.tabComponent.menu.onItemClick(menu.tabComponent.entity, cast(u32) itemIndex);
+                        menu.tabComponent.menu.onItemClick(menu.tabComponent.entity, cast(u32) menu.itemsScrollOffset + cast(u32) itemIndex);
                     }
                 } else if trigger.flags & .Scrolling {
                     menu := cast(*TabPageTitleMenuEntity) itemEntity.parent;

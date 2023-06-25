@@ -66,10 +66,10 @@ board_view_init :: (using boardView : *BoardView) {
         } else if trigger.flags & .ClickStart {
             Sill.ui_set_focused(*boardView.ui);
         } else if trigger.flags & .Key {
-            smart_mover_ui_trigger(*instance.metaBoard.smartMover, trigger);
+            if !state.positionEdit then smart_mover_ui_trigger(*instance.metaBoard.smartMover, trigger);
         }
 
-        board_ui_trigger(boardView, trigger);
+        board_ui_trigger(*state, trigger);
 
         if trigger.flags & .Dragging && state.grabbedCoord != 0xFF {
             relativeMousePointerPosition := Sill.ui_relative_mouse_pointer_position(*ui);
@@ -109,7 +109,7 @@ board_view_update_from_orientation :: (using boardView : *BoardView, orientation
 
 board_view_preview_summary :: (using boardView : *BoardView, game : Game) {
     _update_from_board_view_position(boardView, board_position(game.summary.lastBoardPosition));
-    board_view_update_from_orientation(boardView, game.boardOrientation);
+    board_view_update_from_orientation(boardView, game.summary.lastBoardOrientation);
 
     for coord : 0 .. CoordCount - 1 {
         node := *mesh.nodes[coord];
@@ -119,7 +119,7 @@ board_view_preview_summary :: (using boardView : *BoardView, game : Game) {
     // @todo A better looking tracing would be a good idea,
     // but this might require to separate pieces from the boardView mesh.
     lastMove := game.summary.lastMove;
-    if lastMove.sourceCoord != 0xFF {
+    if coord_is_valid(lastMove.sourceCoord) && coord_is_valid(lastMove.targetCoord) {
         Magma.material_set(mesh.nodes[lastMove.sourceCoord].primitives[0].material, "moved", true);
         Magma.material_set(mesh.nodes[lastMove.targetCoord].primitives[0].material, "moved", true);
     }
@@ -150,9 +150,24 @@ _on_message :: (using boardView : *BoardView, message : *Message) {
         _show_pawn_promotion_selecter(boardView);
     case .BoardPawnPromotionSelectionStopped;
         _hide_pawn_promotion_selecter(boardView);
+    case .BoardPositionEditChanged;
+        _update_from_position_edit(boardView);
     case .CurrentGameChanged;
-        board_interactive(*boardView.state, instance.currentGame != null);
+        board_interactive(boardView, instance.currentGame != null);
+    case .PositionBoardCoordChanged;
+        _update_from_position_coord(boardView, message.coord);
     }
+}
+
+_update_from_position_edit :: (using boardView : *BoardView) {
+    pieceTranslucency := ifx state.positionEdit then 0.2 else 0.0;
+    for coord : 0 .. CoordCount - 1 {
+        node := *mesh.nodes[coord];
+        Magma.material_set(node.primitives[0].material, "pieceTranslucency", pieceTranslucency);
+    }
+
+    if state.positionEdit then _reset_highlights(boardView);
+    else _update_highlights(boardView);
 }
 
 _update_from_interactive :: (using boardView : *BoardView) {
@@ -193,6 +208,12 @@ _update_from_position :: (using boardView : *BoardView, position : *Position = n
     }
 
     _update_highlights(boardView, position);
+}
+
+_update_from_position_coord :: inline (using boardView : *BoardView, coord : Coord) {
+    node := *mesh.nodes[coord];
+    pieceTexture := piecesTextures[piece_id(state.position.board[coord])];
+    Magma.material_set(node.primitives[0].material, "pieceTexture", pieceTexture);
 }
 
 _update_from_selected_coord :: (using boardView : *BoardView, oldCoord : Coord) {
@@ -244,18 +265,10 @@ _update_from_hinted_coords :: (using boardView : *BoardView) {
     }
 }
 
-_update_highlights :: (using boardView : *BoardView, position : *Position = null) {
-    if position == null then position = state.position;
-    if position == null then return;
-
+_reset_highlights :: (using boardView : *BoardView) {
     for coord : 0 .. CoordCount - 1 {
         node := *mesh.nodes[coord];
         Magma.material_set_color(node.primitives[0].material, "highlightColor", Chamber.vec4.{0, 0, 0, 0});
-    }
-
-    for squareHighlight : position.highlights.squares {
-        node := *mesh.nodes[squareHighlight.coord];
-        Magma.material_set_color(node.primitives[0].material, "highlightColor", highlight_color_to_vec4(squareHighlight.color));
     }
 
     // Destroy old arrows entities.
@@ -264,6 +277,18 @@ _update_highlights :: (using boardView : *BoardView, position : *Position = null
         Sill.destroy_entity(arrow);
     }
     arrows.count = 0;
+}
+
+_update_highlights :: (using boardView : *BoardView, position : *Position = null) {
+    if position == null then position = state.position;
+    if position == null then return;
+
+    _reset_highlights(boardView);
+
+    for squareHighlight : position.highlights.squares {
+        node := *mesh.nodes[squareHighlight.coord];
+        Magma.material_set_color(node.primitives[0].material, "highlightColor", highlight_color_to_vec4(squareHighlight.color));
+    }
 
     for arrowHighlight, arrowIndex : position.highlights.arrows {
         arrow := SillMeta.create_mesh_entity(instance.engine);
@@ -323,21 +348,21 @@ _init_resources :: (using boardView : *BoardView) {
     // Pawn promotion selecter
     Sill.entity_set_parent(*pawnPromotionSelecter, boardView);
     for *button, buttonIndex : pawnPromotionSelecter.buttons {
-        <<button = SillMeta.create_pawn_promotion_selecter_button_entity(instance.engine);
-        if buttonIndex == 0 then (<<button).pieceKind = .Queen;
-        else if buttonIndex == 1 then (<<button).pieceKind = .Knight;
-        else if buttonIndex == 2 then (<<button).pieceKind = .Rook;
-        else if buttonIndex == 3 then (<<button).pieceKind = .Bishop;
-        Sill.entity_set_disabled(<<button, true);
-        Sill.entity_set_parent(<<button, *pawnPromotionSelecter);
+        button.* = SillMeta.create_pawn_promotion_selecter_button_entity(instance.engine);
+        if buttonIndex == 0 then button.*.pieceKind = .Queen;
+        else if buttonIndex == 1 then button.*.pieceKind = .Knight;
+        else if buttonIndex == 2 then button.*.pieceKind = .Rook;
+        else if buttonIndex == 3 then button.*.pieceKind = .Bishop;
+        Sill.entity_set_disabled(button.*, true);
+        Sill.entity_set_parent(button.*, *pawnPromotionSelecter);
 
-        (<<button).transform.translation.z -= 0.15;
-        Sill.transform_commit(*(<<button).transform);
+        button.*.transform.translation.z -= 0.15;
+        Sill.transform_commit(*button.*.transform);
 
-        (<<button).ui.anchor = .Center;
-        Sill.ui_on_trigger(*(<<button).ui, (trigger : Sill.UiTrigger, button : *PawnPromotionSelecterButtonEntity) {
+        button.*.ui.anchor = .Center;
+        Sill.ui_on_trigger(*button.*.ui, (trigger : Sill.UiTrigger, button : *PawnPromotionSelecterButtonEntity) {
             if trigger.flags & .Hovering {
-                <<trigger.stopPropagation = true;
+                trigger.stopPropagation.* = true;
             }
 
             using boardView := cast(*BoardView) button.parent.parent;
@@ -346,7 +371,7 @@ _init_resources :: (using boardView : *BoardView) {
             } else if trigger.flags & .ClickStop {
                 board_play_pawn_promotion(*state, button.pieceKind);
             }
-        }, Sill.UiCallbackFlags.HoverStart | .Hovering | .HoverStop | .ClickStop, <<button);
+        }, Sill.UiCallbackFlags.HoverStart | .Hovering | .HoverStop | .ClickStop, button.*);
     }
 }
 

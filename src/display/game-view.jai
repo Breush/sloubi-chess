@@ -17,7 +17,7 @@ TextCursorEntity :: struct {
     mesh : Sill.MeshComponent;
 }
 
-game_view_create :: (game : *Game) -> *GameView {
+game_view_init :: (game : *Game) {
     gameView := SillMeta.create_game_view_entity(instance.engine);
     Sill.listener_on_message(*gameView.listener, _on_message);
 
@@ -27,33 +27,34 @@ game_view_create :: (game : *Game) -> *GameView {
     Sill.entity_set_disabled(*gameView.textCursor, true);
     Magma.material_set_color(textCursorMesh.material, "color", Chamber.vec3.{1, 1, 1});
 
+    game.view = gameView;
     gameView.game = game;
-    variation_init(game.mainVariation);
-
-    return gameView;
+    variation_init(game.mainVariation, game);
 }
 
 game_view_reflow :: (using gameView : *GameView) {
+    Sill.transform_commit(*gameView.transform);
+
     extent := game.study.view.tab.page.content.ui.extent;
+    if ui.extent.width == extent.width - 2 * UiConstants.PaddingHorizontal then return;
 
     ui.extent.width = extent.width - 2 * UiConstants.PaddingHorizontal;
     ui.anchor = .TopLeft;
 
     if gameView.game.mainVariation != null {
-        ply_place(gameView.game.mainVariation.plies[0], propagate = true);
+        ply := gameView.game.mainVariation.plies[0];
+        if ply.parent != null {
+            ply_place(ply, propagate = true);
+        }
     }
-
-    Sill.transform_commit(*gameView.transform);
 }
 
 #scope_file
 
 _on_message :: (using gameView : *GameView, message : *Message) {
     if message.kind == {
-    case .PlyInited;
-        Sill.entity_set_parent(message.ply, gameView);
     case .SelectedPlyChanged;
-        if instance.currentGame == gameView.game then _update_to_current_move(gameView);
+        if message.newPly.parent == gameView then _update_to_current_move(gameView);
     case .PlyCommentEditStarted;
         if instance.currentGame == gameView.game then _show_text_cursor(gameView, true);
     case .PlyCommentEditStopped;
@@ -61,11 +62,12 @@ _on_message :: (using gameView : *GameView, message : *Message) {
     case .PlyTextCursorPositionChanged;
         _update_text_cursor(gameView, gameView.game.ply);
     case .VariationContentChanged;
-        // @todo Only if variation is our game!
-        _update_height(gameView);
+        if message.variation.plies[0].game == game {
+            _update_height(gameView);
+        }
     case .CurrentGameChanged;
         // Show the current game in the study view.
-        if instance.currentGame == game {
+        if gameView.game == message.newGame {
             Sill.entity_set_disabled(gameView, false);
             Sill.entity_set_parent(gameView, game.study.view);
             game.study.view.tab.ui = *gameView.ui; // Use us as the UI provider (getting the size for scrolling).
@@ -118,8 +120,6 @@ _update_to_current_move :: (using gameView : *GameView) {
 }
 
 _update_text_cursor :: (using gameView : *GameView, ply : *PlyEntity) {
-    commentMesh := ply.commentMeshNode.primitives[0];
-
     Sill.entity_set_parent(*textCursor, ply);
 
     // @note We always update the cursor, because when the text changed and not the cursor position,

@@ -26,18 +26,31 @@ CharInfos :: struct {
     justifyComputedHeight : float;
 }
 
-create_text_mesh :: (existingMesh : *Magma.Mesh = null) -> *Magma.Mesh {
+create_text_mesh :: (existingMesh : *Magma.Mesh = null, withMaterial := true) -> *Magma.Mesh {
     mesh := existingMesh;
     if mesh == null {
         mesh = Magma.create_mesh(instance.engine.scene);
     }
-    mesh.material = Magma.create_material(instance.shaders.text);
+    if withMaterial {
+        mesh.material = Magma.create_material(instance.shaders.text);
+    }
     return mesh;
+}
+
+text_mesh_set_color :: (mesh : *Magma.Mesh, color : Chamber.vec3, useMaterialCache := false) {
+    if useMaterialCache {
+        fontTexture := Magma.material_get_texture(mesh.material, "fontTexture");
+        mesh.material = _get_cached_text_material(fontTexture, color);
+    } else {
+        Magma.material_set_color(mesh.material, "color", color);
+    }
 }
 
 // @todo A default anchor to Center would be more coherent with what we have elsewhere (rect-mesh),
 // but it would be a breaking change, so this is not done yet.
-text_mesh_update :: (mesh : *Magma.Mesh, text : string, fontId : string, color : Chamber.vec3, depth := 0.0, anchor := Chamber.Anchor.TopLeft, computeCharInfos := false) -> (width : float, charInfos : CharInfos) {
+text_mesh_update :: (mesh : *Magma.Mesh, text : string, fontId : string, color : Chamber.vec3,
+                     depth := 0.0, anchor := Chamber.Anchor.TopLeft, computeCharInfos := false, useMaterialCache := false)
+                        -> (width : float, charInfos : CharInfos) {
     charInfos : CharInfos;
     charInfos.dirty = true;
 
@@ -49,12 +62,16 @@ text_mesh_update :: (mesh : *Magma.Mesh, text : string, fontId : string, color :
         return 0.0, charInfos;
     }
 
-    glyphInfos := Sill.fonts_glyph_infos(instance.engine, fontId, text);
+    glyphInfos := Sill.fonts_glyph_infos(*instance.engine.fonts, fontId, text);
     defer Basic.array_free(glyphInfos);
-    fontInfo := Sill.fonts_info(instance.engine, fontId);
+    fontInfo := Sill.fonts_info(*instance.engine.fonts, fontId);
 
-    Magma.material_set(mesh.material, "fontTexture", fontInfo.texture);
-    Magma.material_set_color(mesh.material, "color", color);
+    if useMaterialCache {
+        mesh.material = _get_cached_text_material(fontInfo.texture, color);
+    } else {
+        Magma.material_set(mesh.material, "fontTexture", fontInfo.texture);
+        Magma.material_set_color(mesh.material, "color", color);
+    }
 
     if computeCharInfos {
         Basic.array_resize(*charInfos.infos, glyphInfos.count);
@@ -126,33 +143,7 @@ text_mesh_update :: (mesh : *Magma.Mesh, text : string, fontId : string, color :
 
     textWidth := Basic.peek(glyphInfos).offset.x + Basic.peek(glyphInfos).extent.x;
 
-    if anchor != .TopLeft {
-        offset : Chamber.vec2;
-        if anchor == {
-            case .Center;       offset = .{-textWidth / 2, -fontInfo.font.size / 2.0};
-            case .Left;         offset.y = -fontInfo.font.size / 2.0;
-            case .Right;        offset = .{-textWidth, -fontInfo.font.size / 2.0};
-            case .Top;          offset.x = -textWidth / 2;
-            case .Bottom;       offset = .{-textWidth / 2, -fontInfo.font.size};
-            case .TopRight;     offset.x = -textWidth;
-            case .BottomLeft;   offset.y = -fontInfo.font.size;
-            case .BottomRight;  offset = .{-textWidth, -fontInfo.font.size};
-        }
-
-        offset.x = Math.floor(offset.x + 0.5);
-        offset.y = Math.floor(offset.y + 0.5);
-
-        index := 0;
-        for *glyphInfo : glyphInfos {
-            if glyphInfo.blank then continue;
-
-            mesh.vertices[4 * index + 0].position.xy.std += offset;
-            mesh.vertices[4 * index + 1].position.xy.std += offset;
-            mesh.vertices[4 * index + 2].position.xy.std += offset;
-            mesh.vertices[4 * index + 3].position.xy.std += offset;
-            index += 1;
-        }
-    }
+    _adjust_from_top_left_anchor(mesh, anchor, .{textWidth, fontInfo.font.size});
 
     Magma.mesh_commit_vertices(mesh);
     Magma.mesh_commit_indices(mesh);
@@ -262,4 +253,125 @@ justify_char_infos :: (charInfos : *CharInfos, maxWidth : float, startingOffsetX
 
     charInfos.justifyComputedHeight = offset.y + UiConstants.HeightLine;
     return charInfos.justifyComputedHeight, true;
+}
+
+place_from_char_infos :: (mesh : *Magma.Mesh, charInfos : *CharInfos, anchor : Chamber.Anchor) -> (minBounds : Chamber.vec2, maxBounds : Chamber.vec2) {
+    mesh.disabled |= .Application;
+
+    if charInfos.infos.count == 0 then return .{}, .{};
+
+    minBounds := Chamber.vec2.{Math.FLOAT32_INFINITY, Math.FLOAT32_INFINITY};
+    maxBounds := Chamber.vec2.{-Math.FLOAT32_INFINITY, -Math.FLOAT32_INFINITY};
+
+    index := 0;
+    for *charInfo : charInfos.infos {
+        if charInfo.glyphBlank then continue;
+
+        if charInfo.effective.xStart < minBounds.x then minBounds.x = charInfo.effective.xStart;
+        if charInfo.effective.yStart < minBounds.y then minBounds.y = charInfo.effective.yStart;
+        if charInfo.effective.xEnd > maxBounds.x then maxBounds.x = charInfo.effective.xEnd;
+        if charInfo.effective.yEnd > maxBounds.y then maxBounds.y = charInfo.effective.yEnd;
+
+        mesh.vertices[4 * index + 0].position.x = charInfo.effective.glyphOffset.x;
+        mesh.vertices[4 * index + 0].position.y = charInfo.effective.glyphOffset.y;
+        mesh.vertices[4 * index + 1].position.x = charInfo.effective.glyphOffset.x;
+        mesh.vertices[4 * index + 1].position.y = charInfo.effective.glyphOffset.y + charInfo.glyphExtent.height;
+        mesh.vertices[4 * index + 2].position.x = charInfo.effective.glyphOffset.x + charInfo.glyphExtent.width;
+        mesh.vertices[4 * index + 2].position.y = charInfo.effective.glyphOffset.y + charInfo.glyphExtent.height;
+        mesh.vertices[4 * index + 3].position.x = charInfo.effective.glyphOffset.x + charInfo.glyphExtent.width;
+        mesh.vertices[4 * index + 3].position.y = charInfo.effective.glyphOffset.y;
+
+        index += 1;
+    }
+
+    // If, for some reason, we don't have anything visible in the comment,
+    // just keep the mesh disabled.
+    if index == 0 then return .{}, .{};
+
+    extent : Chamber.vec2;
+    extent.std = maxBounds - minBounds;
+    _adjust_from_top_left_anchor(mesh, anchor, extent);
+
+    mesh.disabled &= ~.Application;
+    Magma.mesh_commit_vertices(mesh);
+
+    return minBounds, maxBounds;
+}
+
+byte_index_from_mouse_position :: (mousePosition : Chamber.vec2, text : string, charInfos : *CharInfos) -> u32 {
+    if text.count == 0 then return 0;
+
+    byteIndex : u32;
+    xStart : float;
+    lastYStart : float = -1.0;
+
+    if mousePosition.x <= charInfos.infos[0].effective.xEnd &&
+       mousePosition.y <= charInfos.infos[0].effective.yEnd {
+        return 0;
+    }
+
+    for *charInfo : charInfos.infos {
+        // New line, reset xStart.
+        if lastYStart != charInfo.effective.yStart {
+            xStart = charInfo.effective.xStart;
+        }
+
+        if xStart <= mousePosition.x && charInfo.effective.xEnd > mousePosition.x &&
+           charInfo.effective.yStart <= mousePosition.y && charInfo.effective.yEnd > mousePosition.y {
+            if mousePosition.x - xStart > charInfo.effective.xEnd - mousePosition.x {
+                byteIndex += Chamber.utf8_word_length_after_byte(text, byteIndex);
+            }
+            return byteIndex;
+        } else if charInfo.effective.yStart > mousePosition.y {
+            return byteIndex;
+        }
+
+        byteIndex += Chamber.utf8_word_length_after_byte(text, byteIndex);
+        xStart = charInfo.effective.xEnd;
+        lastYStart = charInfo.effective.yStart;
+    }
+
+    return cast(u32) text.count;
+}
+
+#scope_file
+
+_get_cached_text_material :: (fontTexture : *Magma.Texture, color : Chamber.vec3) -> *Magma.Material {
+    // Find the material in the cache.
+    for *cached : instance.textMaterialCache {
+        if cached.fontTexture != fontTexture || cached.color != color then continue;
+        return cached.material;
+    }
+
+    // Not found, create a new one.
+    cacheInfo : TextMaterialCacheInfo;
+    cacheInfo.fontTexture = fontTexture;
+    cacheInfo.color = color;
+    cacheInfo.material = Magma.create_material(instance.shaders.text);
+    Magma.material_set(cacheInfo.material, "fontTexture", fontTexture);
+    Magma.material_set_color(cacheInfo.material, "color", color);
+    Basic.array_add(*instance.textMaterialCache, cacheInfo);
+    return cacheInfo.material;
+}
+
+_adjust_from_top_left_anchor :: (mesh : *Magma.Mesh, anchor : Chamber.Anchor, extent : Chamber.vec2) {
+    offset : Chamber.vec2;
+    if anchor == {
+        case .Center;       offset = .{-extent.x / 2, -extent.y / 2};
+        case .Left;         offset.y = -extent.y / 2;
+        case .Right;        offset = .{-extent.x, -extent.y / 2};
+        case .Top;          offset.x = -extent.x / 2;
+        case .Bottom;       offset = .{-extent.x / 2, -extent.y};
+        case .TopRight;     offset.x = -extent.x;
+        case .BottomLeft;   offset.y = -extent.y;
+        case .BottomRight;  offset = .{-extent.x, -extent.y};
+    }
+
+    offset.x = Math.floor(offset.x + 0.5);
+    offset.y = Math.floor(offset.y + 0.5);
+
+    index := 0;
+    for *vertex : mesh.vertices {
+        vertex.position.xy.std += offset;
+    }
 }

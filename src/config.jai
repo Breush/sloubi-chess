@@ -12,6 +12,7 @@ Config :: struct {
         monoFontFamily : string;
         fontSize : s64;
         piecesSymbols : [..]string;
+        piecesMap : [..]Crater.Key;
     }
     analysis : struct {
         externalSite : string;
@@ -42,7 +43,6 @@ Config :: struct {
         }
         keyboardMove : struct {
             enabled : bool;
-            piecesMap : [..]Crater.Key;
             numbersMap : [..]Crater.Key;
             selectNext : [..]Crater.Key;
             playSelected : [..]Crater.Key;
@@ -94,9 +94,9 @@ config_cleanup :: (config : *Config) {
     Basic.free(config.env.monoFontFamily);
     for config.env.piecesSymbols { Basic.free(it); }
     Basic.array_free(config.env.piecesSymbols);
+    Basic.array_free(config.env.piecesMap);
     Basic.free(config.analysis.externalSite);
     Basic.free(config.board.pieces);
-    Basic.array_free(config.board.keyboardMove.piecesMap);
     Basic.array_free(config.board.keyboardMove.numbersMap);
     Basic.array_free(config.board.keyboardMove.selectNext);
     Basic.array_free(config.board.keyboardMove.playSelected);
@@ -166,7 +166,7 @@ read_json_struct :: (dataBytes : *u8, typeInfo : *Type_Info_Struct, json : Chamb
     }
 
     for member : typeInfo.members {
-        jsonValue := json[member.name];
+        jsonValue := Chamber.get(json, member.name);
         if jsonValue.type == .INVALID {
             // The JSON is missing one of the members. Just ignore it.
             continue;
@@ -205,4 +205,4 @@ read_json_array :: (dataBytes : *u8, typeInfo : *Type_Info_Array, json : Chamber
 
 #scope_file
 
-#import "Chamber"; // For operator[] of JSON parser.
+operator[] :: Chamber.operator[];

@@ -6,37 +6,19 @@ Game :: struct {
     mainVariation : *VariationEntity; @NoSerialize
     ply : *PlyEntity; @NoSerialize // Selected ply.
 
-    boardOrientation : Color;
-    result : Result;
-    tags : struct {
-        // PGN standard tags, except Result.
-        event : string;
-        site : string;
-        date : string;
-        round : string;
-        white : string; // @todo At the end, map to one player in a database.
-        black : string;
-        // PGN non-standard tags.
-        whiteElo : u16;
-        blackElo : u16;
-
-        // Other tags, not used internally. @note Not a hash-table to keep order.
-        extra : [..]struct { name : string; value : string; };
-    } @NoSerialize
-
-    bytes : string; @NoSerialize // View from the bytes array in study, showing one game in PGN format.
+    // -- User-level configurable data
     title : string;
+    // @note Tags are somewhat understood by SloubiChess, and can be overwritten
+    // within a position. For instance, in PGN, we can write {[%tag BoardOrientation,White]}
+    // to change the board orientation as we reach this position.
+    tags : [TagName.Count]TagValue; @NoSerialize
+    extraTags : [..]struct { name : string; value : string; }; @NoSerialize
+
+    // -- Cache
+    bytes : string; @NoSerialize // View from the bytes array in study, showing one game in PGN format.
     summary : GameSummary;
     computeFlags : ComputeFlags;
 
-    Result :: enum u8 {
-        Unknown :: 0;
-        WhiteWin;
-        BlackWin;
-        Draw;
-    }
-
-    // What knowledge we have/want about the game.
     ComputeFlags :: enum_flags u8 {
         Summary;    // summary is valid
         Plies;      // mainVariation is valid
@@ -46,9 +28,38 @@ Game :: struct {
 GameSummary :: struct {
     lastBoardPosition : CompactBoardPosition;
     lastMove : SimpleMove;
+    lastBoardOrientation : Color;
 }
 
-load_game :: (filename : string, gameIndex : u32, computeFlags : Game.ComputeFlags = 0) -> *Game {
+TagName :: enum u8 {
+    // PGN standard tags.
+    Event;              // str
+    Site;               // str
+    Date;               // str
+    Round;              // str
+    White;              // str @todo At the end, map to one player in a database.
+    Black;              // str
+    LastStrTag :: Black;
+
+    // Result; // :ResultInPosition
+
+    // PGN non-standard tags.
+    WhiteElo;           // number
+    BlackElo;           // number
+    LastNumberTag :: BlackElo;
+
+    BoardOrientation;   // color
+    LastColorTag :: BoardOrientation;
+    Count; // Not a real value, keep last.
+}
+
+TagValue :: union {
+    str : string;
+    number : u32;
+    color : Color;
+}
+
+load_game :: (filename : string, gameIndex : u32, computeFlags := Game.ComputeFlags.Plies) -> *Game {
     study := load_study(filename);
 
     // @note We try not to load the GamesBytes if we don't need to,
@@ -80,9 +91,10 @@ load_game :: (filename : string, gameIndex : u32, computeFlags : Game.ComputeFla
 game_create :: (game : *Game) {
     if game.mainVariation == null {
         load_pgn(game.bytes, game);
+        game.computeFlags |= .Plies;
     }
 
-    game.view = game_view_create(game);
+    game_view_init(game);
     game_show(game);
     game_update_to(game, game.mainVariation.plies[0]);
 }
@@ -109,17 +121,17 @@ game_cleanup :: (game : *Game) {
         game.mainVariation = null;
     }
 
-    Basic.free(game.tags.event);
-    Basic.free(game.tags.site);
-    Basic.free(game.tags.date);
-    Basic.free(game.tags.round);
-    Basic.free(game.tags.white);
-    Basic.free(game.tags.black);
-    for extraTag : game.tags.extra {
+    Basic.free(game.tags[TagName.Event].str);
+    Basic.free(game.tags[TagName.Site].str);
+    Basic.free(game.tags[TagName.Date].str);
+    Basic.free(game.tags[TagName.Round].str);
+    Basic.free(game.tags[TagName.White].str);
+    Basic.free(game.tags[TagName.Black].str);
+    for extraTag : game.extraTags {
         Basic.free(extraTag.name);
         Basic.free(extraTag.value);
     }
-    Basic.array_free(game.tags.extra);
+    Basic.array_free(game.extraTags);
     Basic.free(game.title);
 
     if game.view != null {
@@ -133,7 +145,7 @@ game_cleanup :: (game : *Game) {
 game_show :: (game : *Game) {
     if (instance.currentGame == game) return;
     instance.currentGame = game;
-    send(.CurrentGameChanged);
+    send(.CurrentGameChanged, game);
 }
 
 game_setup_main_variation :: (game : *Game) {
@@ -151,11 +163,28 @@ game_add_variation :: (game : *Game, parentPly : *PlyEntity) -> *VariationEntity
     return variation;
 }
 
+game_add_subgame :: (game : *Game) {
+    ply := variation_add_ply(game.mainVariation);
+    ply.position = get_starting_position();
+    ply.position.comment = String.copy_string("[Subgame]");
+    ply.first = true;
+
+    ply_init(ply, game);
+    ply_place(ply, propagate = true);
+    game_update_to(game, ply);;
+}
+
+game_refresh_backlinks :: (game : *Game) {
+    if game.view == null then return;
+    game.view.game = game;
+    variation_refresh_backlinks(game.mainVariation, game);
+}
+
 game_update_to :: (game : *Game, ply : *PlyEntity) {
     oldPly := game.ply;
     game.ply = ply;
 
-    send(.SelectedPlyChanged, oldPly);
+    send(.SelectedPlyChanged, game.ply, oldPly);
 }
 
 game_go_to_first_ply :: (game : *Game) {
@@ -232,16 +261,22 @@ game_play_move :: (game : *Game, sourceCoord : Coord, targetCoord : Coord, promo
     nextPly := ply_next_ply(game.ply);
     if nextPly != null {
         variation = game_add_variation(game, nextPly);
-        basePly := variation_add_ply(variation); // @todo Better to just store the starting position within the variation?
+        basePly := variation_add_ply(variation);
         position_copy_state_from(*basePly.position, game.ply.position);
-        variation_init(variation);
+        variation_init(variation, game);
     }
 
     ply := variation_add_ply(variation);
     position_copy_state_from(*ply.position, game.ply.position);
     position_play_move(*ply.position, sourceCoord, targetCoord, promotionPieceKind);
 
-    ply_init(ply);
+    if nextPly == null {
+        game.ply.position.result = .None;
+        send(.PlyResultChanged, game.ply);
+    }
+
+    ply_init(ply, game);
+    ply_place(ply, propagate = true);
     game_update_to(game, ply);
 
     // @todo Technically, it would be better to send a message.
@@ -253,13 +288,45 @@ game_edit_ply_comment :: (game : *Game) {
     ply_edit_comment(game.ply);
 }
 
-game_result_to_string :: (result : Game.Result) -> string {
-    if #complete result == {
-        case .Unknown; return "*";
-        case .WhiteWin; return "1-0";
-        case .BlackWin; return "0-1";
-        case .Draw; return "1/2-1/2";
+game_effective_tag :: (game : *Game, tagName : TagName) -> *TagValue {
+    return game_ply_effective_tag(game, game.ply, tagName);
+}
+
+game_ply_effective_tag :: (game : *Game, ply : *PlyEntity, tagName : TagName) -> *TagValue {
+    tagValue : *TagValue;
+    if ply != null then tagValue = ply_effective_tag(ply, tagName);
+    return ifx tagValue != null then tagValue else *game.tags[tagName];
+}
+
+game_subgame_tag_or_empty :: (game : *Game, subgameFirstPly : *PlyEntity, tagName : TagName) -> TagValue {
+    if subgameFirstPly == game.mainVariation.plies[0] {
+        return game.tags[tagName];
     }
+
+    tagValue := Hash.table_find_pointer(*subgameFirstPly.position.tags, tagName);
+    if tagValue != null then return tagValue.*;
+    return .{};
+}
+
+game_subgame_set_tag :: (game : *Game, subgameFirstPly : *PlyEntity, tagName : TagName, tagValue : TagValue) {
+    if subgameFirstPly == game.mainVariation.plies[0] {
+        if tagName <= .LastStrTag then Basic.free(game.tags[tagName].str);
+        game.tags[tagName] = tagValue;
+        return;
+    }
+
+    existingTagValue := Hash.table_find_pointer(*subgameFirstPly.position.tags, tagName);
+    if existingTagValue != null {
+        if tagName <= .LastStrTag then Basic.free(existingTagValue.str);
+        existingTagValue.* = tagValue;
+    } else {
+        Hash.table_add(*subgameFirstPly.position.tags, tagName, tagValue);
+    }
+}
+
+game_subgame_first_ply :: (game : *Game) -> *PlyEntity {
+    if game.ply == null then return null;
+    return ply_subgame_first_ply(game.ply);
 }
 
 game_debug_dump :: (game : Game) {
@@ -270,6 +337,8 @@ game_debug_dump :: (game : Game) {
 
 _load_game_summary :: (game : *Game) {
     game.computeFlags |= .Summary;
-    game.summary.lastBoardPosition = compact_board_position(Basic.peek(game.mainVariation.plies).position.board);
-    game.summary.lastMove = Basic.peek(game.mainVariation.plies).position.lastMove;
+    lastPly := Basic.peek(game.mainVariation.plies);
+    game.summary.lastBoardPosition = compact_board_position(lastPly.position.board);
+    game.summary.lastMove = lastPly.position.lastMove.simpleMove; // @todo Compiler bug, .simpleMove should not be needed.
+    game.summary.lastBoardOrientation = game_ply_effective_tag(game, lastPly, .BoardOrientation).color;
 }

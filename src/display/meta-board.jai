@@ -12,6 +12,10 @@ MetaBoardEntity :: struct {
     blackClock : PlayerInfoEntity;
     smartMover : SmartMoverEntity;
 
+    // Used to not reupdate the text if it didn't change.
+    lastWhiteStringData : *u8;
+    lastBlackStringData : *u8;
+
     orientation : Color;
     moveIndex : u16;
 }
@@ -47,7 +51,7 @@ _on_message :: (using metaBoard : *MetaBoardEntity, message : *Message) {
     case .CurrentGameChanged;
         _show(metaBoard, instance.currentGame);
     case .SelectedPlyChanged;
-        _update_to_position(metaBoard, *instance.currentGame.ply.position);
+        _update_to_game_current_ply(metaBoard, message.newPly.game);
     }
 }
 
@@ -83,33 +87,47 @@ _show :: (using metaBoard : *MetaBoardEntity, game : *Game) {
     Sill.entity_set_disabled(*blackPlayerName, game == null);
     Sill.entity_set_disabled(*whiteClock, game == null);
     Sill.entity_set_disabled(*blackClock, game == null);
-    if game == null then return;
+
+    _reflow(metaBoard);
+}
+
+_update_to_game_current_ply :: (using metaBoard : *MetaBoardEntity, game : *Game) {
+    position := *game.ply.position;
+    boardOrientation := game_effective_tag(game, .BoardOrientation).color;
+    board_set_position(*boardView, position);
+
+    if boardOrientation != orientation {
+        orientation = boardOrientation;
+        board_view_update_from_orientation(*boardView, boardOrientation);
+        _reflow(metaBoard);
+    }
 
     _set_name :: (playerName : *PlayerInfoEntity, name : string) {
         Sill.entity_set_disabled(playerName, false);
         text_mesh_update(playerName.mesh.nodes[0].primitives[0], name, "mainBold", instance.config.env.textColor);
     }
 
-    if game.tags.white != "" {
-        name := ifx game.tags.whiteElo == 0 then game.tags.white
-                                            else Basic.tprint("% (%)", game.tags.white, game.tags.whiteElo);
-        _set_name(*whitePlayerName, name);
+    white := game_effective_tag(game, .White).str;
+    if lastWhiteStringData != white.data {
+        lastWhiteStringData = white.data;
+        Sill.entity_set_disabled(*whitePlayerName, true);
+        whiteElo := game_effective_tag(game, .WhiteElo).number;
+        if white != "" || whiteElo != 0 {
+            name := ifx whiteElo == 0 then white else Basic.tprint("% (%)", white, whiteElo);
+            _set_name(*whitePlayerName, name);
+        }
     }
 
-    if game.tags.black != "" {
-        name := ifx game.tags.blackElo == 0 then game.tags.black
-                                            else Basic.tprint("% (%)", game.tags.black, game.tags.blackElo);
-        _set_name(*blackPlayerName, name);
+    black := game_effective_tag(game, .Black).str;
+    if lastBlackStringData != black.data {
+        lastBlackStringData = black.data;
+        Sill.entity_set_disabled(*blackPlayerName, true);
+        blackElo := game_effective_tag(game, .BlackElo).number;
+        if black != "" {
+            name := ifx blackElo == 0 then black else Basic.tprint("% (%)", black, blackElo);
+            _set_name(*blackPlayerName, name);
+        }
     }
-
-    orientation = game.boardOrientation;
-
-    board_view_update_from_orientation(*boardView, orientation);
-    _reflow(metaBoard);
-}
-
-_update_to_position :: (using metaBoard : *MetaBoardEntity, position : *Position) {
-    board_set_position(*boardView, position);
 
     Sill.entity_set_disabled(*whiteClock, true);
     if position.whiteClock.count != 0 {
@@ -128,6 +146,7 @@ _update_to_position :: (using metaBoard : *MetaBoardEntity, position : *Position
     }
 
     instance.metaBoard.moveIndex = position.moveIndex;
+
 }
 
 _init_meshes :: (using metaBoard : *MetaBoardEntity) {

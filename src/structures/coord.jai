@@ -30,13 +30,13 @@ coord_same_ignoring_invalid :: (coord1 : Coord, coord2 : Coord) -> bool {
 }
 
 coord_copy_row :: (coord : *Coord, sourceCoord : Coord) {
-    <<coord &= 0b01_000_111;
-    <<coord |= sourceCoord & 0b10_111_000;
+    coord.* &= 0b01_000_111;
+    coord.* |= sourceCoord & 0b10_111_000;
 }
 
 coord_copy_col :: (coord : *Coord, sourceCoord : Coord) {
-    <<coord &= 0b10_111_000;
-    <<coord |= sourceCoord & 0b01_000_111;
+    coord.* &= 0b10_111_000;
+    coord.* |= sourceCoord & 0b01_000_111;
 }
 
 coord_is_valid :: (coord : Coord) -> bool {

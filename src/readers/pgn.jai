@@ -1,13 +1,12 @@
 // @note: Should not be called directly.
 load_pgn :: (bytes : string, game : *Game) -> bool {
+    if bytes.count == 0 {
+        // Somehow, we don't have bytes (cache issue?)
+        return false;
+    }
+
     skip_bom(*bytes);
     skip_blanks(*bytes);
-
-    read_tag :: inline (bytes : *string) -> string {
-        tag := _parse_to_end_of_string(bytes);
-        if tag == "" || tag == "?" then return "";
-        return Basic.copy_string(tag);
-    }
 
     // Parsing each game - @todo should warn about bad usage of this function, then.
     while bytes.count > 0 && bytes[0] == #char "[" {
@@ -16,7 +15,7 @@ load_pgn :: (bytes : string, game : *Game) -> bool {
         rootPly.position = get_starting_position();
 
         // Parsing tags
-        while bytes[0] == #char "[" {
+        while bytes.count > 0 && bytes[0] == #char "[" {
             Basic.advance(*bytes);
             tagName := parse_word(*bytes);
             Basic.advance(*bytes);
@@ -25,21 +24,24 @@ load_pgn :: (bytes : string, game : *Game) -> bool {
             if tagName == "FEN" {
                 rootPly.position = load_fen(bytes);
             } else if tagName == "BoardOrientation" {
-                game.boardOrientation = ifx bytes[0] == #char "W" then Color.White else Color.Black;
-            } else if tagName == "Event" { game.tags.event = read_tag(*bytes);
-            } else if tagName == "Site"  { game.tags.site  = read_tag(*bytes);
-            } else if tagName == "Date"  { game.tags.date  = read_tag(*bytes);
-            } else if tagName == "Round" { game.tags.round = read_tag(*bytes);
-            } else if tagName == "White" { game.tags.white = read_tag(*bytes);
-            } else if tagName == "Black" { game.tags.black = read_tag(*bytes);
-            } else if tagName == "WhiteElo" { game.tags.whiteElo = cast(u16) Basic.to_integer(_parse_to_end_of_string(*bytes));
-            } else if tagName == "BlackElo" { game.tags.blackElo = cast(u16) Basic.to_integer(_parse_to_end_of_string(*bytes));
-            } else if tagName == "Result" { // Ignored, but silently.
+                game.tags[TagName.BoardOrientation].color = ifx bytes[0] == #char "W" then Color.White else Color.Black;
+            } else if tagName == "Event" { game.tags[TagName.Event].str = _read_tag(*bytes);
+            } else if tagName == "Site"  { game.tags[TagName.Site].str = _read_tag(*bytes);
+            } else if tagName == "Date"  { game.tags[TagName.Date].str  = _read_tag(*bytes);
+            } else if tagName == "Round" { game.tags[TagName.Round].str = _read_tag(*bytes);
+            } else if tagName == "White" { game.tags[TagName.White].str = _read_tag(*bytes);
+            } else if tagName == "Black" { game.tags[TagName.Black].str = _read_tag(*bytes);
+            } else if tagName == "Result" {
+                // :ResultInPosition Currently ignored here.
+                // _, result := _parse_potential_result(*bytes);
+                // game.tags[TagName.Result].result = result;
+            } else if tagName == "WhiteElo" { game.tags[TagName.WhiteElo].number = cast(u32) Basic.to_integer(_parse_to_end_of_string(*bytes));
+            } else if tagName == "BlackElo" { game.tags[TagName.BlackElo].number = cast(u32) Basic.to_integer(_parse_to_end_of_string(*bytes));
             } else if tagName == "SetUp" { // Ignored too. (Kind of duplicate with FEN.)
             } else {
-                tag := Basic.array_add(*game.tags.extra);
-                tag.name = Basic.copy_string(tagName);
-                tag.value = read_tag(*bytes);
+                extraTag := Basic.array_add(*game.extraTags);
+                extraTag.name = Basic.copy_string(tagName);
+                extraTag.value = _read_tag(*bytes);
             }
 
             _skip_to_end_of_tag(*bytes);
@@ -47,8 +49,19 @@ load_pgn :: (bytes : string, game : *Game) -> bool {
         }
 
         // Parsing main variation (and therefore its subvariations)
-        _parse_variation(*bytes, game, game.mainVariation, position_color_to_play(*rootPly.position));
+        _parse_variation(*bytes, game, game.mainVariation);
         skip_blanks(*bytes);
+
+        // Allow parsing of multiple games in the same game. Yeah, I know, it's a bit weird.
+        // However, it allows to write a small digression in the middle of a game, which is
+        // very useful for writing book-like studies.
+        while bytes.count > 0 && bytes[0] != #char "[" {
+            rootPly := variation_add_ply(game.mainVariation);
+            rootPly.position = get_starting_position();
+            rootPly.first = true;
+            _parse_variation(*bytes, game, game.mainVariation);
+            skip_blanks(*bytes);
+        }
     }
 
     Chamber._CHECK(bytes.count == 0, "PGN file parsing has some unparsed leftovers.");
@@ -71,23 +84,24 @@ write_pgn_from_plies :: (sb : *Basic.String_Builder, game : *Game) {
     }
 
     // Standard tags
-    Basic.print_to_builder(sb, "[Event \"%\"]\n", tag_or_qmark(game.tags.event));
-    Basic.print_to_builder(sb, "[Site \"%\"]\n", tag_or_qmark(game.tags.site));
-    Basic.print_to_builder(sb, "[Date \"%\"]\n", tag_or_qmark(game.tags.date, "????.??.??"));
-    Basic.print_to_builder(sb, "[Round \"%\"]\n", tag_or_qmark(game.tags.round));
-    Basic.print_to_builder(sb, "[White \"%\"]\n", tag_or_qmark(game.tags.white));
-    Basic.print_to_builder(sb, "[Black \"%\"]\n", tag_or_qmark(game.tags.black));
-    Basic.print_to_builder(sb, "[Result \"%\"]\n", game_result_to_string(game.result));
+    Basic.print_to_builder(sb, "[Event \"%\"]\n", tag_or_qmark(game.tags[TagName.Event].str));
+    Basic.print_to_builder(sb, "[Site \"%\"]\n", tag_or_qmark(game.tags[TagName.Site].str));
+    Basic.print_to_builder(sb, "[Date \"%\"]\n", tag_or_qmark(game.tags[TagName.Date].str, "????.??.??"));
+    Basic.print_to_builder(sb, "[Round \"%\"]\n", tag_or_qmark(game.tags[TagName.Round].str));
+    Basic.print_to_builder(sb, "[White \"%\"]\n", tag_or_qmark(game.tags[TagName.White].str));
+    Basic.print_to_builder(sb, "[Black \"%\"]\n", tag_or_qmark(game.tags[TagName.Black].str));
+    Basic.print_to_builder(sb, "[Result \"%\"]\n", result_to_ascii(Basic.peek(game.mainVariation.plies).position.result));
 
     // Custom tags
-    if game.tags.whiteElo != 0 {
-        Basic.print_to_builder(sb, "[WhiteElo \"%\"]\n", game.tags.whiteElo);
+    if game.tags[TagName.WhiteElo].number != 0 {
+        Basic.print_to_builder(sb, "[WhiteElo \"%\"]\n", game.tags[TagName.WhiteElo].number);
     }
-    if game.tags.blackElo != 0 {
-        Basic.print_to_builder(sb, "[BlackElo \"%\"]\n", game.tags.blackElo);
+    if game.tags[TagName.BlackElo].number != 0 {
+        Basic.print_to_builder(sb, "[BlackElo \"%\"]\n", game.tags[TagName.BlackElo].number);
     }
-    if game.boardOrientation != .White {
-        Basic.print_to_builder(sb, "[BoardOrientation \"%\"]\n", game.boardOrientation);
+    boardOrientation := game.tags[TagName.BoardOrientation].color;
+    if boardOrientation != .White {
+        Basic.print_to_builder(sb, "[BoardOrientation \"%\"]\n", boardOrientation);
     }
     if !position_is_starting_one(game.mainVariation.plies[0].position) {
         Basic.append(sb, "[SetUp \"1\"]\n");
@@ -95,25 +109,29 @@ write_pgn_from_plies :: (sb : *Basic.String_Builder, game : *Game) {
     }
 
     // Extra tags
-    for tag : game.tags.extra {
-        Basic.print_to_builder(sb, "[% \"%\"]\n", tag.name, tag.value);
+    for extraTag : game.extraTags {
+        Basic.print_to_builder(sb, "[% \"%\"]\n", extraTag.name, extraTag.value);
     }
     Basic.append(sb, "\n");
 
     // The game itself
     gameBuilder : Basic.String_Builder;
     _write_variation(*gameBuilder, game.mainVariation);
-    Basic.print_to_builder(*gameBuilder, " %", game_result_to_string(game.result));
 
     // There is officially a column limit of 80 for PGNs,
     // so we can't write that as it is.
     gameString := Basic.builder_to_string(*gameBuilder);
     while gameString.count > 80 {
-        endOfLineIndex := 80;
-        while endOfLineIndex > 0 && gameString[endOfLineIndex] != #char " " {
-            endOfLineIndex -= 1;
+        endOfLineIndex := 0;
+        while endOfLineIndex < 80 && gameString[endOfLineIndex] != #char "\n" {
+            endOfLineIndex += 1;
         }
-        if endOfLineIndex == 0 then break; // One stupid long word without blanks, just don't care.
+        if endOfLineIndex == 80 {
+            while endOfLineIndex > 0 && gameString[endOfLineIndex] != #char " " {
+                endOfLineIndex -= 1;
+            }
+            if endOfLineIndex == 0 then break; // One stupid long word without blanks, just don't care.
+        }
 
         lineString : string;
         lineString.data = gameString.data;
@@ -121,21 +139,27 @@ write_pgn_from_plies :: (sb : *Basic.String_Builder, game : *Game) {
         Basic.print_to_builder(sb, "%\n", lineString);
         Basic.advance(*gameString, endOfLineIndex + 1);
     }
-    Basic.print_to_builder(sb, "%\n", gameString);
+    gameString = String.trim_right(gameString, "\n ");
+
+    if String.trim_right(gameString, "\n ").count == 0 {
+        Basic.append(sb, "{[%cmt Empty]}\n");
+    } else {
+        Basic.print_to_builder(sb, "%\n", String.trim_right(gameString, "\n "));
+    }
 }
 
 _write_variation :: (builder : *Basic.String_Builder, variation : *VariationEntity) {
     for ply, plyIndex : variation.plies {
-        if plyIndex == 0 && ply.position.comment.count == 0 && ply.variations.count == 0 then continue;
+        if ply.first && ply.position.comment.count == 0 && ply.variations.count == 0 then continue;
 
-        if plyIndex != 0 {
+        if !ply.first {
             moveIndex := (ply.position.moveIndex + 1) / 2;
 
             // Don't write black move index if context is clear (no comment nor variation before).
             needMoveIndex := true;
             if ply.position.moveIndex % 2 == 0 {
                 previousPly := variation.plies[plyIndex - 1];
-                if previousPly.position.comment.count == 0 && previousPly.variations.count == 0 {
+                if previousPly.index != 0 && previousPly.position.comment.count == 0 && previousPly.variations.count == 0 {
                     needMoveIndex = false;
                 }
             }
@@ -148,10 +172,40 @@ _write_variation :: (builder : *Basic.String_Builder, variation : *VariationEnti
         }
 
         if ply.position.comment.count != 0 {
-            if plyIndex != 0 {
+            if !ply.first {
                 Basic.append(builder, " ");
             }
             _write_escaped_comment(builder, ply.position.comment);
+        }
+
+        if ply.position.tags.count != 0 {
+            // Iterating in a known tag order.
+            for tagId : 0 .. TagName.Count - 1 {
+                tagName := cast(TagName) tagId;
+                tagValue := Hash.table_find_pointer(*ply.position.tags, tagName);
+                if tagValue == null then continue;
+
+                Basic.print_to_builder(builder, "\n{[%%tag % ", tagName);
+                if #complete tagName == {
+                    case .Event; Basic.print_to_builder(builder, "\"%\"", tagValue.str);
+                    case .Site; Basic.print_to_builder(builder, "\"%\"", tagValue.str);
+                    case .Date; Basic.print_to_builder(builder, "\"%\"", tagValue.str);
+                    case .Round; Basic.print_to_builder(builder, "\"%\"", tagValue.str);
+                    case .White; Basic.print_to_builder(builder, "\"%\"", tagValue.str);
+                    case .Black; Basic.print_to_builder(builder, "\"%\"", tagValue.str);
+                    // :ResultInPosition
+                    // case .Result; Basic.print_to_builder(builder, "%", result_to_ascii(tagValue.result));
+                    case .WhiteElo; Basic.print_to_builder(builder, "\"%\"", tagValue.number);
+                    case .BlackElo; Basic.print_to_builder(builder, "\"%\"", tagValue.number);
+                    case .BoardOrientation; Basic.print_to_builder(builder, "\"%\"", tagValue.color);
+                    case .Count;
+                }
+                Basic.append(builder, "]}");
+            }
+        }
+
+        if ply.customPosition {
+            Basic.print_to_builder(builder, "\n{[%%tag FEN \"%\"]}", position_to_fen(ply.position));
         }
 
         if ply.position.highlights.squares.count != 0 {
@@ -177,7 +231,7 @@ _write_variation :: (builder : *Basic.String_Builder, variation : *VariationEnti
         }
 
         if ply.variations.count != 0 {
-            if plyIndex != 0 || ply.position.comment.count != 0 {
+            if !ply.first || ply.position.comment.count != 0 {
                 Basic.append(builder, " ");
             }
             for subVariation, subVariationIndex : ply.variations {
@@ -190,7 +244,9 @@ _write_variation :: (builder : *Basic.String_Builder, variation : *VariationEnti
             }
         }
 
-        if plyIndex != variation.plies.count - 1 {
+        _write_result(builder, *ply.position);
+
+        if plyIndex != variation.plies.count - 1 && ply.position.result == .None {
             Basic.append(builder, " ");
         }
     }
@@ -200,11 +256,20 @@ _write_nags :: (builder : *Basic.String_Builder, position : *Position) {
     if position.lastMove.annotation != .None {
         Basic.print_to_builder(builder, " $%", cast(u32) _annotation_to_nag(position.lastMove.annotation));
     }
-    if position.annotation != .None {
+    if position.annotation != 0 {
         Basic.print_to_builder(builder, " $%", cast(u32) _annotation_to_nag(position.annotation));
     }
     for observationAnnotation : position.observationAnnotations {
         Basic.print_to_builder(builder, " $%", cast(u32) _annotation_to_nag(observationAnnotation));
+    }
+}
+
+_write_result :: (builder : *Basic.String_Builder, position : *Position) {
+    if position.result == .WhiteWins ||
+       position.result == .BlackWins ||
+       position.result == .Draw ||
+       position.result == .Unknown {
+        Basic.print_to_builder(builder, " %\n\n", result_to_ascii(position.result));
     }
 }
 
@@ -424,22 +489,28 @@ _skip_to_end_of_tag :: inline (bytes : *string) {
     skip_until(bytes, #char "]");
 }
 
+_read_tag :: inline (bytes : *string) -> string {
+    tag := _parse_to_end_of_string(bytes);
+    if tag == "" || tag == "?" then return "";
+    return Basic.copy_string(tag);
+}
+
 _parse_to_end_of_string :: (bytes : *string) -> string {
     return parse_until(bytes, .[ #char "\"" ]);
 }
 
 _parse_move_number :: (bytes : *string) {
     while bytes.count > 0 &&
-          (<<bytes)[0] != #char "." {
-        if (<<bytes)[0] < #char "0" || (<<bytes)[0] > #char "9" {
+          bytes.*[0] != #char "." {
+        if bytes.*[0] < #char "0" || bytes.*[0] > #char "9" {
             bytes.count = Basic.min(bytes.count, 10);
-            Basic.log("Was expecting a move number here: %", <<bytes, flags=.ERROR);
+            Basic.log("Was expecting a move number here: %", bytes.*, flags=.ERROR);
         }
 
         Basic.advance(bytes);
     }
 
-    while bytes.count > 0 && (<<bytes)[0] == #char "." {
+    while bytes.count > 0 && bytes.*[0] == #char "." {
         Basic.advance(bytes);
     }
 
@@ -451,10 +522,10 @@ _parse_move_number :: (bytes : *string) {
 }
 
 _parse_potential_move_number :: (bytes : *string) -> bool {
-    if (<<bytes)[0] < #char "0" || (<<bytes)[0] > #char "9" {
+    if bytes.*[0] < #char "0" || bytes.*[0] > #char "9" {
         return false;
     }
-    if (<<bytes)[1] == #char "-" || (<<bytes)[1] == #char "/" { // Don't parse a result as if it was a move number.
+    if bytes.*[1] == #char "-" || bytes.*[1] == #char "/" { // Don't parse a result as if it was a move number.
         return false;
     }
 
@@ -462,10 +533,10 @@ _parse_potential_move_number :: (bytes : *string) -> bool {
     return true;
 }
 
-_parse_potential_move :: (bytes : *string, variation : *VariationEntity, color : Color) -> bool {
-    if (<<bytes)[0] != #char "O" && (<<bytes)[0] != #char "B" && (<<bytes)[0] != #char "K" &&
-       (<<bytes)[0] != #char "N" && (<<bytes)[0] != #char "R" && (<<bytes)[0] != #char "Q" &&
-       ((<<bytes)[0] < #char "a" || (<<bytes)[0] > #char "h") {
+_parse_potential_move :: (bytes : *string, variation : *VariationEntity) -> bool {
+    if bytes.*[0] != #char "O" && bytes.*[0] != #char "B" && bytes.*[0] != #char "K" &&
+       bytes.*[0] != #char "N" && bytes.*[0] != #char "R" && bytes.*[0] != #char "Q" &&
+       (bytes.*[0] < #char "a" || bytes.*[0] > #char "h") {
         return false;
     }
 
@@ -473,6 +544,7 @@ _parse_potential_move :: (bytes : *string, variation : *VariationEntity, color :
 
     position : Position;
     position_copy_state_from(*position, lastPosition);
+    color := position_color_to_play(*position);
 
     capture : bool;
     sourceCoord, targetCoord : Coord = 0xFF, 0xFF;
@@ -482,7 +554,7 @@ _parse_potential_move :: (bytes : *string, variation : *VariationEntity, color :
     piece.color = color;
 
     // Pawn move
-    if (<<bytes)[0] >= #char "a" && (<<bytes)[0] <= #char "h" {
+    if bytes.*[0] >= #char "a" && bytes.*[0] <= #char "h" {
         piece.kind = .Pawn;
 
         sourceHintCoord : Coord = 0xFF;
@@ -501,7 +573,7 @@ _parse_potential_move :: (bytes : *string, variation : *VariationEntity, color :
         promotionPieceKind = _parse_potential_promotion(bytes);
     }
     // Castling
-    else if (<<bytes)[0] == #char "O" {
+    else if bytes.*[0] == #char "O" {
         piece.kind = .King;
 
         _parse_expected(bytes, #char "O");
@@ -542,48 +614,49 @@ _parse_potential_move :: (bytes : *string, variation : *VariationEntity, color :
 }
 
 _parse_potential_col :: (bytes : *string) -> u8 {
-    if (<<bytes)[0] >= #char "a" && (<<bytes)[0] <= #char "h" {
-        return _parse_col(bytes);
+    if bytes.*[0] >= #char "a" && bytes.*[0] <= #char "h" {
+        return _parse_col(bytes, check = false);
     }
     return 0xFF;
 }
 
 _parse_potential_row :: (bytes : *string) -> u8 {
-    if (<<bytes)[0] >= #char "1" && (<<bytes)[0] <= #char "8" {
-        return _parse_row(bytes);
+    if bytes.*[0] >= #char "1" && bytes.*[0] <= #char "8" {
+        return _parse_row(bytes, check = false);
     }
     return 0xFF;
 }
 
 _parse_potential_expected :: (bytes : *string, c : u8) -> bool {
-    if (<<bytes)[0] == c {
-        return _parse_expected(bytes, c);
+    if bytes.*[0] == c {
+        Basic.advance(bytes);
+        return true;
     }
     return false;
 }
 
 _parse_expected :: (bytes : *string, c : u8) -> bool {
-    Chamber._CHECK((<<bytes)[0] == c, Basic.tprint("Was expecting a '%' here: %", Basic.to_string(*c, 1), <<bytes));
+    Chamber._CHECK(bytes.*[0] == c, "Was expecting a '%' here: %", Basic.to_string(*c, 1), bytes.*);
     Basic.advance(bytes);
     return true;
 }
 
-_parse_col :: (bytes : *string) -> u8 {
-    Chamber._CHECK((<<bytes)[0] >= #char "a" && (<<bytes)[0] <= #char "h", 0xFF, Basic.tprint("Was expecting a column here: %", <<bytes));
-    col := (<<bytes)[0] - #char "a";
+_parse_col :: (bytes : *string, $check := true) -> u8 {
+    #if check then Chamber._CHECK(bytes.*[0] >= #char "a" && bytes.*[0] <= #char "h", 0xFF, "Was expecting a column here: %", bytes.*);
+    col := bytes.*[0] - #char "a";
     Basic.advance(bytes);
     return col;
 }
 
-_parse_row :: (bytes : *string) -> u8 {
-    Chamber._CHECK((<<bytes)[0] >= #char "1" && (<<bytes)[0] <= #char "8", 0xFF, Basic.tprint("Was expecting a row here: %", <<bytes));
-    col := (<<bytes)[0] - #char "1";
+_parse_row :: (bytes : *string, $check := true) -> u8 {
+    #if check then Chamber._CHECK(bytes.*[0] >= #char "1" && bytes.*[0] <= #char "8", 0xFF, "Was expecting a row here: %", bytes.*);
+    col := bytes.*[0] - #char "1";
     Basic.advance(bytes);
     return col;
 }
 
 _parse_potential_capture :: (bytes : *string) -> bool {
-    if (<<bytes)[0] == #char "x" {
+    if bytes.*[0] == #char "x" {
         Basic.advance(bytes);
         return true;
     }
@@ -591,7 +664,7 @@ _parse_potential_capture :: (bytes : *string) -> bool {
 }
 
 _parse_potential_check :: (bytes : *string) -> bool {
-    if (<<bytes)[0] == #char "+" {
+    if bytes.*[0] == #char "+" {
         Basic.advance(bytes);
         return true;
     }
@@ -599,7 +672,7 @@ _parse_potential_check :: (bytes : *string) -> bool {
 }
 
 _parse_potential_mate :: (bytes : *string) -> bool {
-    if (<<bytes)[0] == #char "#" {
+    if bytes.*[0] == #char "#" {
         Basic.advance(bytes);
         return true;
     }
@@ -607,7 +680,7 @@ _parse_potential_mate :: (bytes : *string) -> bool {
 }
 
 _parse_potential_promotion :: (bytes : *string) -> PieceKind {
-    if (<<bytes)[0] != #char "=" then return .None;
+    if bytes.*[0] != #char "=" then return .None;
     Basic.advance(bytes);
 
     return _parse_piece_kind(bytes);
@@ -634,28 +707,28 @@ _parse_pgn_move :: (bytes : *string) -> (sourceHintCoord : Coord, targetCoord : 
 _parse_piece_kind :: (bytes : *string) -> PieceKind {
     pieceKind := PieceKind.None;
 
-    if      (<<bytes)[0] == #char "B" then pieceKind = .Bishop;
-    else if (<<bytes)[0] == #char "K" then pieceKind = .King;
-    else if (<<bytes)[0] == #char "N" then pieceKind = .Knight;
-    else if (<<bytes)[0] == #char "Q" then pieceKind = .Queen;
-    else if (<<bytes)[0] == #char "R" then pieceKind = .Rook;
+    if      bytes.*[0] == #char "B" then pieceKind = .Bishop;
+    else if bytes.*[0] == #char "K" then pieceKind = .King;
+    else if bytes.*[0] == #char "N" then pieceKind = .Knight;
+    else if bytes.*[0] == #char "Q" then pieceKind = .Queen;
+    else if bytes.*[0] == #char "R" then pieceKind = .Rook;
     else {
-        Basic.log("Unable to parse piece kind here: %", <<bytes, flags = .ERROR);
+        Basic.log("Unable to parse piece kind here: %", bytes.*, flags = .ERROR);
     }
 
     Basic.advance(bytes);
     return pieceKind;
 }
 
-_parse_potential_result :: (bytes : *string) -> (bool, Game.Result) {
-    if (<<bytes)[0] == #char "1" {
+_parse_potential_result :: (bytes : *string) -> (bool, Result) {
+    if bytes.*[0] == #char "1" {
         // Peeking
-        if (<<bytes)[1] == #char "-" {
+        if bytes.*[1] == #char "-" {
             _parse_expected(bytes, #char "1");
             _parse_expected(bytes, #char "-");
             _parse_expected(bytes, #char "0");
-            return true, .WhiteWin;
-        } else if (<<bytes)[1] == #char "/" {
+            return true, .WhiteWins;
+        } else if bytes.*[1] == #char "/" {
             _parse_expected(bytes, #char "1");
             _parse_expected(bytes, #char "/");
             _parse_expected(bytes, #char "2");
@@ -665,12 +738,12 @@ _parse_potential_result :: (bytes : *string) -> (bool, Game.Result) {
             _parse_expected(bytes, #char "2");
             return true, .Draw;
         }
-    } else if (<<bytes)[0] == #char "0" {
+    } else if bytes.*[0] == #char "0" {
         _parse_expected(bytes, #char "0");
         _parse_expected(bytes, #char "-");
         _parse_expected(bytes, #char "1");
-        return true, .BlackWin;
-    } else if (<<bytes)[0] == #char "*" {
+        return true, .BlackWins;
+    } else if bytes.*[0] == #char "*" {
         _parse_expected(bytes, #char "*");
         return true, .Unknown;
     }
@@ -678,34 +751,36 @@ _parse_potential_result :: (bytes : *string) -> (bool, Game.Result) {
     return false, .Unknown;
 }
 
-_parse_potential_comment :: (bytes : *string, position : *Position) -> (string, bool) {
+_parse_potential_comment :: (bytes : *string, ply : *PlyEntity) -> (string, bool) {
     if bytes.count == 0 then return ("", false);
-    if (<<bytes)[0] != #char "{" then return ("", false);
+    if bytes.*[0] != #char "{" then return ("", false);
     Basic.advance(bytes);
     skip_blanks(bytes);
 
+    position := *ply.position;
+
     sb : Basic.String_Builder;
-    Basic.init_string_builder(*sb);
+    sb.allocator = Basic.temp;
 
     whitespacesToTrim := 0;
     previousIsBackslash := false;
-    while previousIsBackslash || (<<bytes)[0] != #char "}" {
+    while previousIsBackslash || bytes.*[0] != #char "}" {
         if previousIsBackslash {
-            if (<<bytes)[0] == #char "n" then Basic.append(*sb, #char "\n");
-            else Basic.append(*sb, (<<bytes)[0]);
+            if bytes.*[0] == #char "n" then Basic.append(*sb, #char "\n");
+            else Basic.append(*sb, bytes.*[0]);
             previousIsBackslash = false;
             Basic.advance(bytes);
             continue;
         }
 
-        previousIsBackslash = !previousIsBackslash && (<<bytes)[0] == #char "\\";
-        if (<<bytes)[0] == #char " " then whitespacesToTrim += 1;
+        previousIsBackslash = !previousIsBackslash && bytes.*[0] == #char "\\";
+        if bytes.*[0] == #char " " then whitespacesToTrim += 1;
         else whitespacesToTrim = 0;
 
-        if (<<bytes)[0] == #char "\n" then Basic.append(*sb, #char " ");
+        if bytes.*[0] == #char "\n" then Basic.append(*sb, #char " ");
         else if !previousIsBackslash {
             // Special command.
-            if (<<bytes)[0] == #char "[" && (<<bytes)[1] == #char "%" {
+            if bytes.*[0] == #char "[" && bytes.*[1] == #char "%" {
                 Basic.advance(bytes, 2);
                 commandName := parse_word(bytes);
                 Basic.advance(bytes);
@@ -714,13 +789,36 @@ _parse_potential_comment :: (bytes : *string, position : *Position) -> (string, 
                 if commandName == "csl" then _parse_square_highlights(bytes, position);
                 else if commandName == "cal" then _parse_arrow_highlights(bytes, position);
                 else if commandName == "clk" then _parse_clock(bytes, position);
-                else Basic.log("Unknown PGN command name: %", commandName, flags = .WARNING);
+                else if commandName == "tag" {
+                    tagName := parse_word(bytes);
+                    skip_until(bytes, #char "\"");
+                    if tagName == "FEN" {
+                        ply.customPosition = true;
+                        position_copy_state_from(position, load_fen(bytes.*));
+                    } else if tagName == "Event" then position_set_tag(position, .Event, .{ str = _read_tag(bytes) });
+                    else if tagName == "Site" then position_set_tag(position, .Site, .{ str = _read_tag(bytes) });
+                    else if tagName == "Date" then position_set_tag(position, .Date, .{ str = _read_tag(bytes) });
+                    else if tagName == "Round" then position_set_tag(position, .Round, .{ str = _read_tag(bytes) });
+                    else if tagName == "White" then position_set_tag(position, .White, .{ str = _read_tag(bytes) });
+                    else if tagName == "Black" then position_set_tag(position, .Black, .{ str = _read_tag(bytes) });
+                    else if tagName == "WhiteElo" then position_set_tag(position, .WhiteElo, .{ number = cast(u32) Basic.to_integer(_parse_to_end_of_string(bytes)) });
+                    else if tagName == "BlackElo" then position_set_tag(position, .BlackElo, .{ number = cast(u32) Basic.to_integer(_parse_to_end_of_string(bytes)) });
+                    else if tagName == "BoardOrientation" {
+                        color := ifx bytes.*[0] == #char "W" then Color.White else .Black;
+                        position_set_tag(position, .BoardOrientation, .{ color = color });
+                    }
+                    else Basic.log("Unknown name in tag command: %", tagName, flags = .WARNING);
+                } else if commandName == "eval" {
+                    // @todo Currently doing nothing... Maybe store it at least?
+                } else {
+                    Basic.log("Unknown PGN command name: %", commandName, flags = .WARNING);
+                }
 
-                while (<<bytes)[0] != #char "]" {
+                while bytes.*[0] != #char "]" {
                     Basic.advance(bytes);
                 }
             } else {
-                Basic.append(*sb, (<<bytes)[0]);
+                Basic.append(*sb, bytes.*[0]);
             }
         }
         Basic.advance(bytes);
@@ -728,7 +826,7 @@ _parse_potential_comment :: (bytes : *string, position : *Position) -> (string, 
     Basic.advance(bytes);
     skip_blanks(bytes);
 
-    str := Basic.builder_to_string(*sb);
+    str := Basic.builder_to_string(*sb, Basic.temp);
     str.count -= whitespacesToTrim;
     return (str, true);
 }
@@ -738,24 +836,25 @@ _parse_potential_comments :: (bytes : *string, variation : *VariationEntity) {
 
     Basic.auto_release_temp();
     {
-        Basic.push_allocator(Basic.temp);
-
         while true {
-            comment, ok := _parse_potential_comment(bytes, *Basic.peek(variation.plies).position);
+            comment, ok := _parse_potential_comment(bytes, Basic.peek(variation.plies));
             if !ok then break;
 
             if fullComment.count == 0 then fullComment = comment;
             else if comment.count != 0 {
-                fullComment = Basic.sprint("%\n%", fullComment, comment);
+                fullComment = Basic.tprint("%\n%", fullComment, comment);
             }
         }
     }
 
+    fullComment = String.trim(fullComment);
+    if fullComment.count == 0 then return;
+
     Basic.peek(variation.plies).position.comment = Basic.copy_string(fullComment);
 }
 
-_parse_potential_variation :: (bytes : *string, game : *Game, parentVariation : *VariationEntity, color : Color) -> bool {
-    if (<<bytes)[0] != #char "(" then return false;
+_parse_potential_variation :: (bytes : *string, game : *Game, parentVariation : *VariationEntity) -> bool {
+    if bytes.*[0] != #char "(" then return false;
     Basic.advance(bytes);
 
     lastPly := Basic.peek(parentVariation.plies);
@@ -766,7 +865,7 @@ _parse_potential_variation :: (bytes : *string, game : *Game, parentVariation : 
     position_copy_state_from(*ply.position, parentVariation.plies[parentVariation.plies.count - 2].position);
 
     skip_blanks(bytes);
-    _parse_variation(bytes, game, variation, color);
+    _parse_variation(bytes, game, variation);
 
     skip_blanks(bytes);
     _parse_expected(bytes, #char ")");
@@ -774,43 +873,34 @@ _parse_potential_variation :: (bytes : *string, game : *Game, parentVariation : 
     return true;
 }
 
-_parse_variation :: (bytes : *string, game : *Game, variation : *VariationEntity, firstColor := Color.White) {
+_parse_variation :: (bytes : *string, game : *Game, variation : *VariationEntity) {
     _parse_potential_comments(bytes, variation);
 
-    firstLoop := true;
     lastBytesCount := 0;
     while bytes.count > 0 && bytes.count != lastBytesCount {
         lastBytesCount = bytes.count;
-        if !firstLoop || firstColor == .White {
-            while _parse_potential_variation(bytes, game, variation, .Black) {}
-            if (<<bytes)[0] == #char ")" then break; // End of variation
-            if !_parse_potential_annotated_move(bytes, game, variation, .White) then break;
-        }
-
-        while _parse_potential_variation(bytes, game, variation, .White) {}
-        if (<<bytes)[0] == #char ")" then break;
-        if !_parse_potential_annotated_move(bytes, game, variation, .Black) then break;
-
-        firstLoop = false;
+        while _parse_potential_variation(bytes, game, variation) {}
+        if bytes.*[0] == #char ")" then break; // End of variation
+        if !_parse_potential_annotated_move(bytes, game, variation) then break;
     }
 }
 
 // Returns false if this is the last move a variation.
-_parse_potential_annotated_move :: (bytes : *string, game : *Game, variation : *VariationEntity, color : Color) -> bool {
+_parse_potential_annotated_move :: (bytes : *string, game : *Game, variation : *VariationEntity) -> bool {
     // position_debug_dump(Basic.peek(variation.plies).position);
 
     _parse_potential_move_number(bytes);
-    if _parse_potential_move(bytes, variation, color) {
+    if _parse_potential_move(bytes, variation) {
         while _parse_potential_annotation(bytes, variation) {}
         _parse_potential_comments(bytes, variation);
 
         if bytes.count == 0 then return false;
-        if (<<bytes)[0] == #char ")" then return false;
+        if bytes.*[0] == #char ")" then return false;
     }
 
     foundResult, result := _parse_potential_result(bytes);
     if foundResult then {
-        game.result = result;
+        Basic.peek(variation.plies).position.result = result;
         return false;
     }
 
@@ -823,23 +913,23 @@ _parse_potential_annotation :: (bytes : *string, variation : *VariationEntity) -
 
     nag : Nag;
 
-    if (<<bytes)[0] == #char "$" {
+    if bytes.*[0] == #char "$" {
         Basic.advance(bytes);
         ok : bool;
         nagValue : s64;
-        nagValue, ok, (<<bytes) = Basic.to_integer(<<bytes);
+        nagValue, ok, bytes.* = Basic.to_integer(bytes.*);
         nag = cast(Nag) nagValue;
     }
 
-    if (<<bytes)[0] == #char "!" {
+    if bytes.*[0] == #char "!" {
         Basic.advance(bytes);
-        if (<<bytes)[0] == #char "!" { nag = .Brillant; Basic.advance(bytes); }
-        else if (<<bytes)[0] == #char "?" { nag = .Interesting; Basic.advance(bytes); }
+        if bytes.*[0] == #char "!" { nag = .Brillant; Basic.advance(bytes); }
+        else if bytes.*[0] == #char "?" { nag = .Interesting; Basic.advance(bytes); }
         else nag = .Good;
-    } else if (<<bytes)[0] == #char "?" {
+    } else if bytes.*[0] == #char "?" {
         Basic.advance(bytes);
-        if (<<bytes)[0] == #char "?" { nag = .Blunder; Basic.advance(bytes); }
-        else if (<<bytes)[0] == #char "!" { nag = .Dubious; Basic.advance(bytes); }
+        if bytes.*[0] == #char "?" { nag = .Blunder; Basic.advance(bytes); }
+        else if bytes.*[0] == #char "!" { nag = .Dubious; Basic.advance(bytes); }
         else nag = .Mistake;
     }
 
@@ -877,7 +967,7 @@ _parse_square_highlights :: (bytes : *string, position : *Position) {
         }
 
         skip_blanks(bytes);
-        if (<<bytes)[0] == #char "]" then break;
+        if bytes.*[0] == #char "]" then break;
         Basic.advance(bytes);
     }
 }
@@ -901,7 +991,7 @@ _parse_arrow_highlights :: (bytes : *string, position : *Position) {
         }
 
         skip_blanks(bytes);
-        if (<<bytes)[0] == #char "]" then break;
+        if bytes.*[0] == #char "]" then break;
         Basic.advance(bytes);
     }
 }

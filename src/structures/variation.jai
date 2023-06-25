@@ -19,24 +19,20 @@ VariationEntity :: struct {
     decorumHeight : float; // Last decorum height, so that it is not rebuilt uselessly if it didn't changed.
 }
 
-variation_init :: (variation : *VariationEntity, firstOne := true) {
+variation_init :: (variation : *VariationEntity, game : *Game, firstOne := true) {
     Sill.listener_on_message(*variation.listener, _on_message);
 
     for plyIndex : 0 .. variation.plies.count - 1 {
         ply := variation.plies[plyIndex];
-        ply_init(ply, place = false);
+        ply_init(ply, game);
 
         for variation : ply.variations {
-            variation_init(variation, firstOne = false);
+            variation_init(variation, game, firstOne = false);
         }
     }
 
     if (variation.parentPly != null) {
         _init_decorum(variation);
-    }
-
-    if firstOne {
-        ply_place(variation.plies[0], propagate = true);
     }
 }
 
@@ -51,11 +47,23 @@ variation_cleanup :: (using variation : *VariationEntity) {
 
 variation_add_ply :: (variation : *VariationEntity) -> *PlyEntity {
     ply := SillMeta.create_ply_entity(instance.engine);
+    Sill.entity_set_disabled(ply, true);
     Basic.array_add(*variation.plies, ply);
 
     ply.parentVariation = variation;
     ply.index = cast(u16) (variation.plies.count - 1);
+    ply.first = ply.index == 0;
     return ply;
+}
+
+variation_refresh_backlinks :: (variation : *VariationEntity, game : *Game) {
+    for ply : variation.plies {
+        Chamber.debug("From ", ply.game, " to ", game);
+        ply.game = game;
+        for subVariation : ply.variations {
+            variation_refresh_backlinks(subVariation, game);
+        }
+    }
 }
 
 variation_toggle_collapsed :: (variation : *VariationEntity) {
@@ -98,11 +106,11 @@ variation_debug_dump :: (variation : *VariationEntity, depth : u8) {
     for ply, plyIndex : variation.plies {
         if plyIndex == 0 {
             prefix.count -= 1;
-            Chamber.debug(prefix, "> {", ply.position.comment, "}");
+            Basic.log("% > {%}", prefix, ply.position.comment);
             prefix.count += 1;
         } else {
             fullMoveIndex := (ply.position.moveIndex + 1) / 2;
-            Chamber.debug(prefix, fullMoveIndex, ifx ply.position.moveIndex % 2 then ". " else "… ", position_last_move_to_san(ply.position), " {", ply.position.comment, "}");
+            Basic.log("%0%0% % {%}}", prefix, fullMoveIndex, ifx ply.position.moveIndex % 2 then "." else "…", position_last_move_to_san(ply.position), ply.position.comment);
         }
 
         for variation : ply.variations {
@@ -119,7 +127,7 @@ _on_message :: (variation : *VariationEntity, message : *Message) {
         if variation.plies.count == 0 then return;
         if message.oldPly == variation.plies[0] && variation.mesh.nodes.count != 0 {
             Magma.material_set_color(variation.mesh.nodes[0].primitives[0].material, "color", instance.config.moves.mainColor);
-        } else if instance.currentGame.ply == variation.plies[0] && variation.mesh.nodes.count != 0 {
+        } else if message.newPly == variation.plies[0] && variation.mesh.nodes.count != 0 {
             Magma.material_set_color(variation.mesh.nodes[0].primitives[0].material, "color", instance.config.moves.selectedColor);
         }
     case .VariationContentChanged;

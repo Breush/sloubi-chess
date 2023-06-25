@@ -27,11 +27,17 @@ Study :: struct {
     }
 }
 
-load_study :: (filename : string, computeFlags : Study.ComputeFlags = 0) -> *Study {
-    study := Hash.table_find_pointer(*instance.studies, filename);
-    if study == null {
-        study = Hash.table_add(*instance.studies, Basic.copy_string(filename), .{});
+studies_refresh_backlinks :: () {
+    for *study : instance.studies {
+        if study.view != null then study.view.study = study;
+        for *game : study.games {
+            game.study = study;
+        }
     }
+}
+
+load_study :: (filename : string, computeFlags : Study.ComputeFlags = 0) -> *Study {
+    study := study_find_or_add(filename);
 
     if study.title.count == 0 {
         study.title = Basic.copy_string(String.path_strip_extension(String.path_filename(filename)));
@@ -58,10 +64,29 @@ study_cleanup :: (using study : *Study) {
     for *game : games {
         game_cleanup(game);
     }
+    for *game : temporaryGames {
+        game_cleanup(game);
+    }
 
+    Basic.array_free(temporaryGames);
     Basic.array_free(games);
     Basic.free(title);
     Basic.free(bytes);
+}
+
+study_find_or_add :: (filename : string) -> *Study {
+    study := Hash.table_find_pointer(*instance.studies, filename);
+    if study != null return study;
+
+    oldEntriesData := instance.studies.entries.data;
+    study = Hash.table_add(*instance.studies, Basic.copy_string(filename), .{});
+
+    // Detect cache invalidation.
+    if oldEntriesData != instance.studies.entries.data && instance.studies.count != 1 {
+        studies_refresh_backlinks();
+    }
+
+    return study;
 }
 
 study_show_game :: (study : *Study, gameIndex : u32) {
@@ -92,6 +117,7 @@ study_add_game :: (study : *Study) {
     game_setup_main_variation(game);
     rootPly := variation_add_ply(game.mainVariation);
     rootPly.position = get_starting_position();
+    rootPly.position.result = .Unknown;
 
     send(.StudyGamesChanged, study);
     study_show_game(study, game);
@@ -118,6 +144,7 @@ study_close :: (study : *Study) {
     Sill.destroy_entity(study.view);
     study.view = null;
     study.hasOutdatedBytes = false;
+    study.hasUnsavedModifications = false;
 }
 
 study_save :: (using study : *Study) {
@@ -127,11 +154,11 @@ study_save :: (using study : *Study) {
     // Transfer temporary games to the main games array.
     if temporaryGames.count != 0 {
         for *game : temporaryGames {
-            Basic.array_add(*games, <<game);
+            Basic.array_add(*games, game.*);
         }
         temporaryGames.count = 0;
         for *game : games {
-            if game.view != null then game.view.game = game;
+            game_refresh_backlinks(game);
         }
     }
 
@@ -213,7 +240,7 @@ _refresh_games_and_info_from_bytes :: (study : *Study) {
         if gameIndex >= study.games.count then game = Basic.array_add(*study.games);
         else game = *study.games[gameIndex];
         game.bytes = bytes;
-        game.study = study;
+        game.study = study; // @fixme Not good, can be outdated
 
         // Skip until no more tags.
         while bytes[0] == #char "[" {
@@ -250,6 +277,14 @@ _refresh_games_and_info_from_bytes :: (study : *Study) {
         }
 
         gameIndex += 1;
+    }
+
+    if gameIndex < study.games.count {
+        for *game, gameIndex : study.games {
+            if gameIndex < gameIndex then continue;
+            game_close(game);
+        }
+        study.games.count = gameIndex;
     }
 
     if study.games.count > 1 then study.infoFlags |= .MultipleGames;

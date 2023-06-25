@@ -12,7 +12,7 @@ Math :: #import "Math";
 File :: #import "File";
 Sort :: #import "Sort";
 String :: #import "String";
-Bucket_Array :: #import "Bucket_Array";
+BucketArray :: #import "Bucket_Array";
 CommandLine :: #import "Command_Line";
 FileUtilities :: #import "File_Utilities";
 for_expansion :: Hash.for_expansion;
@@ -23,11 +23,13 @@ for_expansion :: Hash.for_expansion;
 #load "display/board-view.jai";
 #load "display/dialog.jai";
 #load "display/game-view.jai";
+#load "display/label.jai";
 #load "display/library.jai";
 #load "display/meta-board.jai";
 #load "display/sidebar.jai";
 #load "display/smart-mover.jai";
 #load "display/study-view.jai";
+#load "display/text-entry.jai";
 #load "helpers/arrow-mesh.jai";
 #load "helpers/entities.jai";
 #load "helpers/fork-awesome.jai";
@@ -51,15 +53,6 @@ for_expansion :: Hash.for_expansion;
 #load "controller.jai";
 #load "message.jai";
 
-// Feature ideas:
-// @todo Manage "kinds", for puzzles and compositions. To reveal moves progressively.
-// @todo Improve demo library by adding a bunch more!
-// @todo Currently unable to add NAG graphically.
-// @todo Edit comments improvements: Up/Down, selection and copy-paste.
-// @todo Change the selected ply visual to a rect around the ply. (But issues with ply.index == 0?)
-// @todo Read comments to see if squares or moves are cited, and display arrows and such
-// @todo Rework _download_twic_database
-
 instance : Instance;
 
 Instance :: struct {
@@ -82,16 +75,34 @@ Instance :: struct {
     metaBoard : *MetaBoardEntity;
     sidebar : *SidebarEntity;
 
+    textMaterialCache : [..]TextMaterialCacheInfo;
+
+    // @fixme Dangling refs to studies can happen.
     studies : Hash.Table(string, Study); // Key is PGN file path.
     currentGame : *Game;
+
+    handlingClosingMainWindow : bool;
+
+    STUDIES_VERSION : u32 : 0x1;
+}
+
+TextMaterialCacheInfo :: struct {
+    fontTexture : *Magma.Texture;
+    color : Chamber.vec3;
+    material : *Magma.Material;
 }
 
 Arguments :: struct {
     pgn : string;
+    gameIndex : u32;
     config := "./assets/config.json";
+    noCache : bool;
 }
 
 main :: () {
+    // UA :: #import "Unmapping_Allocator";
+    // context.allocator = UA.get_unmapping_allocator();
+
     Debug.init(); // For signal handlers
     Chamber.init_logger();
     context.log_level = .VERBOSE;
@@ -105,21 +116,30 @@ main :: () {
 
     // @todo Have a better command line parser, checking required arguments and such.
     // @todo And we have a mem leak here, because parse_arguments reallocs strings.
+    Chamber.loggerPushNonFatalOnError();
     success, args, setArgs := CommandLine.parse_arguments(Arguments);
+    Chamber.loggerPopNonFatalOnError();
     if !success then return;
 
     storagePath := Chamber.os_application_data_storage_path(Basic.temp);
     read_json_as(*instance.config, args.config);
     read_json_as(*instance.persistence, Basic.tprint("%.sloubi-chess/persistence.json", storagePath), silentOnError = true);
 
-    instance.engine = Sill.create_engine(SillMeta, .{ eventHandler = _event_handler, windowTitle = "SloubiChess", fpsLimit = 30 });
+    instance.engine = Sill.create_engine(SillMeta, .{
+        windowTitle = "SloubiChess",
+        eventHandler = _event_handler,
+        fpsLimit = 60,
+        renderEngine = .{
+            features = .Window,
+            watchShaderFiles = true
+        }
+    });
 
     _storage_init();
-    _cache_init(*instance.studies, "studies");
-    for *study : instance.studies {
-        for *game : study.games {
-            game.study = study;
-        }
+
+    if !args.noCache {
+        _cache_init(*instance.studies, "studies", instance.STUDIES_VERSION);
+        studies_refresh_backlinks();
     }
 
     _shaders_init();
@@ -136,7 +156,7 @@ main :: () {
     if setArgs.pgn {
         study := load_study(args.pgn, .GamesBytes);
         if study != null {
-            study_show_game(study, 0);
+            study_show_game(study, args.gameIndex);
         } else {
             Basic.log("Unable to load PGN %.", args.pgn, flags = .WARNING);
         }
@@ -152,7 +172,7 @@ main :: () {
             game.computeFlags &= ~.Plies;
         }
     }
-    _cache_commit(*instance.studies, "studies");
+    _cache_commit(*instance.studies, "studies", instance.STUDIES_VERSION);
 
     // _cleanup();
     // Chamber.cleanup_logger();
@@ -163,6 +183,7 @@ main :: () {
 
 _cleanup :: () {
     Basic.reset_temporary_storage();
+    Basic.array_free(instance.textMaterialCache);
     config_cleanup(*instance.config);
     persistence_cleanup(*instance.persistence);
 
@@ -176,16 +197,58 @@ _cleanup :: () {
 }
 
 _event_handler :: (event : Crater.Event) {
-    if event.kind == Crater.Event.Kind.WindowSizeChanged {
+    if event.kind == .WindowSizeChanged {
         Magma.forward_renderer_extent(cast(*Magma.ForwardRenderer) instance.engine.renderer, instance.engine.options.windowExtent);
         send(.SystemReflow);
-    } else if event.kind == Crater.Event.Kind.KeyPressed &&
+    } else if event.kind == .KeyPressed &&
               event.key.which == Crater.Key.F10 {
         instance.engine.options.logFps = !instance.engine.options.logFps;
-    } else if event.kind == Crater.Event.Kind.KeyPressed &&
-              event.key.which == Crater.Key.Escape {
-        instance.engine.closingMainWindow = true;
+    } else if event.kind == .WindowClosed {
+        _suggest_close_main_window();
+    } else if event.kind == .KeyPressed && event.key.which == .Escape {
+        if !controller_handle_escape() && Chamber.BUILD_IS_DEBUG {
+            _suggest_close_main_window();
+        }
     }
+}
+
+_suggest_close_main_window :: () {
+    if instance.handlingClosingMainWindow then return;
+    instance.handlingClosingMainWindow = true;
+
+    // Check whether there are any unsaved changes.
+    foundUnsavedStudies := false;
+    for *study : instance.studies {
+        if !study.hasUnsavedModifications then continue;
+        foundUnsavedStudies = true;
+        break;
+    }
+
+    if !foundUnsavedStudies {
+        instance.engine.closingMainWindow = true;
+        return;
+    }
+
+    dialogData : DialogData;
+    dialogData.mainText = "Do you want to save the changes you made to studies?";
+    dialogData.text = "Your changes will be lost if you don't save them.";
+    dialogData.choices = .["Save all", "Cancel", "Don't save"];
+    dialogData.cancelChoiceIndex = 1;
+    dialogData.callback = (dialog : *DialogEntity, choiceIndex : u32, userData : *void) {
+        dialog_close(dialog);
+        instance.handlingClosingMainWindow = false;
+
+        if choiceIndex == 0 {
+            for *study : instance.studies {
+                if !study.hasUnsavedModifications then continue;
+                study_save(study);
+            }
+            instance.engine.closingMainWindow = true;
+        } else if choiceIndex == 2 {
+            instance.engine.closingMainWindow = true;
+        }
+    };
+    dialog_create(dialogData);
 }
 
 _fonts_init :: () {
@@ -206,14 +269,14 @@ _fonts_init :: () {
     monoFontFiles[0] = Basic.tprint("./assets/fonts/%-Regular.ttf", instance.config.env.monoFontFamily);
     monoFontFiles[1] = "./assets/fonts/DejaVuSans.ttf";
 
-    Sill.fonts_register(instance.engine, "mainLight", lightFontFiles, cast(float) instance.config.env.fontSize);
-    Sill.fonts_register(instance.engine, "mainLightItalic", lightItalicFontFile, cast(float) instance.config.env.fontSize);
-    Sill.fonts_register(instance.engine, "mainBold", boldFontFiles, cast(float) instance.config.env.fontSize);
-    Sill.fonts_register(instance.engine, "mono", monoFontFiles, cast(float) instance.config.env.fontSize);
+    Sill.fonts_register(*instance.engine.fonts, "mainLight", lightFontFiles, cast(float) instance.config.env.fontSize);
+    Sill.fonts_register(*instance.engine.fonts, "mainLightItalic", lightItalicFontFile, cast(float) instance.config.env.fontSize);
+    Sill.fonts_register(*instance.engine.fonts, "mainBold", boldFontFiles, cast(float) instance.config.env.fontSize);
+    Sill.fonts_register(*instance.engine.fonts, "mono", monoFontFiles, cast(float) instance.config.env.fontSize);
 
     // Preload for most common glyphs
-    Sill.fonts_glyph_preload(instance.engine, "mainLight", "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ.,!?-+*/=()[]{}:;<>|&@#$%^~`'\"\\");
-    Sill.fonts_glyph_preload(instance.engine, "mainBold", "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ.,!?-+*/=()[]{}:;<>|&@#$%^~`'\"\\");
+    Sill.fonts_glyph_preload(*instance.engine.fonts, "mainLight", "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ.,!?-+*/=()[]{}:;<>|&@#$%^~`'\"\\");
+    Sill.fonts_glyph_preload(*instance.engine.fonts, "mainBold", "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ.,!?-+*/=()[]{}:;<>|&@#$%^~`'\"\\");
 }
 
 _shaders_init :: () {
@@ -224,10 +287,9 @@ _shaders_init :: () {
     instance.shaders.decorum = Magma.create_shader(instance.engine.renderer, "./assets/materials/decorum", .{ alphaBlendingEnabled = true });
 }
 
-_cache_init :: (table : *Hash.Table(string, $T), fileName : string) {
+_cache_init :: (table : *Hash.Table(string, $T), fileName : string, version : u32) {
     storagePath := Chamber.os_application_data_storage_path(Basic.temp);
-    cachePath := Basic.tprint("%.sloubi-chess/cache/%.bos", storagePath, fileName);
-    Basic.log("Loading cache from '%'.", cachePath, flags = .VERBOSE_ONLY);
+    cachePath := Basic.tprint("%.sloubi-chess%cache%0%.bos", storagePath, Chamber.PATH_SEPARATOR, Chamber.PATH_SEPARATOR, fileName);
 
     Hash.init(table);
 
@@ -240,19 +302,24 @@ _cache_init :: (table : *Hash.Table(string, $T), fileName : string) {
     if !success then return;
     defer Basic.free(fileData);
 
-    Chamber.bos_deserialize_as(table, fileData);
+    success = Chamber.bos_deserialize_as(table, fileData, version);
+    if success then {
+        Basic.log("Loading cache from '%'.", cachePath, flags = .VERBOSE_ONLY);
+    } else {
+        Basic.log("Loading cache from '%'... failed! (But not to worry, we clear it, then.)", cachePath, flags = .VERBOSE_ONLY);
+    }
 }
 
-_cache_commit :: (table : *Hash.Table(string, $T), fileName : string) {
+_cache_commit :: (table : *Hash.Table(string, $T), fileName : string, version : u32) {
     storagePath := Chamber.os_application_data_storage_path(Basic.temp);
-    cachePath := Basic.tprint("%.sloubi-chess/cache/%.bos", storagePath, fileName);
+    cachePath := Basic.tprint("%.sloubi-chess%cache%0%.bos", storagePath, Chamber.PATH_SEPARATOR, Chamber.PATH_SEPARATOR, fileName);
     Basic.log("Saving cache to '%'.", cachePath, flags = .VERBOSE_ONLY);
 
     file, success := File.file_open(cachePath, for_writing = true, keep_existing_content = false, log_errors = false);
     if !success then return;
     defer File.file_close(*file);
 
-    serializedCache := Chamber.bos_serialize(<<table);
+    serializedCache := Chamber.bos_serialize(table.*, version);
     defer Basic.free(serializedCache);
     File.file_write(*file, serializedCache.data, serializedCache.count);
 }
@@ -260,10 +327,10 @@ _cache_commit :: (table : *Hash.Table(string, $T), fileName : string) {
 _storage_init :: () {
     // All the directories that need to exist to allow saving various files.
     storagePath := Chamber.os_application_data_storage_path(Basic.temp);
-    appStoragePath := Basic.tprint("%.sloubi-chess/", storagePath);
-    cacheStoragePath := Basic.tprint("%cache/", appStoragePath);
-    libraryStoragePath := Basic.tprint("%library/", appStoragePath);
-    downloadsStoragePath := Basic.tprint("%downloads/", appStoragePath);
+    appStoragePath := Basic.tprint("%.sloubi-chess%", storagePath, Chamber.PATH_SEPARATOR);
+    cacheStoragePath := Basic.tprint("%cache%", appStoragePath, Chamber.PATH_SEPARATOR);
+    libraryStoragePath := Basic.tprint("%library%", appStoragePath, Chamber.PATH_SEPARATOR);
+    downloadsStoragePath := Basic.tprint("%downloadsM", appStoragePath, Chamber.PATH_SEPARATOR);
 
     File.os_make_directory_if_it_does_not_exist(appStoragePath);
     File.os_make_directory_if_it_does_not_exist(cacheStoragePath);

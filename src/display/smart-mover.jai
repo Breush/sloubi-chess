@@ -290,7 +290,7 @@ _key_to_possible_san_keys :: (key : Crater.Key) -> [3]SanKey {
     ROW_KEYS_NUMPAD :: Crater.Key.[.Numpad1, .Numpad2, .Numpad3, .Numpad4, .Numpad5, .Numpad6, .Numpad7, .Numpad8];
     COL_KEYS :: Crater.Key.[.A, .B, .C, .D, .E, .F, .G, .H];
 
-    isPiece, pieceIndex := Basic.array_find(instance.config.board.keyboardMove.piecesMap, key);
+    isPiece, pieceIndex := Basic.array_find(instance.config.env.piecesMap, key);
     isCol, colIndex := Basic.array_find(COL_KEYS, key);
     isRow, rowIndex := Basic.array_find(ROW_KEYS, key);
     if !isRow then isRow, rowIndex = Basic.array_find(ROW_KEYS_NUMPAD, key);
@@ -303,14 +303,15 @@ _key_to_possible_san_keys :: (key : Crater.Key) -> [3]SanKey {
         else if pieceIndex == 2 then sanKeys[offset] = .Bishop;
         else if pieceIndex == 3 then sanKeys[offset] = .Queen;
         else if pieceIndex == 4 then sanKeys[offset] = .King;
+        else offset -= 1; // Ignore Pawn key.
         offset += 1;
     }
     if isRow {
-        sanKeys[offset] = .Row1 + cast(SanKey) rowIndex;
+        sanKeys[offset] = SanKey.Row1 + cast(SanKey) rowIndex;
         offset += 1;
     }
     if isCol {
-        sanKeys[offset] = .ColA + cast(SanKey) colIndex;
+        sanKeys[offset] = SanKey.ColA + cast(SanKey) colIndex;
     }
 
     return sanKeys;

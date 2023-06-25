@@ -17,16 +17,17 @@ dummy_ide_check_message :: (message : *Compiler.Message) {
     options.output_executable_name  = "sloubi-chess";
     options.output_path             = String.join(#filepath, "/../");
     options.intermediate_path       = String.join(#filepath, "/../.build/");
-    options.optimization_level      = .DEBUG;
     options.text_output_flags       = .OUTPUT_TIMING_INFO; // @note And not the linker lines.
     options.backend = .X64;
+
+    Compiler.set_optimization(*options, .DEBUG);
 
     arguments := options.compile_time_command_line;
     if arguments.count > 0 && (arguments[0] == "release" || arguments[0] == "ship") {
         Basic.log("Building release...");
         if arguments[0] == "ship" then options.text_output_flags = 0;
-        options.optimization_level = .RELEASE;
         options.backend = .LLVM;
+        Compiler.set_optimization(*options, .VERY_OPTIMIZED);
     }
 
     import_path: [..] string;
@@ -43,14 +44,18 @@ dummy_ide_check_message :: (message : *Compiler.Message) {
         if !FileUtilities.file_exists("./libshaderc.dll") then FileUtilities.copy_file("./lava/bindings/Shaderc/libshaderc.dll", "./libshaderc.dll");
         if !FileUtilities.file_exists("./libstbtruetype.dll") then FileUtilities.copy_file("./lava/bindings/StbTrueType/libstbtruetype.dll", "./libstbtruetype.dll");
         if !FileUtilities.file_exists("./libvulkan.dll") then FileUtilities.copy_file("./lava/bindings/Vulkan/libvulkan.dll", "./libvulkan.dll");
+        if !FileUtilities.file_exists("./libvma.dll") then FileUtilities.copy_file("./lava/bindings/VulkanMemoryAllocator/libvma.dll", "./libvma.dll");
+        // @todo This is very specific of my system - we can do better by detecting where the compiler is.
+        if !FileUtilities.file_exists("./libcurl.dll") then FileUtilities.copy_file("../../bin/jai/modules/Curl/win/libcurl.dll", "./libcurl.dll");
     } else {
         arguments: [..] string;
         Basic.array_add(*arguments, "-rpath='$ORIGIN/lib'");
 
-        if options.optimization_level == .DEBUG {
+        if options.array_bounds_check {
             Basic.array_add(*arguments, "-rpath='$ORIGIN/lava/bindings/Shaderc'");
             Basic.array_add(*arguments, "-rpath='$ORIGIN/lava/bindings/StbTrueType'");
             Basic.array_add(*arguments, "-rpath='$ORIGIN/lava/bindings/Vulkan'");
+            Basic.array_add(*arguments, "-rpath='$ORIGIN/lava/bindings/VulkanMemoryAllocator'");
         }
 
         options.additional_linker_arguments = arguments;
@@ -60,7 +65,8 @@ dummy_ide_check_message :: (message : *Compiler.Message) {
     Compiler.set_build_options(options, workspace);
 
     plugins : [..]*Compiler.Metaprogram_Plugin;
-    MetaprogramPlugins.init_plugins(.["Sill/plugin"], *plugins, workspace);
+    MetaprogramPlugins.init_plugins(.["Sill/plugin"/*, "Iprof"*/], *plugins, workspace);
+    // plugins[1].handle_one_option(plugins[1], .["-modules"], 0);
 
     for plugin : plugins if plugin.before_intercept then plugin.before_intercept(plugin, null);
 

@@ -17,4 +17,7 @@ UiConstants :: struct #type_info_none {
     TranslucencyTabAction :: 0.85;
     HeightButtonDialog :: 30.0;
     WidthButtonDialog :: 100.0;
+    WidthTextEntry :: WidthTextEntryWithoutPadding + 2 * PaddingHorizontalMedium;
+    WidthTextEntryWithoutPadding :: 200.0;
+    WidthLabel :: 2 * WidthTextEntry;
 }

@@ -13,6 +13,10 @@ Board :: struct {
     arrowingStartCoord : Coord = 0xFF;
     pawnPromotionSourceCoord : Coord = 0xFF;
     pawnPromotionTargetCoord : Coord = 0xFF;
+
+    positionEdit := false;
+    positionEditLastColor : Color = .White;
+    positionEditLastColorChangedCoord : Coord = 0xFF;
 }
 
 board_cleanup :: (using board : *Board) {
@@ -24,6 +28,12 @@ board_interactive :: (board : *Board, interactive := true) {
     if board.interactive == interactive then return;
     board.interactive = interactive;
     send(.BoardInteractiveChanged);
+}
+
+board_position_edit :: (board : *Board, positionEdit := true) {
+    if board.positionEdit == positionEdit then return;
+    board.positionEdit = positionEdit;
+    send(.BoardPositionEditChanged);
 }
 
 // Set coord to 0xFF to unselect.
@@ -76,6 +86,13 @@ board_start_pawn_promotion_selection :: (using board : *Board, sourceCoord : Coo
 board_ui_trigger :: (using board : *Board, trigger : Sill.UiTrigger) {
     if position == null then return;
     if !interactive then return;
+
+    if positionEdit {
+        if trigger.flags & .Key && hoveredCoord != 0xFF {
+            _position_edit_trigger(board, trigger.event.key.which);
+        }
+        return;
+    }
 
     if trigger.flags & .ClickStart {
         if trigger.event.mouseButton.which == .Left {
@@ -171,6 +188,42 @@ board_prepare_move :: (using board : *Board, sourceCoord : Coord, targetCoord : 
 }
 
 #scope_file
+
+_position_edit_trigger :: (using board : *Board, key : Crater.Key) {
+    if key == .Delete {
+        piece := *position.board[hoveredCoord];
+        if piece.kind == .None then return;
+        piece.* = .{};
+    } else {
+        found, pieceIndex := Basic.array_find(instance.config.env.piecesMap, key);
+        if !found then return;
+        PIECES :: PieceKind.[.Rook, .Knight, .Bishop, .Queen, .King, .Pawn];
+        newPieceKind := PIECES[pieceIndex];
+
+        piece := *position.board[hoveredCoord];
+        if piece.kind == newPieceKind {
+            piece.color = ifx piece.color == .White then Color.Black else .White;
+            positionEditLastColor = piece.color;
+            // Allow clearing a piece by repeat of its kind if we already color-changed it.
+            if positionEditLastColorChangedCoord == hoveredCoord {
+                piece.* = .{};
+            } else {
+                positionEditLastColorChangedCoord = hoveredCoord;
+            }
+        } else {
+            piece.kind = newPieceKind;
+            piece.color = positionEditLastColor;
+            positionEditLastColorChangedCoord = 0xFF;
+        }
+
+        row, col := row_col(hoveredCoord);
+        if (row == 0 || row == 7) && (col == 0 || col == 4 || col == 7) {
+            position_update_castling_allowed_flags(position, ifx row == 0 then Color.White else .Black);
+        }
+    }
+
+    send(.PositionBoardCoordChanged, hoveredCoord);
+}
 
 // Called each time a square is simply-clicked.
 // Return true if a coord is selected.
