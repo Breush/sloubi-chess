@@ -8,9 +8,9 @@
 - *variations* made to look *good* and *readable*, as most chess desktop apps are ugly ;
 - *training* by repeating your lines (next big feature, not yet implemented).
 
-![](./docs/images/alpha-0.0.6.avif)
+![](./docs/images/alpha-0.0.7.avif)
 <p align="center">
-<em>alpha-0.0.6</em>
+<em>alpha-0.0.7</em>
 </p>
 
 It is **not** (and probably won't ever be):
