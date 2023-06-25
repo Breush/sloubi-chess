@@ -1,4 +1,4 @@
-[Event "Chapître 1"]
+[Event "Chapitre 1"]
 [Site "?"]
 [Date "????.??.??"]
 [Round "?"]
@@ -116,12 +116,12 @@ clés. La discussion va s'étendre sur la chapitre de la stratégie. Mais
 d'abord, un petit aperçu historique de l'ouverture.} *
 
 [Event "Chapitre 2"]
-[Site "?"]
-[Date "????.??.??"]
+[Site "Saint Pétersbourg"]
+[Date "1914.??.??"]
 [Round "?"]
-[White "?"]
-[Black "?"]
-[Result "*"]
+[White "Nimzowitsch, A."]
+[Black "Capablanca, J."]
+[Result "0-1"]
 [BoardOrientation "Black"]
 
 {Étudier les parties des pionniers d'une ouverture est un très bon moyen d'en
@@ -138,28 +138,27 @@ Ses parties anticipent les avancées théoriques des trente dernières années
 au moins. Après tout, considérez ceci : il jouait l'Est-Indienne à La Havane
 en 1913 ; il employa un set-up de Benoni Moderne pour écraser Alekhine comme un
 enfant avec les Noirs à New York en 1927 ; et voici comment il jouait treize
-ans plus tôt contre Nimzowitsch à St. Pétersbourg.\n\nA. Nimzowitsch - J.
-Capablanca\nSt. Pétersbourg, 1914} 1. e4 e5 2. Nf3 Nc6 3. Nc3 Nf6 4. Bb5 d6 5.
-d4 Bd7 6. Bxc6 Bxc6 7. Qd3 exd4 8. Nxd4 g6 {Bien évidemment, les coups
-d'ouverture n'ont rien à voir avec la théorie du gambit Benko, mais le
-sacrifice de pion de Capablanca au coup 8 est parfaitement dans l'esprit. "Une
-idée novatrice, écrit Capablanca, créée sous l'impulsion du moment, avec
-l'intention d'amener les Blancs à gérer leurs ressources dans une forme de
-défense dont Nimzowitsch n'était pas familier."\nC'est une façon remarquable
-de décider d'un sacrifice positionnel, incompréhensible pour la plupart des
-gens dans le monde des échecs pendant 50 ans !} 9. Nxc6 bxc6 10. Qa6 {Tacticien
-dans l'âme, Nimzowitsch voit le gain d'un pion et la possibilité de créer un
-pion passé ! En 1914, cela semble être une bonne idée.} 10... Qd7 11. Qb7 Rc8
-12. Qxa7 Bg7 13. O-O O-O 14. Qa6 {Ayant attrapé son butin, la dame blanche
-retourne vers le centre.} 14... Rfe8 15. Qd3 Qe6 16. f3 {Un joueur moderne
-expérimenté reconnaîtrait dans la structure de pions les atouts de la
-Variante Principale de la Benko : les deux colonnes ouvertes sur l'aile dame
-pour les tours noires, le centre de pions noirs compact et le fou dominant en
-g7. Il concluerait aussi probablement que les Noirs ont obtenu une version
-avantageuse de la Benko : en particulier le pion en c6 qui protège la case d5 -
-un luxe que les Noirs n'ont pas d'habitude dans le gambit Benko. Le joueur
-moderne n'aurait peut-être pas vu les parties de Pal Benko, Lev Alburt ou
-d'autres joueurs de 1970, mais la théorie moderne s'est construite sur leur
+ans plus tôt contre Nimzowitsch à St. Pétersbourg.} 1. e4 e5 2. Nf3 Nc6 3.
+Nc3 Nf6 4. Bb5 d6 5. d4 Bd7 6. Bxc6 Bxc6 7. Qd3 exd4 8. Nxd4 g6 {Bien
+évidemment, les coups d'ouverture n'ont rien à voir avec la théorie du gambit
+Benko, mais le sacrifice de pion de Capablanca au coup 8 est parfaitement dans
+l'esprit. "Une idée novatrice, écrit Capablanca, créée sous l'impulsion du
+moment, avec l'intention d'amener les Blancs à gérer leurs ressources dans une
+forme de défense dont Nimzowitsch n'était pas familier."\nC'est une façon
+remarquable de décider d'un sacrifice positionnel, incompréhensible pour la
+plupart des gens dans le monde des échecs pendant 50 ans !} 9. Nxc6 bxc6 10.
+Qa6 {Tacticien dans l'âme, Nimzowitsch voit le gain d'un pion et la
+possibilité de créer un pion passé ! En 1914, cela semble être une bonne
+idée.} 10... Qd7 11. Qb7 Rc8 12. Qxa7 Bg7 13. O-O O-O 14. Qa6 {Ayant attrapé
+son butin, la dame blanche retourne vers le centre.} 14... Rfe8 15. Qd3 Qe6 16.
+f3 {Un joueur moderne expérimenté reconnaîtrait dans la structure de pions
+les atouts de la Variante Principale de la Benko : les deux colonnes ouvertes
+sur l'aile dame pour les tours noires, le centre de pions noirs compact et le
+fou dominant en g7. Il concluerait aussi probablement que les Noirs ont obtenu
+une version avantageuse de la Benko : en particulier le pion en c6 qui protège
+la case d5 - un luxe que les Noirs n'ont pas d'habitude dans le gambit Benko. Le
+joueur moderne n'aurait peut-être pas vu les parties de Pal Benko, Lev Alburt
+ou d'autres joueurs de 1970, mais la théorie moderne s'est construite sur leur
 héritage - c'est pourquoi il est possible de d'affirmer que les Noirs ont
 suffisamment de compension pour le pion dans cette position.\nMais qu'est-ce que
 Nimzowitsch aurait pu savoir de tout cela en 1914, dans un monde à une
@@ -189,4 +188,30 @@ c2. Du coup, Nimzowitsch accepte de perdre une qualité, mais la suite sera un
 massacre.} 25... Bxc3 $2) 26. Rxd4 Qxd4 27. Rd1 Qc4 28. h4 R4xb2 29. Qd2 Qc5 30.
 Re1 Qh5 31. Ra1 Qxh4+ 32. Kg1 Qh5 33. a5 Ra8 34. a6 Qc5+ 35. Kh1 Qc4 36. a7 Qc5
 37. e5 Qxe5 38. Ra4 Qh5+ 39. Kg1 Qc5+ 40. Kh2 d5 41. Rh4 Rxa7 42. Nd1 {Les
-Blancs abandonnent.} *
+Blancs abandonnent.} 0-1
+
+{Capablanca lui-même fait une remarque pertinente sur le coup
+13 :\n"Nimzowitsch, il est vrai, ne trouve pas les meilleurs coups à ce
+moment-là, mais je crois qu'il a été injustement critiqué pour avoir perdu
+cette partie, quand bien même ses délateurs n'ont pu fournir de variantes
+viables. Ils on t suggéré des coups ici et là ; mais les parties des
+Grands-Maîtres ne se jouent pas en un seul coup, on doit considérer les plans
+d'attaque et de défense, et ceux-ci, personne n'en a donné." \[My Chess
+Career, Dover 1966]\nComme présenté dans les exemples de ce livre, l'un des
+avantages du gambit Benko pour les Noirs est qu'il s'accompagne d'un plan
+stratégique clair - les pièces trouvent des cases actives, même le fou de
+cases blanches qui est pourtant l'un des fardeaux des Noirs dans les ouvertures
+1. d4. À l'inverse, les Blancs font face à des difficultés à établir un
+plan clair, tout comme Nimzowitsch dans la partie ci-dessus. @fixme MISSING
+PART\nLe concept d'un sacrifice du pion b pour obtenir un bon centre était
+connu à l'époque. Par exemple, en 1922 à Bad Pistyan, Alekhine bat Tarrasch
+avec les Noirs avec le gambit Blumenfeld.} 1. d4 Nf6 2. Nf3 e6 3. c4 c5 4. d5 b5
+5. dxe6 fxe6 6. cxb5 d5 7. e3 Bd6 8. Nc3 O-O 9. Be2 Bb7 10. b3 Nbd7 11. Bb2 Qe7
+12. O-O Rad8 13. Qc2 e5 {Et les pions noirs avancent jusqu'en d3 et e4.} 14.
+Rfe1 e4 15. Nd2 Ne5 16. Nd1 Nfg4 17. Bxg4 Nxg4 18. Nf1 Qg5 19. h3 Nh6 20. Kh1
+Nf5 21. Nh2 d4 22. Bc1 d3 23. Qc4+ Kh8 24. Bb2 Ng3+ 25. Kg1 Bd5 26. Qa4 Ne2+ 27.
+Kh1 Rf7 28. Qa6 h5 29. b6 Ng3+ 30. Kg1 axb6 31. Qxb6 Ne2+ 32. Kh1 Ng3+ 33. Kg1
+d2 34. Rf1 Nxf1 35. Nxf1 Be6 36. Kh1 Bxh3 37. gxh3 Rf3 38. Ng3 h4 39. Bf6 Qxf6
+40. Nxe4 Rxh3+ 0-1
+
+

@@ -1,3 +1,6 @@
 .build/
 releases/
 sloubi-chess
+*.dll
+*.exe
+*.pdb

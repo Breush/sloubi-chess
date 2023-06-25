@@ -1,0 +1,137 @@
+version = 20230101
+
+[env]
+# RGB color, 0 to 1 values.
+colors.background = [0.173, 0.173, 0.173]
+colors.contrast = [0.233, 0.233, 0.233]
+colors.hover = [0.293, 0.293, 0.293]
+colors.text = [1, 1, 1]
+# Currently has to be in assets/fonts/.
+# Light, LightItalic and Bold variants should exist.
+fontFamily = "Ubuntu"
+# Currently has to be in assets/fonts/.
+# Regular variant should exists.
+monoFontFamily = "SpaceMono"
+fontSize = 14
+# Prefered representation for short name of pieces.
+#   - English ones are ["R", "N", "B", "Q", "K"]
+#   - French ones are ["T", "C", "F", "D", "R"]
+#   - Unicode symbols are ["♜", "♞", "♝", "♛", "♚"]
+piecesSymbols = ["R", "N", "B", "Q", "K"]
+# Map keyboard keys to a piece name (Rook, Knight, Bishop, Queen, King, Pawn).
+# This allows writing a piece name in a different language.
+# They can be different from the display characters used in `env.piecesSymbol`.
+piecesMap = ["R", "N", "B", "Q", "K", "P"]
+
+[board]
+# Files have to be in ./assets/images/pieces/ and prefixed accordingly
+pieces = "staunty"
+# Display valid squares when moving a piece (dragAndDrop or clickClick).
+highlightValidSquares = true
+# RGB or RGBA color, 0 to 1 values.
+colors.lightSquare = [0.905, 0.911, 0.822]
+colors.darkSquare = [0.703, 0.573, 0.335]
+colors.promotionSelecter = [0.335, 0.573, 0.703, 0.9] # RGBA color, 0 to 1 values
+# Used for square highlights and arrows.
+colors.highlightBlue = [0.33, 0.33, 0.81, 0.9]
+colors.highlightGreen = [0.33, 0.81, 0.33, 0.9]
+colors.highlightRed = [0.81, 0.33, 0.33, 0.9]
+colors.highlightYellow = [0.81, 0.81, 0.33, 0.9]
+# Allow dragging a piece to play a move.
+dragAndDropMove.enabled = true
+# When dragging a piece, opacity of the piece on its starting square.
+dragAndDropMove.ghostOpacity = 0.2
+# Allow clicking on the starting square
+# then on the destination square to play a move.
+clickClickMove.enabled = true
+# Allow clicking on a destination square to play a move,
+# if there is only one piece that can go there.
+destinationSquareMove.enabled = true
+destinationSquareMove.mouseButton = "Middle" # "Left", "Middle" or "Right".
+# When there are multiple choices, choose the last piece that moved if valid.
+destinationSquareMove.disambiguateWithLastMovedPiece = false
+# Allow entering moves with keyboard.
+# For instance, with the default configuration,
+# typing <N> <F> <3> <Return> will move a knight to f3 if allowed.
+keyboardMove.enabled = true
+# Map keyboard keys to a number (1 to 8).
+# As for some non-qwerty keyboards, the numbers require a Shift toggle,
+# this is an easy way to allow not pressing it.
+# The default is for an azerty keyboard.
+keyboardMove.numbersMap = ["Ampersand", "EAcute", "QuoteDouble", "Apostrophe", "ParenthesisLeft", "Minus", "EGrave", "Underscore"]
+# Keys to select the next matching move.
+keyboardMove.selectNext = ["Tab"]
+# Keys to play the selected move.
+keyboardMove.playSelected = ["Return", "NumpadEnter"]
+
+[analysis]
+# The analysis site used to open the current position,
+# the FEN will be added at the end of the URL.
+#  - lichess.org "https://lichess.org/analysis/"
+#  - chess.com "https://www.chess.com/analysis?fen="
+externalSite = "https://lichess.org/analysis/"
+
+[library]
+# Where all the books (PGNs) and associated files are stored.
+# The character "%" is a special token that is replaced
+# with "%APPDATA%/.sloubi-chess" on Windows and "~/.sloubi-chess" on Linux.
+path = "%/library"
+# Within a study, how the games' titles should be formatted.
+# Use PGN's seven tag roster information as you wish:
+# - %1 = Event     Name of the tournament or match event.
+# - %2 = Site      Location of the event.
+# - %3 = Date      Starting date of the game.
+# - %4 = Round     Playing round ordinal of the game.
+# - %5 = White     Player of the white pieces.
+# - %6 = Black     Player of the black pieces.
+# - %7 = Result    Result of the game.
+# @fixme Have a list here, and set them in order as long as the value exists.
+gameTitleFormat = "%5 / %6 - %2 %3"
+
+[moves]
+# RGB color, 0 to 1 values.
+colors.main = [1, 1, 1]
+colors.interesting = [0.4, 0.8, 0.9]
+colors.good = [0.6, 0.7, 0.95]
+colors.brillant = [0.85, 0.6, 0.95]
+colors.dubious = [0.9, 0.8, 0.3]
+colors.mistake = [0.9, 0.5, 0.3]
+colors.blunder = [0.9, 0.1, 0.1]
+colors.selected = [1.0, 0.7, 0.3]
+colors.selectedComment = [1.0, 0.9, 0.7]
+# A ply is a so-called "half-move".
+# The following mean within the current variation.
+controls.nextPly = "Right"
+controls.previousPly = "Left"
+# Chess websites usually map these to "Up" and "Down"
+controls.firstPly = "Home"
+controls.lastPly = "End"
+# Go to an alternative variation on the current ply.
+controls.nextVariation = "Down"
+controls.previousVariation = "Up"
+# Start editing the selected ply's comment.
+controls.editPlyComment = "Space"
+# Whether to collapse variations by default or not.
+variationsCollapsed = true
+# Number of successive empty moves (no comments, no variations)
+# needed to start compacting the list.
+# This improves readability when there are a lot of empty moves.
+# Set to 0 to disable.
+compactThreshold = 2
+# We have three types of comments:
+#   - short: few characters long, designed to be inlined.
+#   - normal: not going over 3 lines of "Half" style.
+#   - long: anything else bigger.
+# And four styles to display them:
+#   - "Inline": where the comment is next to the move number.
+#   - "Half": restricted to color's half. @fixme Rename "Sided"?
+#   - "Full": taking the full width available.
+#   - "SidedFull": taking the full width available
+#     but first line is padded to color's half.
+comments.shortStyle = "Inline"
+comments.normalStyle = "Half"
+comments.longStyle = "SidedFull"
+# A SidedFull comment can take only a proportion of available width.
+# Using a SidedFull comment with the fullWidth set to 0.5
+# would give the exact same output as a Half comment.
+comments.fullStyleWidth = 0.8 # @fixme Bad name, only used for SidedFull.

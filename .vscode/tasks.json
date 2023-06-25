@@ -72,16 +72,22 @@
                     "owner": "jai"
                 },
             ],
-            "group": "build",
+            "group": {
+                "kind": "build",
+                "isDefault": false,
+            }
         },
         {
             "label": "run",
             "type": "shell",
-            "command": " ${workspaceFolder}/sloubi-chess",
-            // "command": " ${workspaceFolder}/sloubi-chess -pgn ./assets/demo/library/Compositions.pgn",
-            // "command": " ${workspaceFolder}/sloubi-chess -pgn ./assets/pgns/benko-revealed-intro.pgn",
-            // "command": " ${workspaceFolder}/sloubi-chess -pgn ./assets/pgns/test-fen-and-comments.pgn",
-            // "command": " ${workspaceFolder}/sloubi-chess -pgn ./assets/pgns/opera-game.pgn",
+            "command": "${workspaceFolder}/sloubi-chess",
+            // "command": "${workspaceFolder}/sloubi-chess -noCache",
+            // "command": "${workspaceFolder}/sloubi-chess -pgn ./assets/demo/library/Compositions.pgn",
+            // "command": "${workspaceFolder}/sloubi-chess -pgn ./assets/pgns/benko-revealed-intro.pgn",
+            // "command": "${workspaceFolder}/sloubi-chess -pgn \"./assets/demo/library/Naroditsky's Principles of Chess Endgames/01 - King Activity.pgn\"",
+            // "command": "${workspaceFolder}/sloubi-chess -pgn \"./assets/demo/library/Longest game.pgn\"",
+            // "command": "${workspaceFolder}/sloubi-chess -pgn ./assets/pgns/opera-game.pgn",
+            // "command": "${workspaceFolder}/sloubi-chess -pgn ~/.sloubi-chess/library/breush-game.pgn",
             "options": {
                 "env": {
                     "VK_LAYER_PATH": "${workspaceFolder}/lava/bindings/Vulkan/layers",
@@ -100,7 +106,7 @@
                 "kind": "build",
                 "isDefault": true,
             },
-            "dependsOn": ["build"]
+            "dependsOn": ["build"],
         }
     ]
 }

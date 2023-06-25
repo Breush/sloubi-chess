@@ -1,0 +1,458 @@
+[Event "Principles of Chess Endgames"]
+[Site "https://youtu.be/mhUoe2JBxco"]
+[Date "2021.10.02"]
+[Round "1"]
+[White "Naroditsky, Daniel"]
+[Black "King Activity"]
+[Result "*"]
+
+{This series of PGNs is a transcript of Daniel Naroditsky's Principles of Chess
+Endgames videos, freely available on Youtube. I invite you to visit his channel,
+and notably to have a look at this video https://youtu.be/mhUoe2JBxco
+(2021/10/02) on which this specific PGN is based on. -- A. Breust} *
+
+{Hey guys! And welcome to a video, or rather a series of videos, that I'm really
+really looking forward to making. So, this is going to be a new series of videos
+on two topics within the realm of chess improvement, and these are two very
+broad topics that i think do not get enough coverage on Youtube, on Twitch and
+chess literature. And as I'll explain the second issue I have with these topics
+is that, when they are tackled, I think that it's not done in a manner that's
+particularly systematic or conducive to mastery. I'm going to try to take on the
+very ambitious task of rectifying that.\nThese two topics are principles of the
+endgame and principles of positional play (or just positional positional play,
+positional concepts). So over the course of the next couple of months I'm going
+to make a bunch of these videos on what I believe to be the most important
+endgame principles and themes, and the most important principles and themes
+within the realm of positional chess. So, today we're talking about king
+activity but we're going to try to cover as many important concepts as possible:
+we're going to talk about weak squares, pawn structure, manoeuvers... all of
+those nitty gritty in positional chess and endgames that you might be fearing,
+or you might think only GMs kind of can do. I'm going to try to demystify and
+present in a relatively coherent manner.\nNow the big thing that I'm going to be
+doing, and this is really the guiding method behind these videos, that rather
+than focusing on just one example and spending 30 minutes on it, I'm going to
+try to go for breadth, I'm going to show at the very least four to five examples
+per video. Because I believe that, much like tactics, it's not enough to show
+somebody what a pin is. You then have to give that person five or six examples
+at a minimum, so that they can see the various manifestations and what to look
+for. It's not enough just to explain, you also have to drill it down and that's
+what I'm going to be trying to do with positional chests and with endgames. I
+feel like they can be learned in a very similar manner to tactical themes, and
+that is by looking at several examples all at once and really getting that
+pattern recognition in place as early as possible. So, with that ambitious goal
+in mind, let's begin.\nToday we're going to start with what is perhaps the
+single most important principle of the endgame, which is king activity. You must
+keep your king active at all costs in the vast majority of end game positions.
+We are going to take a look at what exactly that even means and we have some
+fascinating endgames ahead of us. The last thing I'll say before we jump in, and
+i won't be making this long-winded introduction in subsequent videos on these
+topics, but I will be going relatively fast on all of these examples so feel
+free to set this up on your own board. Again, I'm gonna try to fit five examples
+within 30 minutes so there will be moments within these games where I'm not
+focusing on interesting stuff just because it's beyond the purview of what we're
+talking about, but that doesn't mean you can't explore things and you can't
+learn from these games in ways other than as an illustration of the topic. So,
+by all means, feel free to structure this in the way that is most conducive to
+your learning.} *
+
+{Let's start with a classic example that I showed all of my students. I feel
+like everybody should know it because it is perhaps the single most clear
+illustration of how much king activity changes the landscape of an endgame. This
+is a game between cuban world champion Jose Raul Capablanca, fourth world
+champion, and Savielly Tartakower who was one of the strongest players of the
+early 20th century. I believe he was later given the Grand-Master title by FIDE
+toward the end of his life. Capablanca and Tartakower have reached a really
+interesting endgame. Material is currently equal, five pawns each, but you might
+see that White has this protected passed pawn on g5. (And of course we will also
+talk about past pawns in a subsequent video.) But if you look a little bit more
+carefully you'll see that there is a bit of a problem - White has this
+incredibly weak pawn on c3 and a weak pawn on a4. That c3 pawn cannot be
+defended by White's rook: although it's on the seventh rank it cannot return to
+defend this pawn. It looks like White is not only going to lose this pawn but
+the king is going to be tossed back to the second rank. This g-pawn alone is not
+going to decide the game in White's favor (see 35. g6). White could try to hunt
+for the d5 pawn (see 35. Rd7) but that kind of loses focus.\nBut it turns out
+that, in this position, White is winning with an absolutely brilliant manoeuver
+- one of my favorite endgame manoeuvers. Capablanca realized that a, b and c
+pawns do not matter. The only thing that matters is the fact that, after black
+takes on c3, White's king is going to be tossed back to the second rank and that
+cannot be allowed. Capablanca thought about it and realized the king actually
+has a pathway toward black side of the position where he can support this
+crucial passed pawn on g5.}
+{[%tag Site "New York, USA"]}
+{[%tag Date "1924.03.23"]}
+{[%tag White "Capablanca, Jose Raul"]}
+{[%tag Black "Tartakower, Savielly"]}
+{[%tag FEN "5k2/p1p4R/1pr5/3p1pP1/P2P1P2/2P2K2/8/8 w KQkq - 0 35"]} 35. Kg3 $1
+(35. g6 Rxg6 36. Rxc7 Rg7 {and Black is totally fine, the position is
+approximately equal.}) (35. Rd7 Rxc3+ 36. Ke2 c6 37. g6 Rg3 {and the rook is
+behind the passed pawn, and at the very least Black's position is very
+comfortable, the game should end in a draw.}) 35... Rxc3+ 36. Kh4 {The whole
+point here is that the king is going to walk up through h5 to g6 or through an
+alternate path that I'm about to reveal. Once the king gets into the black side
+of the board it's going to be so much easier to push this g5 pawn. White's king,
+rook and pawn are going to overwhelm Black's rook because Black's king, unlike
+its counterpart, is completely cut off along the eighth rank. Watch what
+happens.} 36... Rf3 37. g6 {37. Kh5 was possible but Capablanca finds an even
+more efficient way of getting the king straight into the heart of Black's
+position. The king diagonally crosses its way to f6. Tartakower can take all the
+pawns that he wants.} {[%csl Bf6]} {[%cal Bh4f6]} 37... Rxf4+ {He does, he takes
+on f4, he can even take the pawn on d4 but as my good friend Robert Hess says:
+it's not about the quantity of the passed pawns, it's only about the quality.
+You can have a single passed pawn but that passed pawn decides the game (see
+38... Rxd4).} 38. Kg5 Re4 {Tartakower tries to keep the rook on an open file.}
+(38... Rxd4 39. Kf6 {threatening mate.} 39... Kg8 40. Rd7 {The rook swings over,
+and now checkmate is simply unstoppable. We're not even talking about promotion
+here, we're talking about mate.}) 39. Kf6 Kg8 40. Rg7+ {Forcing Black's king
+onto an awkward spot.} 40... Kh8 41. Rxc7 {Capablanca simply starts collecting
+all of Black's pawns. Rc8 is a mate threat.} {[%csl Rc8]} {[%cal Rc7c8]} 41...
+Re8 42. Kxf5 Re4 43. Kf6 Rf4+ 44. Ke5 {The king goes on to greener pastures.}
+44... Rg4 45. g7+ $1 {Another very nice move by Jose Capablanca.} 45... Kg8
+{Tartakower can't take the pawn.} (45... Rxg7 46. Rxg7 Kxg7 47. Kxd5 {One of the
+great things about having your king active in the endgame is that almost all
+pawn endgames are going to be winning, when there is such a disparity in king
+activity. Normally if Black's king was on b4 or d7 the game would end in a draw
+but because White's king is so active this endgame, it is an elementary win. The
+simplest way to win being to slide the king over to b7 and win all of Black's
+pawns. It's like watching Lionel Messi on the soccer field, you feel like the
+king was on f6 one second and it's on b7 the other.} 47... Kf7 48. Kc6 Ke7 49.
+Kb7 {[%cal Bb7b6,Bb7a7]}) 46. Rxa7 Rg1 47. Kxd5 Rc1 48. Kd6 Rc2 49. d5 Rc1 50.
+Rc7 Ra1 51. Kc6 Rxa4 52. d6 {Capablanca completes the job by taking two more of
+Black's pawns and winning by promoting the d pawn. Tartakower could have
+resigned a little bit earlier, but he resigned here because the d pawn is
+entirely unstoppable.\nA relatively simple example but nonetheless it shows the
+incredible power of how much activating your king in almost any type of endgame
+can totally transform the landscape of the position.} 1-0
+
+{Moving on, we have the following position from Akiba Rubinstein's game. Akiba
+Rubinstein, also an early 20th century player and one of the greatest endgame
+players of that generation, of that time. This is also a relatively famous
+game.}
+{[%tag Date "1909.02.28"]}
+{[%tag White "Cohn, Erich"]}
+{[%tag Black "Rubinstein, Akiba"]}
+{[%tag BoardOrientation "Black"]}
+{[%tag FEN "8/pp2kppp/4p3/8/1Pr5/P3PP2/3K1P1P/R7 w - - 0 24"]} 24. Rc1 {Now it's
+Black to play. White has just played the move Rc1, offering a rook trade. A
+quick look reveals that Black really cannot refuse that trade (see 24... Rh4).}
+24... Rxc1 (24... Rh4 $2 25. Rc7+ {White's rook infiltrates to c7 and all of
+Black's pawns fall.}) 25. Kxc1 {Now you might notice that there is a disparity
+in the pawn structure. Black's pawn structure is so much better than White's.
+But in a pawn endgame, pawn structure might not matter because the position
+could get locked up and then the game ends in a draw. The advice that you often
+get in these types of positions is to go toward the center, but very importantly
+what this game reveals is that king activity does not just mean going blindly
+toward the center of the board in any kind of endgame. It means, very mindfully,
+and very carefully, charting the right path for the king. The king is capable of
+great things but you have to know where you're going and why. If you go toward
+the center you're not going to get much done because White's king is right in
+time to stop the infiltration (see 25... Kd6).} {[%csl
+Rh2,Rf2,Rf3,Re3,Bh7,Bf7,Bg7,Be6]} 25... Kf6 {Instead of going toward the center,
+Rubinstein realized that the target square for Black's king is on h3 and that is
+because the pawn on h2 is White's biggest weakness.} {[%csl Rh2]} {[%cal
+Bf6g5,Bg5h4,Bh4h3]} (25... Kd6 26. Kd2 Kd5 27. Kd3 {Even though White's pawns
+are weak, there's nothing to attack them.}) 26. Kd2 Kg5 27. Ke2 Kh4 28. Kf1 Kh3
+29. Kg1 {Rubinstein makes a beeline straight for that h3 square. White's king
+barely barely manages to reach g1 but it doesn't matter. Again, look at the
+disparity in king activity. That disparity is transformed into a very confident
+win with a relatively simple but nonetheless very nice plan. Rubinstein now
+realizes that what he needs to do is clear: it's like when you're walking with
+an axe and clearing all the trees. He will have to get his king over to g3. What
+does that entail? That means he'll have to trade the pawns on h2 and f2 and he
+has just the tools to do that because White is totally paralyzed.} {[%cal
+Bh3g3]} 29... e5 {First, he goes e5, freezing White's pawns.} 30. Kh1 b5 {Not
+strictly necessary but he wanted to make sure that White doesn't have any extra
+moves on the other side.} 31. Kg1 f5 {Boom.} 32. Kh1 g5 {Boom.} 33. Kg1 h5
+{Boom.} 34. Kh1 g4 35. e4 {trying to mix things up.} 35... fxe4 (35... gxf3 $2
+36. exf5 {Obviously, very inadvisable, always got to be careful.} {[%cal
+Rf5f8]}) 36. fxe4 h4 37. Kg1 g3 {The game is over, White is essentially forced
+to trade both of h and f pawns.} 38. hxg3 hxg3 {Erich Cohn resigned.} 39. fxg3
+(39. f3 g2 40. f4 exf4 41. e5 {It looks like White has broken through and White
+promotes, but again all because of the king activity this is not to be feared.}
+{[%cal Re5e8]} 41... Kg3 42. e6 f3 43. e7 f2#) 39... Kxg3 {If this isn't in an
+illustration of the importance of king activity, then I don't know what is. It's
+all about charting the right path, particularly in pawn endgames do not go
+blindly toward the center: try to find the right target square for your king and
+get the most mileage out of it.} {[%csl Re4]} {[%cal Bg3f3,Bf3e4]} 0-1
+
+{Speaking of mileage, let's take a look at one of my games from right about 12
+years ago against Benjamin Bok. Neither of us were grandmasters at the time. I
+think this is also good illustration of the fact that, even in queen endgames,
+even when your opponent has an active queen, it doesn't matter: the king can
+overpower even the queen in the right kind of situation.\nSo we have a queen
+endgame, material is equal: six pawns, a piece. But if you look carefully at the
+pawn structure you might notice two things. First is that Black has this very
+weak backward pawn on f6 and it's fixed by the pawn on e4. Now, that might not
+matter because White doesn't have any pieces left, but that's something to keep
+in mind. The second thing, perhaps even more important, is that we have the
+potential to create a passed pawn with h4. And I was very tempted to play h4
+here. Why didn't I do that? Because after the trade black queen swings back to
+the blockading post on h6 and White simply cannot make any progress (see
+variation).}
+{[%tag Site "Vung Tau, VIE"]}
+{[%tag Date "2008.10.30"]}
+{[%tag White "Naroditsky, Daniel"]}
+{[%tag Black "Bok, Benjamin"]}
+{[%tag BoardOrientation "White"]}
+{[%tag FEN "1k6/2p5/1p3p2/p3p1p1/2P1P3/1P4P1/P3Q1KP/2q5 w KQkq - 0 35"]} {[%csl
+Rf6,Bf5]} {[%cal Be4f5,Bh2h4]} 35. Kh3 {I remembered that my king actually had
+legs. I don't need to keep it on g2, nor do I need to hurry with the move h4.}
+(35. h4 gxh4 36. gxh4 Qh6 {White cannot make any progress without allowing Black
+to create a passed pawn of his own with f5.} {[%csl Rf5]} {[%cal Rf6f5]} 37. h5
+(37. Kh3 Qf4 {The queen can just park itself on f4, f5 is threatened.} {[%cal
+Rf6f5]} 38. Qg4 Qf1+ {Black will simply continue checking. White is unable to
+make progress here.}) 37... Qg5+ {And the passed pawns kind of canceled each
+other out.} {[%csl Rf5]} {[%cal Rf6f5]} 38. Kh3 f5 39. exf5 Qxf5+ {There's going
+to be perpetual check. The king is simply not able to escape the queen's checks
+and Black can even push his pawn if he's so inclined.} {[%cal Re5e4]}) (35. Qf3
+{I can't use my queen to attack f6 because the queen is guarding this very
+important c2 square.} {[%csl Bf6,Rc2,Ra2]} {[%cal Bf3f6,Rc1c2,Rc2a2]} 35... Qd2+
+{We do not want to allow Black to take all of my queenside pawns. So let's keep
+the queen on e2.}) 35... Kc8 {Boom.} 36. Kg4 {Boom.} 36... Kd7 37. Kf5 {Boom.}
+37... Ke7 38. Kg6 {The king all the way to g6 in four moves, there was nothing
+Black could have done to stop it and this makes all the difference. I slid it
+all the way up to g7, and now when I move my queen to the f file, the f pawn is
+immediately going to be under attack.} 38... Qh1 39. Kg7 {Plus, if I ever push
+my h pawn, which happens very soon - I call this "rolling out the red carpet":
+once the pawn reaches h6, the king will be able to supervise the pawn's progress
+all the way to promotion. This frees up the white queen to do stuff like block
+checks, or cover important squares, or attack the f6 pawn, or all three of
+them.} {[%csl Gh6,Gh7,Gh8]} {[%cal Gh6h7,Gh7h8]} 39... g4 {Benjamin tries to
+desperately prevent me from getting a passed pawn. He plays g4, that's an
+ingenious move.} 40. Qxg4 Qxh2 {It doesn't matter, this pawn on f6 is what kills
+Black.} {[%csl Rf6]} 41. a4 {I don't want to give him any pawns. My king on g7
+is perfectly safe and immune from any checks whatsoever.} {[%csl Ra2,Bg7]}
+{[%cal Rh2a2]} 41... Qf2 42. Qg6 {[%csl Bf6]} {[%cal Bg6f7,Bf7f6]} Kd7 {Benjamin
+steps aside with this king.} 43. g4 (43. Qxf6 Qxg3+) 43... Qg3 (43... Qf4 {One
+really nice illustration of how important king activity is, even in a queen
+endgame.} 44. Qf5+ {White can force a queen trade but Black can play the very
+clever move...} 44... Ke7 {If you look carefully you'll see that the point is
+that White cannot take on f4: Black gets an unstoppable passed pawn. But you
+might also see that Black is essentially in zugzwang. The queen can't move,
+otherwise you lose f6. The king can't move, because you lose f6. Black only has
+two moves at his disposal (c6, c5). All White has to do is wait it out.} {[%csl
+Rf1]} {[%cal Rf5f4,Re5f4,Rf4f1,Bc7c6,Bc6c5]} 45. Kg6 c6 46. Kg7 c5 47. Kg6 {And
+finally Black is in zugzwang.} 47... Qxf5+ 48. gxf5 {This is king activity at
+its finest. Black has to step aside and give up f6 and lose.} {[%csl Bf6]}
+{[%cal Re7d7,Bg6f6]}) 44. Qf5+ Kc6 45. Kxf6 {I've won the pawn and the rest is
+very easy. We simply promote the pawn. Every square along the g file is
+protected.} {[%csl Bg8]} {[%cal Bg4g8]} 45... Qxb3 46. g5 Kb7 47. g6 Qxc4 48. g7
+{At this point, notice that I don't really care about my queen side pawns
+anymore. I have judged that my pawn is sufficiently far advanced that we can
+essentially give up all three of these pawns, because we are so close to
+promoting.} 48... Qa2 49. Qe6 {Cutting off the queen's control of the promotion
+square.} 49... Qf2+ 50. Ke7 Qh4+ (50... Qc5+ 51. Ke8 {No more checks.}) 51. Kf8
+Qf4+ (51... Qd8+ 52. Kf7 {[%csl Bf7]} {[%cal Be6e8,Be6d7]}) 52. Qf5 Qh6 {Last
+attempt by Benjamin to pin my pawn.} {[%csl Rf8]} {[%cal Rh6f8]} 53. Kf7
+{Finally Black is out of checks. Promotion is unstoppable.} 53... Qe3 54. g8=Q
+Qb3+ 55. Kg7 Qg3+ 56. Qg6 Qa3 {One little funny detail, a little bit outside the
+scope of what we're talking about. I went Qd5+ and he resigned but can you spot
+a really really cute tactic? There was actually a mate in two and it was quite a
+beautiful one.} {[%cal Bg8d5]} 57. Qd5+ {Notice the king ends the game on g7, it
+started the game on g2. It went all the way up and that did the trick.} {[%csl
+Bg7,Bg2]} {[%cal Bg2g7]} (57. Qc6+ {Which I saw, but I was afraid to play it. I
+didn't want to spoil the game. I thought maybe I'm hallucinating but turned out
+I wasn't. This is indeed checkmate.} 57... Kxc6 58. Qd5#) *
+
+{So far we've looked at pretty much only endgames, but let's take a look at how
+king activity can actually help you turn around a completely lost position.
+Sometimes going into a lost endgame is the only way to save yourself from a
+checkmating attack. I played this game about 10 years ago against the hungarian
+GM Tibor Fogarasi, who played a phenomenal middle game. He was crushing me and I
+was forced to give up a piece, and get the game into what seems like a
+completely hopeless endgame.\nWhite is literally up a full knight. I don't even
+have a pawn for it. And, to make matters worse, White has this protected outside
+passed pawn on a3. So, even in a pawn endgame, if White gives up the knight,
+it's still going to be lost. I was thinking about resigning here but then I
+decided I'll try one last little crazy idea. And that crazy idea involves trying
+to run the king up the board as quickly as possible and use my past d-pawn to
+create last-ditch counter-play.}
+{[%tag White "Fogarasi, Tibor"]}
+{[%tag Black "Naroditsky, Daniel"]}
+{[%tag BoardOrientation "Black"]}
+{[%tag FEN "6N1/2k4p/4p1p1/3p2P1/5P2/Pp1r3P/1P6/2K1R3 b - - 0 1"]} {[%csl
+Rg8,Ra3,Bc7,Bd5]} {[%cal Rb2a3]} 1... Kd6 2. Nf6 {He brings his knight back out
+of the dead.} 2... Rxh3 {At least taking a single pawn.} 3. Ne8+ {The important
+crossroad. I think a lot of people's instinct here would be to drop back to d7
+in order not to give up the e6 pawn. What you have to understand, particularly
+when you're down material, is that king activity is so much more important than
+clinging to a single pawn - not always - but in this case it is.} 3... Kc5 {All
+right, Sparta!} (3... Kd7 $2 4. Ng7 {Winning the pawn anyway.} {[%csl Re6]}
+{[%cal Rg7e6,Re1e6]}) 4. Nc7 Kc4 5. Nxe6 d4 {And something interesting happens:
+my opponent took a really long time here, and he couldn't come up with a move.
+He got into severe time pressure. Eventually, he plays the very inaccurate move
+Re4, which is tempting.} 6. Re4 $6 {Inaccurate but tempting.} (6. Rd1 $1 d3 7.
+Re1 {Interesting manoeuver. The whole point is that the pawn on d3 stops the
+king from coming there.} {[%csl Rd3]} {[%cal Rc4d3]} 7... Rh2 8. Re4+ Kd5 9.
+Re5+ Kc4 $4 10. Rc5# {King activity comes back to bite Black but this is not
+easy to spot.}) 6... Rh1+ {My rook can start checking him.} 7. Kd2 Rh2+ 8. Re2
+Rh1 {Now I'm threatening to move my rook to b1, and if White's not careful then
+Black's gonna start having winning chances once I win this pawn on b2. It's all
+because my king restricts White's king and stops it from coming to d3.} {[%csl
+Bb2]} {[%cal Bh1b1,Bb1b2]} 9. Re1 {My opponent, having thought for a long time,
+almost ran out of time and kind of panicked, he decided to repeat moves. But
+again it turns out that he could have essentially reverted to the other line and
+played Kc1.} 9... Rh2+ 10. Re2 (10. Kc1 d3 11. Re4+ Kd5 12. Re5+) 10... Rh1 {You
+don't usually look for checkmates in the endgame. And in this way, of course it
+involves some luck, but I was able to salvage this creative endgame down a
+knight against a GM. It's all because I decided as a desperate attempt to
+activate my king, and not to keep it passive on d7, to try to cling to my
+pawns.} 1/2-1/2
+
+{As our final example I want to take a look at my all-time favorite example. The
+first one - the Capablanca game - is my favorite illustration of the importance
+of king activity, but this last game is my favorite application of the rule that
+you have to keep your king as active as possible in the endgame. This is an
+absolute treat.\nThis game was shown to me by my coach, GM Lev Psakhis, who was
+playing White against Mark Hebden an english GM. This was the World Junior
+Championship in the 1980s, so neither of these players was a GM at the time this
+game is played. Psakhis has played an excellent game. As you can see, he is a up
+a pawn, he's got a protected and extra passer on b4. And, what's more, he's got
+complete and total domination over all sides of the board. Black is entirely
+paralyzed. The black queen can't move, because of Qf6+. The black rook can't
+move because you drop f7. Basically only thing that Black could do is just go
+back and forth from a7 to b6. But the frustrating thing is that it's not enough
+to get this, you actually have to win. And winning is hard because we have
+opposite colored bishops and the b pawn isn't able to reach b6. b6 is a dark
+square and black has control over it. Now, are there any tactics? (See Bxf7 and
+c4 variations.)\nEventually Psakhis came up with... - really, I don't think I'm
+overstating the case by saying that it's one of the most brilliant endgame ideas
+that I have seen. Because it's not the endgame yet, the queens are still on the
+board, I would still classify this as a middle game. But what Psakhis realizes
+is that one of the weapons at White's disposal is a queen trade, and the way
+that White can orchestrate that potentially is to play the move Bc6, and then to
+play the move Qd7. (See Bc6 variation.)}
+{[%tag Site "Chicago, USA"]}
+{[%tag Date "1983.??.??"]}
+{[%tag White "Psakhis, Lev"]}
+{[%tag Black "Hebden, Mark"]}
+{[%tag BoardOrientation "White"]}
+{[%tag FEN "5r2/4qpk1/1b1p3p/3BpQpP/1P2P3/2P2RP1/5PK1/8 w - - 0 43"]} {[%csl
+Be7,Bd7]} {[%cal Bd5c6,Bf5d7]} 43. Kf1 {The solution, as hopefully you have kind
+of by now thought about, is to first bring the king over to the queenside and
+then to trade queens.} (43. Bxf7 Qxf7 (43... Rxf7 $2 44. Qg6+)) (43. c4 Bd4
+{Really nice outpost for the bishop.}) (43. Bc6 Ba7 44. Qd7 Qxd7 45. Bxd7 Bb6
+{Now the problem with forcing a queen trade prematurely is that, even in an
+endgame, Black is quickly going to get the rook to the open file. White stroke
+on f3 is no longer applying significant pressure on the f pawn and Black has
+excellent drawing chances.\nBut what if, in this situation, the white king
+magically teleported its way over to c6? Well that would make all the
+difference, right? Because Black's pawns would collapse.But White doesn't have
+time to get it there.} {[%cal Rf8a8]} 46. Kf1 Ra8 47. Ke2 {The king doesn't fly.
+You're not even close to being in time. The king has to remain and\ndefend the
+kingside pawns.} 47... Ra2+ {[%csl Rf2]}) 43... Ba7 44. Ke2 Bb6 45. Kd3 Ba7 {At
+this point Hebden probably thought Psakhis was gonna stop there but... no!} 46.
+Kc4 Qc7+ 47. Kb3 {Psakhis kind of reaches the checkpoint in the video game.
+Again, White is threatening Qf6+, so the queen must return to e7.} {[%csl Bf6]}
+{[%cal Bf5f6]} (47. Kb5 $2 Qb6+ {White has to be a little bit careful. If you go
+up you might get a nasty check.}) 47... Qe7 48. g4 {First, Psakhis fixes the
+pawn structure. Note these moves - we've seen them a couple of times today:
+we've seen Rubinstein play b5. Sometimes fixing your opponent's pawns is a good
+idea. Taking care of your future self, you never know when it might be a good
+idea to prevent Black from playing g4.} 48... Bb6 49. Kc4 {And now it's back to
+business.} 49... Ba7 50. Kb5 {White has time for Kb5. This is crazy. And what's
+crazy about this is that there's no check on b7.} 50... Qe8+ (50... Rb8+ {A very
+tempting check and here you see an\namazing line.} 51. Ka6 Rb6+ 52. Ka5 {It
+turns out that there are no more checks and black cannot defend the pawn on f7.
+The king does it all.} {[%csl Bf7]} {[%cal Bf5f7]}) 51. Bc6 {Now we resort back
+to the old idea.} 51... Qd8 52. Kc4 Qe7 53. Qd7 {Now it's time for Qd7 which
+we've already discussed. And the dream has come true.} 53... Qe6+ {After the
+queen trade the king would walk right up to d5 and overwhelm Black's defense.
+Hebden tries to trade on his own terms.} 54. Qxe6 {Psakhis says thank you very
+much.} 54... fxe6 55. Rxf8 Kxf8 56. Kb5 {He trades everything. And again king
+activity decides the day because the king's gonna walk up to a6 and then White
+will either promote the pawn or win all of Black's pawns in the center and on
+the king side after forcing the king to walk over to the queen side.} {[%csl
+Ba6,Bd6,Be6]} {[%cal Bb5a6]} 56... Ke7 57. Ka6 Bxf2 {We don't care about the f2
+pawn that pawn doesn't matter. Absolutely take it.} 58. c4 {Stopping any kind of
+d5 shenanigans.} {[%csl Rd5]} {[%cal Rd6d5]} 58... Kd8 59. Kb7 {You do not allow
+Black's king to reach c7, then it\nwould be a draw.} 59... Be1 60. b5 Bf2 61. b6
+Bd4 {It might seem a little bit difficult to get this king out of the way.
+Because, if you go to a7, you're just going to end up being pinned.} {[%csl
+Bb7]} {[%cal Bb7a7]} 62. Ba4 {But all that Psakhis had to do is move the bishop
+back and now the threat of Kc6 is totally devastating.} {[%csl Bc6]} {[%cal
+Bb7c6]} 62... d5 {Hebden tries the last ditch attempt.} (62... Be3 63. Kc6 Ke7
+64. b7 Ba7 65. Kc7 {You can promote winning the bishop.}) 63. cxd5 exd5 64. exd5
+e4 65. Kc6 {It's very clear that he easily stops the pawn with a bishop on b5.}
+{[%csl Be2]} {[%cal Ba4b5,Bb5e2,Re4e3,Re3e2]} 65... Kc8 66. d6 e3 67. Bb5 Bf6
+{And now a classic case of two passed pawns kind of overwhelming the defenses.}
+{[%csl Bb6,Bd6]} 68. Ba6+ Kb8 {In whichever direction Black go, it either allows
+the king to infiltrate, or the pawn to promote.} (68... Kd8 69. b7 {[%csl Bb8]}
+{[%cal Bb7b8]}) 69. Kd7 {Notice that the king is leading. You walk it up to e8
+and then you'll be able to promote the d-pawn. Hebden resigned in this position.
+Just a tour de force, the king does it all in this game. Absolute heroic. So
+even with the queens on the board, if you are anticipating a queen trade - I'm
+not saying bring your king from e1 to a7 and then get checkmated there - but
+notice how even preparing for an endgame can involve bringing the king to the
+right side of the board.} {[%csl Bd8]} {[%cal Bd7e8]} (69. d7 $2 {It's going to
+be hard to cover the d8 square.}) 1-0
+
+{So to summarize, we took a look at five examples where king activity decided
+the game. In the first one, that's the Capablanca game, we understood that it's
+not even about the quantity of passed pawns - it's about the quality. And in
+order to see the passed pawn through to promotion, king activity is often the
+missing link. It's often worth literally three or more pawns. That's what
+Capablanca showed.}
+{[%tag White "Capablanca, Jose Raul"]}
+{[%tag Black "Tartakower, Savielly"]}
+{[%tag BoardOrientation "White"]}
+{[%tag FEN "5k2/p1p4R/1pr5/3p1pP1/P2P1P2/2P2K2/8/8 w KQkq - 0 35"]} {[%csl
+Rc3,Rd4,Ra4]} {[%cal Bf3g3,Bg3h4,Bg5g6,Bh4g5]} *
+
+{In the second game, we understood that king activity isn't just about bringing
+the king to the center (well, sometimes it is) but what you have to do is chart
+the right path for the king. You have to understand where the king actually does
+the most work. And we saw that Akiba Rubinstein understood that the king belongs
+on h3, which allows these king side pawns to march forward and crash the White's
+defenses.}
+{[%tag White "Cohn, Erich"]}
+{[%tag Black "Rubinstein, Akiba"]}
+{[%tag BoardOrientation "Black"]}
+{[%tag FEN "8/pp2kppp/4p3/8/1Pr5/P3PP2/3K1P1P/R7 w - - 0 24"]} {[%csl
+Bh2,Bf7,Bg7,Bh7]} {[%cal Re7d6,Rd6d5,Be7f6,Bf6g5,Bg5h4,Bh4h3]} *
+
+{In my game against Benjamin Bok, we saw that king activity is important even
+with queens on the board. And it can be that missing link because it can relieve
+the queen of some duties that it simply cannot manage. I walked my king all the
+way to g7 helping me create the possibility of a passed pawn, and putting
+pressure on f6.}
+{[%tag White "Naroditsky, Daniel"]}
+{[%tag Black "Bok, Benjamin"]}
+{[%tag BoardOrientation "White"]}
+{[%tag FEN "1k6/2p5/1p3p2/p3p1p1/2P1P3/1P4P1/P3Q1KP/2q5 w KQkq - 0 35"]} {[%csl
+Bg7,Bf6,Bh2]} {[%cal Bg2g7]} *
+
+{Then we saw an example where I was really lucky, but i managed to save an
+endgame a full piece down by activating my king at all costs and creating sudden
+counterplay against White's passive king.}
+{[%tag White "Fogarasi, Tibor"]}
+{[%tag Black "Naroditsky, Daniel"]}
+{[%tag BoardOrientation "Black"]}
+{[%tag FEN "6N1/2k4p/4p1p1/3p2P1/5P2/Pp1r3P/1P6/2K1R3 b - - 0 1"]} {[%csl Bc4]}
+{[%cal Bc7d6,Bd6c5,Bc5c4]} *
+
+{And finally the position we just saw. We saw Lev Psakhis bringing the king to
+the queen side into Black's territory, literally in the middle game. He
+understood that an endgame was coming and, in that endgame, he would need his
+king to be active.}
+{[%tag White "Psakhis, Lev"]}
+{[%tag Black "Hebden, Mark"]}
+{[%tag BoardOrientation "White"]}
+{[%tag FEN "5r2/4qpk1/1b1p3p/3BpQpP/1P2P3/2P2RP1/5PK1/8 w - - 0 43"]} {[%csl
+Bd6]} {[%cal Bg2f1,Bf1e2,Be2d3,Bd3c4]} *
+
+{Hopefully, even before you watch the video, you probably understood that king
+activity was important. But I hope that these examples really sort of bring out
+the absolute irreplaceability of the king in the endgame. So remember to use the
+king wisely (again, don't get checkmated). I would say that the guiding
+principle that is true across all endgames, whether it's a pawn endgame or a
+queen endgame, even if there are three or four pieces on the board, is that your
+king has to be in the right place. Because the fewer pieces there are, the less
+you can afford to have one of your pieces just kind of lounging on a beach.
+That's what the king does most of the game, but the moment you sense that an
+endgame is near it's time to start thinking about the king and what it can do.
+That's our first most important endgame principle and I'll see you in the next
+video.}
+{[%tag White "Naroditsky, Daniel"]}
+{[%tag Black "King Activity"]}
+{[%tag BoardOrientation "White"]} *

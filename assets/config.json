@@ -12,7 +12,11 @@
         //  - English ones are ["R", "N", "B", "Q", "K"]
         //  - French ones are ["T", "C", "F", "D", "R"]
         //  - Unicode symbols are ["♜", "♞", "♝", "♛", "♚"]
-        "piecesSymbols": ["R", "N", "B", "Q", "K"]
+        "piecesSymbols": ["R", "N", "B", "Q", "K"],
+        // Map keyboard keys to a piece name (Rook, Knight, Bishop, Queen, King).
+        // This allows writing a piece name in a different language.
+        // They can be different from the display characters used in `env.piecesSymbol`.
+        "piecesMap": ["R", "N", "B", "Q", "K", "P"]
     },
     "board": {
         "pieces": "staunty",    // Files have to be in ./assets/images/pieces/ and prefixed accordingly
@@ -42,10 +46,6 @@
             // Allow entering moves with keyboard.
             // For instance, with the default config, typing "nf3<Return>" will move a knight to f3 if allowed.
             "enabled": true,
-            // Map keyboard keys to a piece name (Rook, Knight, Bishop, Queen, King).
-            // This allows writing a piece name in a different language.
-            // They can be different from the display characters used in `env.piecesSymbol`.
-            "piecesMap": ["R", "N", "B", "Q", "K"],
             // Map keyboard keys to a number (1 to 8).
             // As for some non-qwerty keyboards, the numbers require a Shift toggle,
             // this is an easy way to allow more.
@@ -91,8 +91,8 @@
     "moves": {
         "mainColor": [1, 1, 1],                 // RGB color, 0 to 1 values
         "interestingColor": [0.4, 0.8, 0.9],    // RGB color, 0 to 1 values
-        "goodColor": [0.4, 0.5, 0.9],           // RGB color, 0 to 1 values
-        "brillantColor": [0.8, 0.4, 0.9],       // RGB color, 0 to 1 values
+        "goodColor": [0.6, 0.7, 0.95],          // RGB color, 0 to 1 values
+        "brillantColor": [0.85, 0.6, 0.95],     // RGB color, 0 to 1 values
         "dubiousColor": [0.9, 0.8, 0.3],        // RGB color, 0 to 1 values
         "mistakeColor": [0.9, 0.5, 0.3],        // RGB color, 0 to 1 values
         "blunderColor": [0.9, 0.1, 0.1],        // RGB color, 0 to 1 values
@@ -102,7 +102,7 @@
         // Number of successive empty moves (no comments, no variations) needed to start compacting
         // the list. This improves readability when there are a lot of empty moves.
         // Set to 0 to disable.
-        "compactThreshold": 3,
+        "compactThreshold": 2,
         "comments": {
             // We have three types of comments:
             // - short, few characters long, designed to be inlined
@@ -119,7 +119,7 @@
             // A Full or SidedFull comment can take only a proportion of available width.
             // Using a SidedFull comment with the fullWidth set to 0.5 would give the exact same output
             // as a Half comment.
-            "fullStyleWidth": 0.75   // Expected value to be between 0.5 and 1.
+            "fullStyleWidth": 0.80   // Expected value to be between 0.5 and 1.
         }
     }
 }
