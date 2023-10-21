@@ -85,13 +85,13 @@
             // "command": "${workspaceFolder}/sloubi-chess -pgn ./assets/demo/library/Compositions.pgn",
             // "command": "${workspaceFolder}/sloubi-chess -pgn ./assets/pgns/benko-revealed-intro.pgn",
             // "command": "${workspaceFolder}/sloubi-chess -pgn \"./assets/demo/library/Naroditsky's Principles of Chess Endgames/01 - King Activity.pgn\"",
-            // "command": "${workspaceFolder}/sloubi-chess -pgn \"./assets/demo/library/Longest game.pgn\"",
+            // "command": "${workspaceFolder}/sloubi-chess -pgn \"./assets/demo/library/Longest possible game.pgn\"",
             // "command": "${workspaceFolder}/sloubi-chess -pgn ./assets/pgns/opera-game.pgn",
             // "command": "${workspaceFolder}/sloubi-chess -pgn ~/.sloubi-chess/library/breush-game.pgn",
             "options": {
                 "env": {
                     "VK_LAYER_PATH": "${workspaceFolder}/lava/bindings/Vulkan/layers",
-                    "LD_LIBRARY_PATH": "${workspaceFolder}/lava/bindings/Shaderc:${env:LD_LIBRARY_PATH}",
+                    "LD_LIBRARY_PATH": "${workspaceFolder}/lava/bindings/Shaderc:${workspaceFolder}/lava/bindings/Vulkan/layers:${env:LD_LIBRARY_PATH}",
                 }
             },
             "presentation": {

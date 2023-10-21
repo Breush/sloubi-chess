@@ -24,37 +24,7 @@
                 },
                 {
                     "name": "LD_LIBRARY_PATH",
-                    "value": "${workspaceFolder}/lava/bindings/Shaderc:${env:LD_LIBRARY_PATH}"
-                }
-            ],
-            "externalConsole": false,
-            "MIMode": "gdb",
-            "setupCommands": [
-                {
-                    "description": "Activer l'impression en mode Pretty pour gdb",
-                    "text": "-enable-pretty-printing",
-                    "ignoreFailures": true
-                }
-            ]
-        },
-        {
-            "name": "udb",
-            "type": "cppdbg",
-            "udb": "live",
-            "request": "launch",
-            "program": "${workspaceFolder}/sloubi-chess",
-            "args": ["-noCache"],
-            // "args": ["-pgn", "./assets/pgns/opera-game.pgn"],
-            "stopAtEntry": false,
-            "cwd": "${workspaceFolder}",
-            "environment": [
-                {
-                    "name": "VK_LAYER_PATH",
-                    "value": "${workspaceFolder}/lava/bindings/Vulkan/layers"
-                },
-                {
-                    "name": "LD_LIBRARY_PATH",
-                    "value": "${workspaceFolder}/lava/bindings/Shaderc:${env:LD_LIBRARY_PATH}"
+                    "value": "${workspaceFolder}/lava/bindings/Shaderc:${workspaceFolder}/lava/bindings/Vulkan/layers:${env:LD_LIBRARY_PATH}"
                 }
             ],
             "externalConsole": false,

@@ -261,7 +261,7 @@ ForkAwesome :: struct #type_info_none {
     FlagO :: "\uf11d";
     FlagCheckered :: "\uf11e";
     Terminal :: "\uf120";
-    Code :: "\uf121";
+    _Code :: "\uf121";
     ReplyAll :: "\uf122";
     StarHalfO :: "\uf123";
     LocationArrow :: "\uf124";
