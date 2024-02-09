@@ -20,11 +20,11 @@
             "environment": [
                 {
                     "name": "VK_LAYER_PATH",
-                    "value": "${workspaceFolder}/lava/bindings/Vulkan/layers"
+                    "value": "${workspaceFolder}/lava/bindings/Vulkan/layers/linux"
                 },
                 {
                     "name": "LD_LIBRARY_PATH",
-                    "value": "${workspaceFolder}/lava/bindings/Shaderc:${workspaceFolder}/lava/bindings/Vulkan/layers:${env:LD_LIBRARY_PATH}"
+                    "value": "${workspaceFolder}/lava/bindings/Shaderc:${workspaceFolder}/lava/bindings/Vulkan/layers/linux:${env:LD_LIBRARY_PATH}"
                 }
             ],
             "externalConsole": false,

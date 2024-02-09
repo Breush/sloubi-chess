@@ -452,11 +452,11 @@ position_find_piece_in_direction :: (position : Position,
 
         testCoord := coord(row, col);
         if position.board[testCoord].kind != .None {
-            return (position.board[testCoord], testCoord);
+            return position.board[testCoord], testCoord;
         }
     }
 
-    return (.{ kind = .None }, 0xFF);
+    return .{ kind = .None }, 0xFF;
 }
 
 position_find_piece_in_direction :: (position : Position, piece : Piece, sourceHintCoord : Coord,

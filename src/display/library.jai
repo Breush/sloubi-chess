@@ -449,7 +449,7 @@ _on_import_pgn_in_library :: (using library : *LibraryEntity) {
         if choiceIndex == 1 {
             Chamber.os_open_file_explorer(library.rootPath);
         } else if choiceIndex == 0 {
-            srcDir := String.join(".", "assets", "demo", "library", separator = Chamber.PATH_SEPARATOR, allocator = Basic.temp);
+            srcDir := String.join(".", "assets", "demo", "library", separator = Chamber.PATH_SEPARATOR,, Basic.temp);
             Chamber.copy_files_recursively(srcDir, library.currentPath);
             _reload_from_disk(library);
         }

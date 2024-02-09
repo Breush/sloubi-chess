@@ -701,7 +701,7 @@ _parse_pgn_move :: (bytes : *string) -> (sourceHintCoord : Coord, targetCoord : 
         sourceHintRow = 0xFF;
     }
 
-    return (coord(sourceHintRow, sourceHintCol), coord(targetRow, targetCol), capture);
+    return coord(sourceHintRow, sourceHintCol), coord(targetRow, targetCol), capture;
 }
 
 _parse_piece_kind :: (bytes : *string) -> PieceKind {
@@ -752,8 +752,8 @@ _parse_potential_result :: (bytes : *string) -> (bool, Result) {
 }
 
 _parse_potential_comment :: (bytes : *string, ply : *PlyEntity) -> (string, bool) {
-    if bytes.count == 0 then return ("", false);
-    if bytes.*[0] != #char "{" then return ("", false);
+    if bytes.count == 0 then return "", false;
+    if bytes.*[0] != #char "{" then return "", false;
     Basic.advance(bytes);
     skip_blanks(bytes);
 
@@ -826,9 +826,9 @@ _parse_potential_comment :: (bytes : *string, ply : *PlyEntity) -> (string, bool
     Basic.advance(bytes);
     skip_blanks(bytes);
 
-    str := Basic.builder_to_string(*sb, Basic.temp);
+    str := Basic.builder_to_string(*sb,, Basic.temp);
     str.count -= whitespacesToTrim;
-    return (str, true);
+    return str, true;
 }
 
 _parse_potential_comments :: (bytes : *string, variation : *VariationEntity) {

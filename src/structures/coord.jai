@@ -86,7 +86,7 @@ row_col :: (coord : Coord) -> (row : u8, col : u8) {
     if coord & 0b01_000_000 != 0 then col = 0xFF;
     else col = coord & 0b0000_0111;
 
-    return (row, col);
+    return row, col;
 }
 
 row_col_to_algebraic :: (row : u8, col : u8, silentOnInvalid := false) -> string {

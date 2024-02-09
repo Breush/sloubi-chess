@@ -60,8 +60,8 @@ ship :: () {
         FileUtilities.copy_file("lava/bindings/Shaderc/libshaderc.dll", Basic.tprint("%/libshaderc.dll", folder));
         FileUtilities.copy_file("lava/bindings/StbTrueType/libstbtruetype.dll",  Basic.tprint("%/libstbtruetype.dll", folder));
         FileUtilities.copy_file("lava/bindings/Vulkan/libvulkan.dll",  Basic.tprint("%/libvulkan.dll", folder));
-        FileUtilities.copy_file("lava/bindings/Vulkan/layers/libVkLayer_khronos_shader_object-win64.json",  Basic.tprint("%/libVkLayer_khronos_shader_object.json", folder));
-        FileUtilities.copy_file("lava/bindings/Vulkan/layers/libVkLayer_khronos_shader_object.dll",  Basic.tprint("%/libVkLayer_khronos_shader_object.dll", folder));
+        FileUtilities.copy_file("lava/bindings/Vulkan/layers/win64/libVkLayer_khronos_shader_object.json",  Basic.tprint("%/libVkLayer_khronos_shader_object.json", folder));
+        FileUtilities.copy_file("lava/bindings/Vulkan/layers/win64/libVkLayer_khronos_shader_object.dll",  Basic.tprint("%/libVkLayer_khronos_shader_object.dll", folder));
         FileUtilities.copy_file("lava/bindings/VulkanMemoryAllocator/libvma.dll",  Basic.tprint("%/libvma.dll", folder));
     } else {
         POSIX :: #import "POSIX";
@@ -71,8 +71,8 @@ ship :: () {
         FileUtilities.copy_file("lava/bindings/Shaderc/libshaderc.so", Basic.tprint("%/lib/libshaderc.so", folder));
         FileUtilities.copy_file("lava/bindings/StbTrueType/libstbtruetype.so",  Basic.tprint("%/lib/libstbtruetype.so", folder));
         FileUtilities.copy_file("lava/bindings/Vulkan/libvulkan.so",  Basic.tprint("%/lib/libvulkan.so", folder));
-        FileUtilities.copy_file("lava/bindings/Vulkan/layers/libVkLayer_khronos_shader_object-glnxa64.json",  Basic.tprint("%/lib/libVkLayer_khronos_shader_object.json", folder));
-        FileUtilities.copy_file("lava/bindings/Vulkan/layers/libVkLayer_khronos_shader_object.so",  Basic.tprint("%/lib/libVkLayer_khronos_shader_object.so", folder));
+        FileUtilities.copy_file("lava/bindings/Vulkan/layers/linux/libVkLayer_khronos_shader_object.json",  Basic.tprint("%/lib/libVkLayer_khronos_shader_object.json", folder));
+        FileUtilities.copy_file("lava/bindings/Vulkan/layers/linux/libVkLayer_khronos_shader_object.so",  Basic.tprint("%/lib/libVkLayer_khronos_shader_object.so", folder));
         FileUtilities.copy_file("lava/bindings/VulkanMemoryAllocator/libvma.so",  Basic.tprint("%/lib/libvma.so", folder));
     }
 
