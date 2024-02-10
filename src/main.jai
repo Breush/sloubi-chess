@@ -330,7 +330,7 @@ _storage_init :: () {
     appStoragePath := Basic.tprint("%.sloubi-chess%", storagePath, Chamber.PATH_SEPARATOR);
     cacheStoragePath := Basic.tprint("%cache%", appStoragePath, Chamber.PATH_SEPARATOR);
     libraryStoragePath := Basic.tprint("%library%", appStoragePath, Chamber.PATH_SEPARATOR);
-    downloadsStoragePath := Basic.tprint("%downloadsM", appStoragePath, Chamber.PATH_SEPARATOR);
+    downloadsStoragePath := Basic.tprint("%downloads", appStoragePath, Chamber.PATH_SEPARATOR);
 
     File.os_make_directory_if_it_does_not_exist(appStoragePath);
     File.os_make_directory_if_it_does_not_exist(cacheStoragePath);

@@ -20,4 +20,23 @@ UiConstants :: struct #type_info_none {
     WidthTextEntry :: WidthTextEntryWithoutPadding + 2 * PaddingHorizontalMedium;
     WidthTextEntryWithoutPadding :: 200.0;
     WidthLabel :: 2 * WidthTextEntry;
+
+    DepthBackground :: 50.0;
+    DepthMetaBoard :: -12.0;
+    DepthMetaBoardInfo :: -1.0; // Relative to meta board.
+    DepthMetaBoardViewArrow :: -0.05; // Multiplied by parent's scaling, can't use better unit.
+    DepthMetaBoardViewMovingPiece :: -0.1; // Multipled
+    DepthDialog :: -20.0;
+    DepthDialogBackground :: 2.0; // Cumulative with DepthDialog.
+    DepthDialogContentBackground :: 1.0; // Cumulative with DepthDialog.
+    DepthDialogTextEntry :: -1.0; // Cumulative with DepthDialog.
+    DepthDialogTextEntryLabel :: -1.0; // Cumulative with DepthDialogTextEntry.
+    DepthDialogLabel :: -1.0; // Cumulative with DepthDialog.
+    DepthDialogButton :: -1.0; // Cumulative with DepthDialog.
+    DepthSidebar :: -1.0;
+    DepthSidebarButton :: -10.0; // Needed to be selectable in front of things.
+    DepthTab :: -10.0;
+    DepthTabText :: -2.0;
+    DepthTabMenu :: -2.0;
+    DepthButtonTooltip :: -15.0;
 }

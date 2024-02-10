@@ -307,7 +307,7 @@ _update_highlights :: (using boardView : *BoardView, position : *Position = null
         Sill.entity_set_parent(arrow, boardView);
         arrow.transform.translation.x = 0.5 + col - 4;
         arrow.transform.translation.y = 0.5 + (7 - row) - 4;
-        arrow.transform.translation.z = -0.1; // As this is multiplied by the parent's scaling, cannot use better unit.
+        arrow.transform.translation.z = UiConstants.DepthMetaBoardViewArrow;
         arrow.transform.translation.z -= 0.01 * cast(float) arrowIndex; // Preventing z-fight between arrows.
         Sill.transform_rotate(*arrow.transform, theta, .{0, 0, 1});
         Sill.transform_commit(*arrow.transform);
@@ -396,7 +396,7 @@ _init_meshes :: (using boardView : *BoardView) {
     movingPieceMesh := create_rect_mesh();
     movingPieceMesh.material = Magma.create_material(squareShader);
     movingPieceNode := Basic.array_add(*movingPiece.mesh.nodes);
-    movingPieceNode.transform.translation.z -= 0.3;
+    movingPieceNode.transform.translation.z = UiConstants.DepthMetaBoardViewMovingPiece;
     Basic.array_add(*movingPieceNode.primitives, movingPieceMesh);
 
     // Pawn promotion selecter

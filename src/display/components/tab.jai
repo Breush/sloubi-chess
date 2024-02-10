@@ -115,20 +115,19 @@ component_init :: (using iTab : *TabComponent) {
     Sill.entity_add_child(*iTab.page, *iTab.page.title);
 
     titleBackgroundMesh := Sill.mesh_make_primitive(*iTab.page.title.mesh);
-    create_rect_mesh(1, UiConstants.HeightTabPageTitle, anchor = .TopLeft, existingMesh = titleBackgroundMesh);
+    create_rect_mesh(1, 1, anchor = .BottomLeft, existingMesh = titleBackgroundMesh);
     titleBackgroundMesh.material = Magma.create_material(instance.shaders.monochrome);
     Magma.material_set_color(titleBackgroundMesh.material, "color", instance.config.env.backgroundColor);
 
     titleBorderMesh, titleBorderMeshNode := Sill.mesh_make_primitive(*iTab.page.title.mesh);
     create_rect_mesh(1, 1, anchor = .TopLeft, existingMesh = titleBorderMesh);
     titleBorderMesh.material = Magma.create_material(instance.shaders.monochrome);
-    titleBorderMeshNode.transform.translation.y = UiConstants.HeightTabPageTitle;
     Magma.material_set_color(titleBorderMesh.material, "color", instance.config.env.contrastColor);
 
     titleTextMesh, titleTextMeshNode := Sill.mesh_make_primitive(*iTab.page.title.mesh);
     titleTextMesh.material = Magma.create_material(instance.shaders.text);
     titleTextMeshNode.transform.translation.y = UiConstants.HeightTabPageTitle / 2.0 - UiConstants.HeightLine / 2.0;
-    titleTextMeshNode.transform.translation.z = -2;
+    titleTextMeshNode.transform.translation.z = UiConstants.DepthTabText;
 
     // -- Menu
 
@@ -145,7 +144,7 @@ component_init :: (using iTab : *TabComponent) {
     create_text_mesh(existingMesh = menuTextMesh);
     iTab.page.title.menu.transform.translation.x = UiConstants.PaddingHorizontal / 2.0;
     iTab.page.title.menu.transform.translation.y = UiConstants.HeightTabPageTitle - UiConstants.SizeTabAction / 2.0;
-    iTab.page.title.menu.transform.translation.z = -2;
+    iTab.page.title.menu.transform.translation.z = UiConstants.DepthTabMenu;
     _update_action_hovered(menuTextMeshNode);
 
     Sill.ui_on_trigger(*iTab.page.title.menu.ui, (trigger : Sill.UiTrigger, menu : *TabPageTitleMenuEntity) {
@@ -205,7 +204,7 @@ tab_scroll :: (using iTab : *TabComponent, scrollDelta : float) {
 
     // Clever scrolling.
     maxY := iTab.ui.extent.height - iTab.page.content.ui.extent.height / 2;
-    maxY = Basic.max(maxY, UiConstants.PaddingVerticalMedium);
+    maxY = Basic.max(maxY, -UiConstants.PaddingVerticalMedium);
 
     if iTab.transform.translation.y > UiConstants.PaddingVerticalMedium {
         iTab.transform.translation.y = UiConstants.PaddingVerticalMedium;
@@ -413,18 +412,39 @@ _update_action_hovered :: (meshNode : *Sill.MeshNode, hovered := false) {
 
 _reflow :: (entity : *Sill.Entity) {
     iTab := entity_get_component(entity, TabComponent);
-
     extent := Crater.window_get_extent(instance.engine.window, Chamber.vec2);
-    iTab.page.transform.translation.y = -Math.floor(extent.height / 2.0 + 0.5);
-    iTab.page.content.ui.anchor = .TopLeft;
-    iTab.page.content.ui.extent.width = extent.width / 2 - UiConstants.WidthSidebar;
-    iTab.page.content.ui.extent.height = extent.height - UiConstants.HeightTabPageTitle;
-    iTab.page.title.transform.translation.z = -10;
-    Sill.transform_commit(*iTab.page.transform);
 
-    iTab.page.title.mesh.nodes[0].transform.scaling.x = extent.width / 2 - UiConstants.WidthSidebar;
-    iTab.page.title.mesh.nodes[1].transform.scaling.x = extent.width / 2 - UiConstants.WidthSidebar - UiConstants.PaddingHorizontal;
+    // Vertical layout
+    if extent.height > extent.width {
+        iTab.page.transform.translation.x = -Math.floor(extent.width / 2.0 + 0.5);
+        iTab.page.transform.translation.y = 0.0;
+        iTab.page.content.ui.anchor = .TopLeft;
+        iTab.page.content.ui.extent.width = extent.width - UiConstants.PaddingHorizontal;
+        iTab.page.content.ui.extent.height = extent.height / 2 - UiConstants.HeightTabPageTitle;
+
+        iTab.page.title.mesh.nodes[0].transform.scaling.x = extent.width - UiConstants.WidthSidebar;
+        iTab.page.title.mesh.nodes[0].transform.scaling.y = UiConstants.HeightTabPageTitle + extent.height / 2;
+        iTab.page.title.mesh.nodes[1].transform.scaling.x = extent.width - UiConstants.PaddingHorizontal - UiConstants.WidthSidebar - UiConstants.PaddingHorizontal;
+    }
+    // Horizontal layout
+    else {
+        iTab.page.transform.translation.x = 0.0;
+        iTab.page.transform.translation.y = -Math.floor(extent.height / 2.0 + 0.5);
+        iTab.page.content.ui.anchor = .TopLeft;
+        iTab.page.content.ui.extent.width = extent.width / 2 - UiConstants.WidthSidebar;
+        iTab.page.content.ui.extent.height = extent.height - UiConstants.HeightTabPageTitle;
+
+        iTab.page.title.mesh.nodes[0].transform.scaling.x = extent.width / 2 - UiConstants.WidthSidebar;
+        iTab.page.title.mesh.nodes[0].transform.scaling.y = UiConstants.HeightTabPageTitle;
+        iTab.page.title.mesh.nodes[1].transform.scaling.x = extent.width / 2 - UiConstants.WidthSidebar - UiConstants.PaddingHorizontal;
+    }
+
+    iTab.page.title.transform.translation.z = UiConstants.DepthTab;
+    iTab.page.title.mesh.nodes[0].transform.translation.y = UiConstants.HeightTabPageTitle;
     iTab.page.title.mesh.nodes[1].transform.translation.x = UiConstants.PaddingHorizontal / 2;
+    iTab.page.title.mesh.nodes[1].transform.translation.y = UiConstants.HeightTabPageTitle;
+
+    Sill.transform_commit(*iTab.page.transform);
     Sill.mesh_commit_nodes(*iTab.page.title.mesh);
 
     _refresh_title(iTab);

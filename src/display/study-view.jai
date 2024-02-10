@@ -188,7 +188,7 @@ _on_edit_game :: (using studyView : *StudyView) {
                     // @todo NumberEntry for WhiteElo/BlackElo
 
     dialogFormData : DialogFormData(PlyEntity);
-    dialogFormData.anchor = .Right;
+    dialogFormData.anchor = .Half;
     dialogFormData.elements = elements;
     dialogFormData.choices = .[ "Apply & Close", "Cancel" ];
     dialogFormData.cancelChoiceIndex = 1;

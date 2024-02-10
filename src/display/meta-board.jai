@@ -29,6 +29,9 @@ PlayerInfoEntity :: struct {
 
 meta_board_create :: () -> *MetaBoardEntity {
     using metaBoard := SillMeta.create_meta_board_entity(instance.engine);
+
+    metaBoard.transform.translation.z = UiConstants.DepthMetaBoard;
+
     Sill.listener_on_message(*listener, _on_message);
     _init_meshes(metaBoard);
     board_view_init(*boardView);
@@ -56,10 +59,22 @@ _on_message :: (using metaBoard : *MetaBoardEntity, message : *Message) {
 }
 
 _reflow :: (using metaBoard : *MetaBoardEntity) {
-    // We want to fit the boardView in the left part of the screen nicely à 95% of the available space.
     eye := Magma.renderer_get_eye(engine.renderer, 0);
-    size := 0.95 * Basic.min(eye.extent.width / 2.0, cast(float) eye.extent.height);
-    transform.translation.x = -size / 2.0;
+    size : float;
+
+    // Vertical layout
+    if (eye.extent.height > eye.extent.width) {
+        size = 0.95 * Basic.min(eye.extent.height / 2.0, cast(float) eye.extent.width - UiConstants.WidthSidebar);
+        transform.translation.x = -UiConstants.WidthSidebar / 2.0;
+        transform.translation.y = -size / 2.0;
+    }
+    // Horizontal layout
+    else {
+        // We want to fit the boardView in the left part of the screen nicely à 95% of the available space.
+        size = 0.95 * Basic.min(eye.extent.width / 2.0, cast(float) eye.extent.height);
+        transform.translation.x = -size / 2.0;
+        transform.translation.y = 0.0;
+    }
 
     board_view_update_to_size(*boardView, size);
 
@@ -155,7 +170,7 @@ _init_meshes :: (using metaBoard : *MetaBoardEntity) {
         Basic.array_add(*entity.mesh.nodes, .{});
         Basic.array_add(*entity.mesh.nodes[0].primitives, create_text_mesh());
         entity.mesh.nodes[0].transform.translation.y -= instance.config.env.fontSize / 2;
-        entity.mesh.nodes[0].transform.translation.z = -0.2;
+        entity.mesh.nodes[0].transform.translation.z = UiConstants.DepthMetaBoardInfo;
     }
 
     init_player_info(metaBoard, *whitePlayerName);

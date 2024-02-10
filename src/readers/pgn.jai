@@ -286,6 +286,8 @@ _write_escaped_comment :: (builder : *Basic.String_Builder, comment : string) {
 
 #scope_file
 
+knownIgnoredTagNames : Hash.Table(string, bool);
+
 // Based on https://en.wikipedia.org/wiki/Numeric_Annotation_Glyphs
 Nag :: enum {
     None :: 0;
@@ -636,7 +638,9 @@ _parse_potential_expected :: (bytes : *string, c : u8) -> bool {
 }
 
 _parse_expected :: (bytes : *string, c : u8) -> bool {
-    Chamber._CHECK(bytes.*[0] == c, "Was expecting a '%' here: %", Basic.to_string(*c, 1), bytes.*);
+    leftovers := bytes.*;
+    leftovers.count = Basic.min(leftovers.count, 200);
+    Chamber._CHECK(bytes.*[0] == c, "Was expecting a '%' here: %", Basic.to_string(*c, 1), leftovers);
     Basic.advance(bytes);
     return true;
 }
@@ -795,7 +799,8 @@ _parse_potential_comment :: (bytes : *string, ply : *PlyEntity) -> (string, bool
                     if tagName == "FEN" {
                         ply.customPosition = true;
                         position_copy_state_from(position, load_fen(bytes.*));
-                    } else if tagName == "Event" then position_set_tag(position, .Event, .{ str = _read_tag(bytes) });
+                    }
+                    else if tagName == "Event" then position_set_tag(position, .Event, .{ str = _read_tag(bytes) });
                     else if tagName == "Site" then position_set_tag(position, .Site, .{ str = _read_tag(bytes) });
                     else if tagName == "Date" then position_set_tag(position, .Date, .{ str = _read_tag(bytes) });
                     else if tagName == "Round" then position_set_tag(position, .Round, .{ str = _read_tag(bytes) });
@@ -807,7 +812,10 @@ _parse_potential_comment :: (bytes : *string, ply : *PlyEntity) -> (string, bool
                         color := ifx bytes.*[0] == #char "W" then Color.White else .Black;
                         position_set_tag(position, .BoardOrientation, .{ color = color });
                     }
-                    else Basic.log("Unknown name in tag command: %", tagName, flags = .WARNING);
+                    else if Hash.table_find_pointer(*knownIgnoredTagNames, tagName) == null {
+                        Hash.table_add(*knownIgnoredTagNames, tagName, true);
+                        Basic.log("Unknown name in tag command: %", tagName, flags = .WARNING);
+                    }
                 } else if commandName == "eval" {
                     // @todo Currently doing nothing... Maybe store it at least?
                 } else {
@@ -874,11 +882,11 @@ _parse_potential_variation :: (bytes : *string, game : *Game, parentVariation : 
 }
 
 _parse_variation :: (bytes : *string, game : *Game, variation : *VariationEntity) {
-    _parse_potential_comments(bytes, variation);
 
     lastBytesCount := 0;
     while bytes.count > 0 && bytes.count != lastBytesCount {
         lastBytesCount = bytes.count;
+        _parse_potential_comments(bytes, variation);
         while _parse_potential_variation(bytes, game, variation) {}
         if bytes.*[0] == #char ")" then break; // End of variation
         if !_parse_potential_annotated_move(bytes, game, variation) then break;

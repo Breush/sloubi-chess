@@ -51,7 +51,7 @@ button_commit :: (using iButton : *ButtonComponent, noBackground := false) {
         create_rect_mesh(tooltipTextWidth + 2 * UiConstants.PaddingHorizontalMedium, instance.config.env.fontSize + UiConstants.PaddingVerticalMedium, 1, .Center, existingMesh = tooltipMeshes[0]);
         tooltipMeshes[0].material = Magma.create_material(instance.shaders.monochrome);
         Magma.material_set_color(tooltipMeshes[0].material, "color", instance.config.env.hoverColor);
-        tooltipNode.transform.translation.z = -10; // Needed to be visible in front of everything.
+        tooltipNode.transform.translation.z = UiConstants.DepthButtonTooltip;
 
         meshNode = node;
         tooltipMeshNode = tooltipNode;

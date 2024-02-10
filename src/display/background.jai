@@ -18,7 +18,7 @@ background_create :: () -> *BackgroundEntity {
     Basic.array_add(*node.primitives, primitive);
 
     // Sill.transform_rotate(*transform, Math.PI / 2, .{0, 1, 0});
-    transform.translation.z = 40; // Far, far away.
+    transform.translation.z = UiConstants.DepthBackground;
     Sill.transform_commit(*transform);
 
     return background;

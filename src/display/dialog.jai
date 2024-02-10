@@ -8,7 +8,7 @@ DialogEntity :: struct {
 
     content : DialogContentEntity;
 
-    anchor : Chamber.Anchor;
+    anchor : DialogAnchor;
     callback : #type (dialog : *DialogEntity, choiceIndex : u32, userData : *void);
     userData : *void;
     cancelChoiceIndex : u32;
@@ -43,7 +43,7 @@ DialogContentEntity :: struct {
 }
 
 DialogFormData :: struct($T : Type = void) {
-    anchor := Chamber.Anchor.Center;
+    anchor := DialogAnchor.Full;
     elements : []DialogFormElement;
     choices : []string;
     cancelChoiceIndex : u32 = 0xFFFF_FFFF;
@@ -64,6 +64,11 @@ DialogFormElement :: struct {
     }
 }
 
+DialogAnchor :: enum {
+    Full :: 0;
+    Half;
+}
+
 dialog_form_create :: (data : DialogFormData) {
     dialog := SillMeta.create_dialog_entity(instance.engine);
     Sill.listener_on_message(*dialog.listener, _on_message);
@@ -75,14 +80,14 @@ dialog_form_create :: (data : DialogFormData) {
     Sill.ui_set_focused(*dialog.ui, false);
 
     // In front of everything else, and grab all events.
-    dialog.transform.translation.z = -20.0;
+    dialog.transform.translation.z = UiConstants.DepthDialog;
     Sill.ui_on_trigger(*dialog.ui, (trigger : Sill.UiTrigger, userData : *void) {
         trigger.stopPropagation.* = true;
     });
 
     // Full background.
     backgroundMesh := Sill.mesh_make_primitive(*dialog.mesh);
-    create_rect_mesh(depth = 4, existingMesh = backgroundMesh);
+    create_rect_mesh(depth = UiConstants.DepthDialogBackground, existingMesh = backgroundMesh);
     backgroundMesh.material = Magma.create_material(instance.shaders.translucentMonochrome);
     Magma.material_set_color(backgroundMesh.material, "color", Chamber.make_vec4(instance.config.env.backgroundColor, 0.99));
 
@@ -110,7 +115,7 @@ dialog_create :: (using data : DialogData) {
     Basic.array_add(*elements, .{ kind = .Label, text = data.mainText, value = "mainBold" }, .{ kind = .Label, text = data.text, value = "mainLight" });
 
     formData : DialogFormData(data.UserDataType);
-    formData.anchor = .Center;
+    formData.anchor = .Full;
     formData.elements = elements;
     formData.choices = data.choices;
     formData.cancelChoiceIndex = data.cancelChoiceIndex;
@@ -143,7 +148,7 @@ _content_create :: (using dialogContent : *DialogContentEntity, data : DialogFor
     Basic.array_resize(*dialogContent.elementInfos, data.elements.count);
 
     backgroundMesh, backgroundMeshNode := Sill.mesh_make_primitive(*dialogContent.mesh);
-    create_rect_mesh(depth = 3, anchor = .Top, existingMesh = backgroundMesh);
+    create_rect_mesh(depth = UiConstants.DepthDialogContentBackground, anchor = .Top, existingMesh = backgroundMesh);
     backgroundMesh.material = Magma.create_material(instance.shaders.monochrome);
     Magma.material_set_color(backgroundMesh.material, "color", instance.config.env.backgroundColor);
 
@@ -155,7 +160,7 @@ _content_create :: (using dialogContent : *DialogContentEntity, data : DialogFor
         case .Label;
             label := create_label(element.text, style = element.value, anchor = element.anchor);
             label.transform.translation.y = yOffset + label.ui.extent.height / 2.0;
-            label.transform.translation.z = -1;
+            label.transform.translation.z = UiConstants.DepthDialogLabel;
             Sill.entity_set_parent(label, dialogContent);
             dialogContent.elementInfos[elementIndex].entities[0] = label;
 
@@ -164,7 +169,7 @@ _content_create :: (using dialogContent : *DialogContentEntity, data : DialogFor
         case .TextEntry;
             textEntry := create_text_entry(element.value);
             textEntry.transform.translation.y = yOffset + textEntry.ui.extent.height / 2.0;
-            textEntry.transform.translation.z = -1;
+            textEntry.transform.translation.z = UiConstants.DepthDialogTextEntry;
             textEntry.callback = xx _on_text_entry_changed;
             textEntry.userData = *dialogContent.elementInfos[elementIndex];
             dialogContent.elementInfos[elementIndex].value = textEntry.text;
@@ -174,7 +179,7 @@ _content_create :: (using dialogContent : *DialogContentEntity, data : DialogFor
             label := create_label(element.text, style = "mainLight", anchor = .Right);
             label.transform.translation.x = -textEntry.ui.extent.width / 2.0 - UiConstants.PaddingHorizontalMedium;
             label.transform.translation.y = yOffset + label.ui.extent.height / 2.0;
-            label.transform.translation.z = -1;
+            label.transform.translation.z = UiConstants.DepthDialogTextEntryLabel;
             Sill.entity_set_parent(label, dialogContent);
             dialogContent.elementInfos[elementIndex].entities[1] = label;
 
@@ -206,7 +211,7 @@ _content_create :: (using dialogContent : *DialogContentEntity, data : DialogFor
         button.ui.extent.height = UiConstants.HeightButtonDialog;
         button.transform.translation.x = dialogWidth / 2.0 - Math.floor((0.5 + choiceIndex) * (UiConstants.WidthButtonDialog + 1) + 0.5);
         button.transform.translation.y = yOffset + UiConstants.HeightButtonDialog / 2.0;
-        button.transform.translation.z = -1;
+        button.transform.translation.z = UiConstants.DepthDialogButton;
 
         button.button.text = choice;
         button_commit(*button.button); // @todo Unify, as Label and TextEntry don't work like that...
@@ -239,9 +244,15 @@ _content_create :: (using dialogContent : *DialogContentEntity, data : DialogFor
 _reflow :: (using dialog : *DialogEntity) {
     extent := Crater.window_get_extent(instance.engine.window, Chamber.vec2);
 
-    if anchor == .Right {
-        extent.x = extent.x / 2;
-        transform.translation.x = Math.floor(extent.x / 2.0 + 0.5);
+    if anchor == .Half {
+        // Vertical layout
+        if (extent.height > extent.width) {
+            extent.height = extent.height / 2;
+            transform.translation.y = Math.floor(extent.height / 2.0 + 0.5);
+        } else {
+            extent.width = extent.width / 2;
+            transform.translation.x = Math.floor(extent.width / 2.0 + 0.5);
+        }
     } else {
         transform.translation.x = 0.0;
     }

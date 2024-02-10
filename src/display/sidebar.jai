@@ -85,6 +85,7 @@ _reflow :: (using sidebar : *SidebarEntity) {
 
     transform.translation.x = extent.width / 2.0 - UiConstants.WidthSidebar / 2.0;
     transform.translation.y = -extent.height / 2.0;
+    transform.translation.z = UiConstants.DepthSidebar;
     Sill.transform_commit(*transform);
 }
 
@@ -127,7 +128,7 @@ _make_button :: (button : *SidebarButtonEntity, icon : string, tooltipText : str
         }
     }, Sill.UiCallbackFlags.ClickStop | .HoverStart | .Hovering | .HoverStop, button);
 
-    button.transform.translation.z = -10; // Needed to be selectable in front of things.
+    button.transform.translation.z = UiConstants.DepthSidebarButton;
     _update_button_from_hover(button);
 }
 
