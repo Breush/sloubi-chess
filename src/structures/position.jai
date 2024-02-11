@@ -608,75 +608,11 @@ position_find_piece_targets :: (position : Position, sourceCoord : Coord, limit 
 }
 
 // SAN: Standard Algebraic Notation
-position_last_move_to_san :: (position : Position, annotations := false) -> string {
-    if position.lastMove.sourceCoord == position.lastMove.targetCoord then return "??";
-    Basic.push_allocator(Basic.temp);
-
-    piece := position.board[position.lastMove.targetCoord];
-    sourceRow, sourceCol := row_col(position.lastMove.sourceCoord);
-    targetRow, targetCol := row_col(position.lastMove.targetCoord);
-
-    check := ifx position.flags & .Mate then "#" else ifx position.flags & .Check then "+" else "";
-    capture := ifx position.lastMove.capture then "x" else "";
-
-    annotationsStr : string;
-    if annotations {
-        annotationsStr = Basic.tprint("%", annotation_to_utf8(position.lastMove.annotation));
-        annotationsStr = Basic.tprint("%1%2", annotationsStr, annotation_to_utf8(position.annotation));
-        for annotation : position.observationAnnotations {
-            annotationsStr = Basic.tprint("%1%2", annotationsStr, annotation_to_utf8(annotation));
-        }
-        if position.result != .None {
-            annotationsStr = Basic.tprint("%1 %2", annotationsStr, result_to_utf8(position.result));
-        }
-    }
-
-    promotion := "";
-    if position.lastMove.promotionPieceKind != .None {
-        promotion = Basic.tprint("=%", piece_kind_to_symbol(piece.kind));
-        piece.kind = .Pawn;
-    }
-
-    if piece.kind == .Pawn {
-        sourceRow = 0xFF;
-        if !position.lastMove.capture {
-            sourceCol = 0xFF;
-        }
-    } else if piece.kind == .King {
-        // Detect castling
-        if targetCol == sourceCol + 2 then return Basic.tprint("O-O%1%2", check, annotationsStr);
-        else if targetCol == sourceCol - 2 then return Basic.tprint("O-O-O%1%2", check, annotationsStr);
-
-        // King is alone, never duplicated sources.
-        sourceRow, sourceCol = 0xFF, 0xFF;
-    } else {
-        // Detect if we need to disambiguate
-        duplicateSources := position_find_piece_sources(position, piece, 0xFF, position.lastMove.targetCoord);
-
-        if duplicateSources.count == 0 {
-            sourceRow, sourceCol = 0xFF, 0xFF;
-        } else {
-            rowConflicts, colConflicts := false, false;
-            for duplicateSource : duplicateSources {
-                duplicateRow, duplicateCol := row_col(duplicateSource);
-                rowConflicts = rowConflicts || (duplicateRow == sourceRow);
-                colConflicts = colConflicts || (duplicateCol == sourceCol);
-            }
-
-            // @note SAN prefers the col is it is sufficient to disambiguate.
-            if !colConflicts then sourceRow = 0xFF;
-            else if !rowConflicts then sourceCol = 0xFF;
-        }
-    }
-
-    pieceStr := piece_kind_to_symbol(piece.kind);
-
-    return Basic.tprint("%1%2%3%4%5%6%7", pieceStr, row_col_to_algebraic(sourceRow, sourceCol, silentOnInvalid = true),
-                                        capture, row_col_to_algebraic(targetRow, targetCol, silentOnInvalid = true),
-                                        promotion, check, annotationsStr);
+position_move_to_san :: (position : Position, nextPosition : Position) -> string {
+    return position_move_to_san(position, nextPosition.lastMove, *nextPosition);
 }
 
-position_move_to_san :: (position : Position, move : Move) -> string {
+position_move_to_san :: (position : Position, move : Move, nextPosition : *Position = null) -> string {
     Basic.push_allocator(Basic.temp);
 
     sanKeys := position_move_to_san_keys(position, move, true);
@@ -686,6 +622,19 @@ position_move_to_san :: (position : Position, move : Move) -> string {
         if sanKey == .None then break;
         text = Basic.tprint("%1%2", text, san_key_to_symbol(sanKey));
     }
+
+    // Show annotations only if the next position is known.
+    if nextPosition != null {
+        text = Basic.tprint("%1%2", text, annotation_to_utf8(nextPosition.lastMove.annotation));
+        text = Basic.tprint("%1%2", text, annotation_to_utf8(nextPosition.annotation));
+        for annotation : nextPosition.observationAnnotations {
+            text = Basic.tprint("%1%2", text, annotation_to_utf8(annotation));
+        }
+        if nextPosition.result != .None {
+            text = Basic.tprint("%1 %2", text, result_to_utf8(nextPosition.result));
+        }
+    }
+
 
     return text;
 }

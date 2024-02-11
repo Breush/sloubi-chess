@@ -294,7 +294,8 @@ ply_place :: (ply : *PlyEntity, propagate := false, hidden := false) {
         fontId := ifx ply.parentVariation.depth == 0 then "mainBold" else "mainLight";
         moveIndex := (ply.position.moveIndex + 1) / 2;
         moveIndexText := Basic.tprint("%.%", moveIndex, ifx ply.position.moveIndex % 2 then "" else ".. ");
-        moveText := position_last_move_to_san(ply.position, annotations = true);
+        parentPosition := ply.parentVariation.plies[ply.index - 1].position;
+        moveText := position_move_to_san(parentPosition, ply.position);
         ply.moveIndexTextWidth = text_mesh_update(ply.moveIndexMeshNode.primitives[0], moveIndexText, fontId, ply.moveColor, useMaterialCache = true);
         ply.moveTextWidth = text_mesh_update(ply.moveMeshNode.primitives[0], moveText, fontId, ply.moveColor, useMaterialCache = true);
         ply.moveTextDirty = false;

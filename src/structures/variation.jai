@@ -110,7 +110,8 @@ variation_debug_dump :: (variation : *VariationEntity, depth : u8) {
             prefix.count += 1;
         } else {
             fullMoveIndex := (ply.position.moveIndex + 1) / 2;
-            Basic.log("%0%0% % {%}}", prefix, fullMoveIndex, ifx ply.position.moveIndex % 2 then "." else "…", position_last_move_to_san(ply.position), ply.position.comment);
+            parentPosition := variation.plies[plyIndex - 1].position;
+            Basic.log("%0%0% % {%}}", prefix, fullMoveIndex, ifx ply.position.moveIndex % 2 then "." else "…", position_move_to_san(parentPosition, ply.position), ply.position.comment);
         }
 
         for variation : ply.variations {

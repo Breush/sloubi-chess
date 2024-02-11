@@ -154,11 +154,11 @@ _write_variation :: (builder : *Basic.String_Builder, variation : *VariationEnti
 
         if !ply.first {
             moveIndex := (ply.position.moveIndex + 1) / 2;
+            previousPly := variation.plies[plyIndex - 1];
 
             // Don't write black move index if context is clear (no comment nor variation before).
             needMoveIndex := true;
             if ply.position.moveIndex % 2 == 0 {
-                previousPly := variation.plies[plyIndex - 1];
                 if previousPly.index != 0 && previousPly.position.comment.count == 0 && previousPly.variations.count == 0 {
                     needMoveIndex = false;
                 }
@@ -167,7 +167,7 @@ _write_variation :: (builder : *Basic.String_Builder, variation : *VariationEnti
                 Basic.print_to_builder(builder, "%.% ", moveIndex, ifx ply.position.moveIndex % 2 then "" else "..");
             }
 
-            Basic.append(builder, position_last_move_to_san(ply.position, annotations = false));
+            Basic.append(builder, position_move_to_san(previousPly.position, ply.position));
             _write_nags(builder, *ply.position);
         }
 
