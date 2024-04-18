@@ -489,7 +489,7 @@ _download_twic_database :: () {
 
         if FileUtilities.file_exists(targetPath) then continue;
 
-        Chamber.download(sourcePath, targetPath);
+        // Chamber.download(sourcePath, targetPath);
     }
 
     // @todo Missing unzipping...

@@ -882,9 +882,10 @@ _parse_potential_variation :: (bytes : *string, game : *Game, parentVariation : 
 }
 
 _parse_variation :: (bytes : *string, game : *Game, variation : *VariationEntity) {
-
     lastBytesCount := 0;
     while bytes.count > 0 && bytes.count != lastBytesCount {
+        _parse_potential_comments(bytes, variation);
+
         lastBytesCount = bytes.count;
         _parse_potential_comments(bytes, variation);
         while _parse_potential_variation(bytes, game, variation) {}
