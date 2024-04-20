@@ -46,6 +46,8 @@ PositionFlags :: enum_flags u8 {
     WhiteQueensideCastlingAllowed   :: 0x10;
     BlackKingsideCastlingAllowed    :: 0x20;
     BlackQueensideCastlingAllowed   :: 0x40;
+    WhiteCastlingAllowedMask        :: WhiteKingsideCastlingAllowed | WhiteQueensideCastlingAllowed;
+    BlackCastlingAllowedMask        :: BlackKingsideCastlingAllowed | BlackQueensideCastlingAllowed;
     CastlingAllowedMask             :: WhiteKingsideCastlingAllowed | WhiteQueensideCastlingAllowed | BlackKingsideCastlingAllowed | BlackQueensideCastlingAllowed;
 }
 
@@ -299,8 +301,19 @@ result_to_ascii :: (result : Result) -> string {
     }
 }
 
-move_to_algebraic :: (move : Move) -> string {
-    return Basic.tprint("%1%2", coord_to_algebraic(move.sourceCoord), coord_to_algebraic(move.targetCoord));
+algebraic_to_move :: (moveString : string) -> Move {
+    move : Move;
+    move.sourceCoord = algebraic_to_coord(moveString);
+    Basic.advance(*moveString, 2);
+    move.targetCoord = algebraic_to_coord(moveString);
+    Basic.advance(*moveString, 2);
+    if moveString.count != 0 {
+        if moveString[0] == #char "q" then move.promotionPieceKind = .Queen;
+        else if moveString[0] == #char "r" then move.promotionPieceKind = .Rook;
+        else if moveString[0] == #char "b" then move.promotionPieceKind = .Bishop;
+        else if moveString[0] == #char "n" then move.promotionPieceKind = .Knight;
+    }
+    return move;
 }
 
 get_starting_position :: () -> Position {
@@ -793,21 +806,19 @@ position_play_move :: (position : *Position, sourceCoord : Coord, targetCoord : 
         targetRow, targetCol := row_col(targetCoord);
         colorToPlay := position_color_to_play(position);
 
+        // King moved, disallow castling.
+        if updateFlags {
+            if colorToPlay == .White then position.flags &= ~.WhiteCastlingAllowedMask;
+            else position.flags &= ~.BlackCastlingAllowedMask;
+        }
+
         // Castling, move the rook also.
         if sourceCol == targetCol + 2 {
             position.board[coord(targetRow, 3)] = position.board[coord(sourceRow, 0)];
             position.board[coord(sourceRow, 0)].kind = .None;
-            if updateFlags {
-                if colorToPlay == .White then position.flags &= ~.WhiteKingsideCastlingAllowed;
-                else position.flags &= ~.BlackKingsideCastlingAllowed;
-            }
         } else if sourceCol == targetCol - 2 {
             position.board[coord(targetRow, 5)] = position.board[coord(sourceRow, 7)];
             position.board[coord(sourceRow, 7)].kind = .None;
-            if updateFlags {
-                if colorToPlay == .White then position.flags &= ~.WhiteQueensideCastlingAllowed;
-                else position.flags &= ~.BlackQueensideCastlingAllowed;
-            }
         }
     } else if piece.kind == .Rook && updateFlags {
         // Disable castling if the rook from its starting square
@@ -837,6 +848,12 @@ position_play_move :: (position : *Position, sourceCoord : Coord, targetCoord : 
         if kingCoord != 0xFF && position_square_controlled(position, kingCoord, piece.color) {
             position.flags |= .Check;
         }
+
+        // Disable castling if a piece captured a rook on its starting square.
+        if targetCoord == #run coord(0, 0) then position.flags &= ~.WhiteQueensideCastlingAllowed;
+        else if targetCoord == #run coord(0, 7) then position.flags &= ~.WhiteKingsideCastlingAllowed;
+        else if targetCoord == #run coord(7, 0) then position.flags &= ~.BlackQueensideCastlingAllowed;
+        else if targetCoord == #run coord(7, 7) then position.flags &= ~.BlackKingsideCastlingAllowed;
 
         if !position_has_legal_moves(position) {
             position.flags |= ifx position.flags & .Check then PositionFlags.Mate else .StaleMate;
@@ -1083,4 +1100,16 @@ position_update_castling_allowed_flags :: (using position : *Position, color : C
 
 position_color_to_play :: (using position : *Position) -> Color {
     return ifx moveIndex % 2 == 0 then Color.White else .Black;
+}
+
+// These centipawns follow our convention to precise mate too.
+// If absolute value is bigger than 10000, then 10000 + n is mate in n moves.
+// Returns a temporary string.
+centipawns_to_display :: (centipawns : s64) -> string {
+    if Math.abs(centipawns) > 10000 {
+        return Basic.tprint("%M%", ifx centipawns < 0 then "-" else "+", Math.abs(centipawns) - 10000);
+    }
+
+    value := Math.floor(centipawns / 10.0 + 0.5) / 10.0;
+    return Basic.tprint("%0%0", ifx value > 0.0 then "+" else "", value);
 }

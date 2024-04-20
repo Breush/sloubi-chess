@@ -15,8 +15,12 @@
 
 It is **not** (and probably won't ever be):
 - a database store of all GMs games ;
-- a chess engine, nor a way to interface with chess engines ;
+- a chess engine ;
 - a way to play chess against someone or something.
+
+It **can** however:
+- load giant databases of games ;
+- interface with chess engines.
 
 ## Download
 

@@ -58,7 +58,9 @@
         // The analysis site used to open the current position, the FEN will be added at the end of the URL.
         //  - lichess.org "https://lichess.org/analysis/"
         //  - chess.com "https://www.chess.com/analysis?fen="
-        "externalSite": "https://lichess.org/analysis/"
+        "externalSite": "https://lichess.org/analysis/",
+        "uciEngine": "", // Path to a local UCI engine executable, leave empty to disable.
+        "highlightColor": [0.33, 0.33, 0.33, 0.9] // RGBA colors used for overlay arrows given by the UCI engine.
     },
     "controls": {
         // A ply is a so-called "half-move".

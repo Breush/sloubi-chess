@@ -30,6 +30,7 @@ for_expansion :: Hash.for_expansion;
 #load "display/smart-mover.jai";
 #load "display/study-view.jai";
 #load "display/text-entry.jai";
+#load "display/uci.jai";
 #load "helpers/arrow-mesh.jai";
 #load "helpers/entities.jai";
 #load "helpers/fork-awesome.jai";
@@ -74,6 +75,7 @@ Instance :: struct {
     library : *LibraryEntity;
     metaBoard : *MetaBoardEntity;
     sidebar : *SidebarEntity;
+    uci : *UciEntity;
 
     textMaterialCache : [..]TextMaterialCacheInfo;
 
@@ -150,6 +152,7 @@ main :: () {
     instance.background = background_create();
     instance.library = library_create();
     instance.metaBoard = meta_board_create();
+    instance.uci = uci_create();
 
     send(.SystemReflow);
 

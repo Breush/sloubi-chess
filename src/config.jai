@@ -16,6 +16,8 @@ Config :: struct {
     }
     analysis : struct {
         externalSite : string;
+        uciEngine: string;
+        highlightColor : Chamber.vec4;
     }
     board : struct {
         pieces : string;

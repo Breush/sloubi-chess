@@ -13,7 +13,7 @@ Message :: struct {
         entity : *Sill.Entity;
         newGame : *Game;
         study : *Study;
-        moves : [3]Move;
+        move : Move;
         struct {
             mode : Mode;
             oldMode : Mode;
@@ -57,6 +57,8 @@ MessageKind :: enum u32 {
     StudyGamesChanged;                      // (study : *Study)
     StudyUnsavedModificationsChanged;       // (study : *Study)
     ModeChanged;                            // (mode : Mode, oldMode : Mode)
+    UciBestMoveChanged;                     // (move : Move)
+    UciBestMoveCentipawnsChanged;           // ()
 }
 
 send :: (kind : MessageKind) {
@@ -119,6 +121,13 @@ send :: (kind : MessageKind, newGame : *Game) {
     message : Message = ---;
     message.kind = kind;
     message.newGame = newGame;
+    Sill.message_send(*instance.engine.message, message);
+}
+
+send :: (kind : MessageKind, move : Move) {
+    message : Message = ---;
+    message.kind = kind;
+    message.move = move;
     Sill.message_send(*instance.engine.message, message);
 }
 
