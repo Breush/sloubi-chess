@@ -102,8 +102,8 @@ Arguments :: struct {
 }
 
 main :: () {
-    // UA :: #import "Unmapping_Allocator";
-    // context.allocator = UA.get_unmapping_allocator();
+    UA :: #import "Unmapping_Allocator";
+    context.allocator = UA.get_unmapping_allocator();
 
     Debug.init(); // For signal handlers
     Chamber.init_logger();

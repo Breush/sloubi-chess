@@ -44,11 +44,13 @@ controller_create :: () -> *ControllerEntity {
     Sill.listener_on_message(*listener, _on_message);
     controls := *instance.config.controls;
 
+    Sill.input_action_bind(*instance.engine.input, "game.undo", controls.undo);
     Sill.input_action_bind(*instance.engine.input, "game.ply.previous", controls.previousPly);
     Sill.input_action_bind(*instance.engine.input, "game.ply.next", controls.nextPly);
     Sill.input_action_bind(*instance.engine.input, "game.ply.first", controls.firstPly);
     Sill.input_action_bind(*instance.engine.input, "game.ply.last", controls.lastPly);
     Sill.input_action_bind(*instance.engine.input, "game.ply.comment.edit", controls.editPlyComment);
+    Sill.input_action_bind(*instance.engine.input, "game.ply.delete", controls.deletePly);
     Sill.input_action_bind(*instance.engine.input, "game.text.edit.word-modifier", .ControlLeft);
     Sill.input_action_bind(*instance.engine.input, "game.text.edit.word-modifier", .ControlRight);
     Sill.input_action_bind(*instance.engine.input, "game.variation.previous", controls.previousVariation);
@@ -57,11 +59,13 @@ controller_create :: () -> *ControllerEntity {
     Sill.behavior_on_update(*behaviorComponent, (dt : float64, using instance : *Instance) {
         if currentGame == null then return;
 
+        if Sill.input_action_just_activated(*engine.input, "game.undo", true)                 then game_undo(currentGame);
         if Sill.input_action_just_activated(*engine.input, "game.ply.previous", true)         then game_go_to_previous_move(currentGame);
         if Sill.input_action_just_activated(*engine.input, "game.ply.next", true)             then game_go_to_next_move(currentGame);
         if Sill.input_action_just_activated(*engine.input, "game.ply.first", true)            then game_go_to_first_ply(currentGame);
         if Sill.input_action_just_activated(*engine.input, "game.ply.last", true)             then game_go_to_last_ply(currentGame);
         if Sill.input_action_just_activated(*engine.input, "game.ply.comment.edit", true)     then game_edit_ply_comment(currentGame);
+        if Sill.input_action_just_activated(*engine.input, "game.ply.delete", true)           then game_delete_ply(currentGame);
         if Sill.input_action_just_activated(*engine.input, "game.variation.previous", true)   then game_go_to_previous_variation(currentGame);
         if Sill.input_action_just_activated(*engine.input, "game.variation.next", true)       then game_go_to_next_variation(currentGame);
     }, *instance);

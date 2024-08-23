@@ -63,6 +63,7 @@
         "highlightColor": [0.33, 0.33, 0.33, 0.9] // RGBA colors used for overlay arrows given by the UCI engine.
     },
     "controls": {
+        "undo": "Z", // @fixme Manage Ctrl + Z
         // A ply is a so-called "half-move".
         // The following mean within the current variation.
         "nextPly": "Right",
@@ -70,6 +71,7 @@
         "firstPly": "Home", // Chess websites usually map these to "Up" and "Down"
         "lastPly": "End",
         "editPlyComment": "Space",
+        "deletePly": "Delete",
         // Go to an alternative on the current ply.
         "nextVariation": "Down",
         "previousVariation": "Up"

@@ -281,6 +281,12 @@ annotation_to_utf8 :: (annotation : ObservationAnnotation) -> string {
     return "";
 }
 
+flags_to_utf8 :: (flags : PositionFlags) -> string {
+    if flags & .Mate then return "#";
+    if flags & .Check then return "+";
+    return "";
+}
+
 result_to_utf8 :: (result : Result) -> string {
     if #complete result == {
         case .None; return "";
@@ -621,11 +627,11 @@ position_find_piece_targets :: (position : Position, sourceCoord : Coord, limit 
 }
 
 // SAN: Standard Algebraic Notation
-position_move_to_san :: (position : Position, nextPosition : Position) -> string {
-    return position_move_to_san(position, nextPosition.lastMove, *nextPosition);
+position_move_to_san :: (position : Position, nextPosition : Position, showAnnotations : bool) -> string {
+    return position_move_to_san(position, nextPosition.lastMove, *nextPosition, showAnnotations);
 }
 
-position_move_to_san :: (position : Position, move : Move, nextPosition : *Position = null) -> string {
+position_move_to_san :: (position : Position, move : Move, nextPosition : *Position = null, showAnnotations := false) -> string {
     Basic.push_allocator(Basic.temp);
 
     sanKeys := position_move_to_san_keys(position, move, true);
@@ -636,15 +642,20 @@ position_move_to_san :: (position : Position, move : Move, nextPosition : *Posit
         text = Basic.tprint("%1%2", text, san_key_to_symbol(sanKey));
     }
 
-    // Show annotations only if the next position is known.
     if nextPosition != null {
-        text = Basic.tprint("%1%2", text, annotation_to_utf8(nextPosition.lastMove.annotation));
-        text = Basic.tprint("%1%2", text, annotation_to_utf8(nextPosition.annotation));
-        for annotation : nextPosition.observationAnnotations {
-            text = Basic.tprint("%1%2", text, annotation_to_utf8(annotation));
+        if nextPosition.flags & .Check {
+            text = Basic.tprint("%1%2", text, flags_to_utf8(nextPosition.flags));
         }
-        if nextPosition.result != .None {
-            text = Basic.tprint("%1 %2", text, result_to_utf8(nextPosition.result));
+
+        if showAnnotations {
+            text = Basic.tprint("%1%2", text, annotation_to_utf8(nextPosition.lastMove.annotation));
+            text = Basic.tprint("%1%2", text, annotation_to_utf8(nextPosition.annotation));
+            for annotation : nextPosition.observationAnnotations {
+                text = Basic.tprint("%1%2", text, annotation_to_utf8(annotation));
+            }
+            if nextPosition.result != .None {
+                text = Basic.tprint("%1 %2", text, result_to_utf8(nextPosition.result));
+            }
         }
     }
 
@@ -721,6 +732,7 @@ position_move_to_san_keys :: (position : Position, move : Move, showActions := t
             offset += 1;
         }
         sanKeys[offset] = piece_kind_to_san_key(move.promotionPieceKind);
+        offset += 1;
     }
 
     return sanKeys;

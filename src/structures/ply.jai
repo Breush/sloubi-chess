@@ -295,7 +295,7 @@ ply_place :: (ply : *PlyEntity, propagate := false, hidden := false) {
         moveIndex := (ply.position.moveIndex + 1) / 2;
         moveIndexText := Basic.tprint("%.%", moveIndex, ifx ply.position.moveIndex % 2 then "" else ".. ");
         parentPosition := ply.parentVariation.plies[ply.index - 1].position;
-        moveText := position_move_to_san(parentPosition, ply.position);
+        moveText := position_move_to_san(parentPosition, ply.position, true);
         ply.moveIndexTextWidth = text_mesh_update(ply.moveIndexMeshNode.primitives[0], moveIndexText, fontId, ply.moveColor, useMaterialCache = true);
         ply.moveTextWidth = text_mesh_update(ply.moveMeshNode.primitives[0], moveText, fontId, ply.moveColor, useMaterialCache = true);
         ply.moveTextDirty = false;
@@ -449,6 +449,26 @@ ply_edit_comment :: (ply : *PlyEntity, textCursorAtMouse := false) {
     if textCursorAtMouse {
         _set_text_cursor_position_from_mouse(ply);
     }
+}
+
+ply_delete :: (ply : *PlyEntity) -> *PlyEntity {
+    // @todo Allow delete in the middle and warn if too many plies to be deleted!
+    parentVariation := ply.parentVariation;
+    if ply.index != parentVariation.plies.count - 1 then return null;
+    if ply.index == 0 then return null;
+
+    previousPly : *PlyEntity;
+    if ply.index == 1 && parentVariation.depth != 0 {
+        previousPly = parentVariation.parentPly;
+        Basic.array_unordered_remove_by_index(*previousPly.variations, parentVariation.index);
+        variation_cleanup(parentVariation);
+    } else {
+        ply_cleanup(ply);
+        parentVariation.plies.count -= 1;
+        previousPly = parentVariation.plies[parentVariation.plies.count - 1];
+    }
+
+    return previousPly;
 }
 
 ply_previous_ply :: (ply : *PlyEntity) -> *PlyEntity {

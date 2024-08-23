@@ -167,7 +167,7 @@ _write_variation :: (builder : *Basic.String_Builder, variation : *VariationEnti
                 Basic.print_to_builder(builder, "%.% ", moveIndex, ifx ply.position.moveIndex % 2 then "" else "..");
             }
 
-            Basic.append(builder, position_move_to_san(previousPly.position, ply.position));
+            Basic.append(builder, position_move_to_san(previousPly.position, ply.position, false));
             _write_nags(builder, *ply.position);
         }
 
@@ -862,7 +862,7 @@ _parse_potential_comments :: (bytes : *string, variation : *VariationEntity) {
 }
 
 _parse_potential_variation :: (bytes : *string, game : *Game, parentVariation : *VariationEntity) -> bool {
-    if bytes.*[0] != #char "(" then return false;
+    if bytes.count == 0 || bytes.*[0] != #char "(" then return false;
     Basic.advance(bytes);
 
     lastPly := Basic.peek(parentVariation.plies);
@@ -889,7 +889,7 @@ _parse_variation :: (bytes : *string, game : *Game, variation : *VariationEntity
         lastBytesCount = bytes.count;
         _parse_potential_comments(bytes, variation);
         while _parse_potential_variation(bytes, game, variation) {}
-        if bytes.*[0] == #char ")" then break; // End of variation
+        if bytes.count == 0 || bytes.*[0] == #char ")" then break; // End of variation
         if !_parse_potential_annotated_move(bytes, game, variation) then break;
     }
 }
@@ -897,6 +897,7 @@ _parse_variation :: (bytes : *string, game : *Game, variation : *VariationEntity
 // Returns false if this is the last move a variation.
 _parse_potential_annotated_move :: (bytes : *string, game : *Game, variation : *VariationEntity) -> bool {
     // position_debug_dump(Basic.peek(variation.plies).position);
+    if bytes.count == 0 then return false;
 
     _parse_potential_move_number(bytes);
     if _parse_potential_move(bytes, variation) {

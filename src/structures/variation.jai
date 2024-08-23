@@ -19,7 +19,7 @@ VariationEntity :: struct {
     decorumHeight : float; // Last decorum height, so that it is not rebuilt uselessly if it didn't changed.
 }
 
-variation_init :: (variation : *VariationEntity, game : *Game, firstOne := true) {
+variation_init :: (variation : *VariationEntity, game : *Game) {
     Sill.listener_on_message(*variation.listener, _on_message);
 
     for plyIndex : 0 .. variation.plies.count - 1 {
@@ -27,7 +27,7 @@ variation_init :: (variation : *VariationEntity, game : *Game, firstOne := true)
         ply_init(ply, game);
 
         for variation : ply.variations {
-            variation_init(variation, game, firstOne = false);
+            variation_init(variation, game);
         }
     }
 
@@ -111,7 +111,7 @@ variation_debug_dump :: (variation : *VariationEntity, depth : u8) {
         } else {
             fullMoveIndex := (ply.position.moveIndex + 1) / 2;
             parentPosition := variation.plies[plyIndex - 1].position;
-            Basic.log("%0%0% % {%}}", prefix, fullMoveIndex, ifx ply.position.moveIndex % 2 then "." else "…", position_move_to_san(parentPosition, ply.position), ply.position.comment);
+            Basic.log("%0%0% % {%}}", prefix, fullMoveIndex, ifx ply.position.moveIndex % 2 then "." else "…", position_move_to_san(parentPosition, ply.position, false), ply.position.comment);
         }
 
         for variation : ply.variations {

@@ -18,6 +18,7 @@ Game :: struct {
     bytes : string; @NoSerialize // View from the bytes array in study, showing one game in PGN format.
     summary : GameSummary;
     computeFlags : ComputeFlags;
+    snapshots : [..]string; @NoSerialize
 
     ComputeFlags :: enum_flags u8 {
         Summary;    // summary is valid
@@ -97,6 +98,7 @@ game_create :: (game : *Game) {
     game_view_init(game);
     game_show(game);
     game_update_to(game, game.mainVariation.plies[0]);
+    game_add_snapshot(game);
 }
 
 game_close :: (game : *Game) {
@@ -116,6 +118,20 @@ game_close :: (game : *Game) {
 game_cleanup :: (game : *Game) {
     if game == null then return;
 
+    game_reset(game);
+    Basic.free(game.title);
+
+    if game.view != null {
+        Sill.destroy_entity(game.view);
+        game.view = null;
+    }
+
+    game_show(null);
+}
+
+game_reset :: (game : *Game) {
+    if game == null then return;
+
     if game.mainVariation != null {
         variation_cleanup(game.mainVariation);
         game.mainVariation = null;
@@ -132,20 +148,44 @@ game_cleanup :: (game : *Game) {
         Basic.free(extraTag.value);
     }
     Basic.array_free(game.extraTags);
-    Basic.free(game.title);
-
-    if game.view != null {
-        Sill.destroy_entity(game.view);
-        game.view = null;
-    }
-
-    game_show(null);
 }
 
 game_show :: (game : *Game) {
     if (instance.currentGame == game) return;
     instance.currentGame = game;
     send(.CurrentGameChanged, game);
+}
+
+game_add_snapshot :: (game : *Game) {
+    // @todo It would be better to have a dedicated serialization than the PGN one.
+    // But this will do for now.
+    // @fixme Handle adding a snapshot in the middle.
+
+    sb : Basic.String_Builder;
+    Basic.init_string_builder(*sb);
+    defer Basic.reset(*sb);
+    write_pgn(*sb, game);
+    Basic.array_add(*game.snapshots, Basic.builder_to_string(*sb));
+}
+
+// @fixme Handle redo.
+game_undo :: (game : *Game) {
+    // @fixme Uber-stupid for now, but it does the job.
+    // @fixme Will need to try to rematch to the previously selected move.
+
+    if game.snapshots.count < 2 then return;
+
+    snapshot := game.snapshots[game.snapshots.count - 2];
+
+    game_reset(game);
+    load_pgn(snapshot, game);
+
+    Basic.free(game.snapshots[game.snapshots.count - 1]);
+    game.snapshots.count -= 1;
+
+    variation_init(game.mainVariation, game);
+    game_update_to(game, game.mainVariation.plies[game.mainVariation.plies.count - 1]);
+    ply_place(game.ply, propagate = true);
 }
 
 game_setup_main_variation :: (game : *Game) {
@@ -279,13 +319,28 @@ game_play_move :: (game : *Game, sourceCoord : Coord, targetCoord : Coord, promo
     ply_place(ply, propagate = true);
     game_update_to(game, ply);
 
-    // @todo Technically, it would be better to send a message.
+    // @todo :StudyDirty Technically, it would be better to send a message.
     study_mark_unsaved_modifications(game.study);
+    game_add_snapshot(game);
 }
 
 game_edit_ply_comment :: (game : *Game) {
     if game.ply == null then return;
     ply_edit_comment(game.ply);
+}
+
+game_delete_ply :: (game : *Game) {
+    if game.ply == null then return;
+    previousPly := ply_delete(game.ply);
+
+    if previousPly {
+        ply_place(previousPly, propagate = true);
+        game_update_to(game, previousPly);
+    }
+
+    // :StudyDirty
+    study_mark_unsaved_modifications(game.study);
+    game_add_snapshot(game);
 }
 
 game_effective_tag :: (game : *Game, tagName : TagName) -> *TagValue {

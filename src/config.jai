@@ -51,11 +51,13 @@ Config :: struct {
         }
     }
     controls : struct {
+        undo : Crater.Key;
         nextPly : Crater.Key;
         previousPly : Crater.Key;
         firstPly : Crater.Key;
         lastPly : Crater.Key;
         editPlyComment : Crater.Key;
+        deletePly : Crater.Key;
         nextVariation : Crater.Key;
         previousVariation : Crater.Key;
     }
