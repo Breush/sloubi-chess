@@ -468,9 +468,12 @@ _show_pawn_promotion_selecter :: (using boardView : *BoardView) {
         button.transform.translation.y = ifx color == .White then cast(float) buttonIndex else cast(float) -buttonIndex;
     }
 
+    squareSize := boardView.ui.extent.width / 8.;
+
     row, col := row_col(state.pawnPromotionTargetCoord);
-    pawnPromotionSelecter.transform.translation.x = col - 3.5;
-    pawnPromotionSelecter.transform.translation.y = 3.5 - row;
+    pawnPromotionSelecter.transform.translation.x = squareSize * (col - 3.5);
+    pawnPromotionSelecter.transform.translation.y = squareSize * (3.5 - row);
+    pawnPromotionSelecter.transform.factor = squareSize;
     Sill.transform_commit(*pawnPromotionSelecter.transform);
 }
 
