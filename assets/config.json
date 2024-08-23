@@ -59,8 +59,7 @@
         //  - lichess.org "https://lichess.org/analysis/"
         //  - chess.com "https://www.chess.com/analysis?fen="
         "externalSite": "https://lichess.org/analysis/",
-        "uciEngine": "", // Path to a local UCI engine executable, leave empty to disable.
-        "highlightColor": [0.33, 0.33, 0.33, 0.9] // RGBA colors used for overlay arrows given by the UCI engine.
+        "uciEngine": "/home/alexis/Téléchargements/stockfish/stockfish-ubuntu-x86-64-avx2" // Path to a local UCI engine executable, leave empty to disable.
     },
     "controls": {
         // A ply is a so-called "half-move".

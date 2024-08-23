@@ -1103,11 +1103,11 @@ position_color_to_play :: (using position : *Position) -> Color {
 }
 
 // These centipawns follow our convention to precise mate too.
-// If absolute value is bigger than 10000, then 10000 + n is mate in n moves.
+// If absolute value is bigger than 100000, then 100000 + n is mate in n moves.
 // Returns a temporary string.
 centipawns_to_display :: (centipawns : s64) -> string {
-    if Math.abs(centipawns) > 10000 {
-        return Basic.tprint("%M%", ifx centipawns < 0 then "-" else "+", Math.abs(centipawns) - 10000);
+    if Math.abs(centipawns) > 100000 {
+        return Basic.tprint("%M%", ifx centipawns < 0 then "-" else "+", Math.abs(centipawns) - 100000);
     }
 
     value := Math.floor(centipawns / 10.0 + 0.5) / 10.0;

@@ -605,6 +605,7 @@ _parse_potential_move :: (bytes : *string, variation : *VariationEntity) -> bool
     skip_blanks(bytes);
 
     // Updating the game
+    Chamber.debug("Got move: ", coord_to_algebraic(sourceCoord), coord_to_algebraic(targetCoord));
     if coord_is_valid(sourceCoord) {
         position_play_move(*position, sourceCoord, targetCoord, promotionPieceKind);
 

@@ -1,4 +1,4 @@
-// #import "Basic"()(MEMORY_DEBUGGER=true);
+#import "Basic"()(MEMORY_DEBUGGER=true);
 
 Sill :: #import "Sill";
 Magma :: Sill.Magma;
@@ -65,6 +65,7 @@ Instance :: struct {
         monochrome : *Magma.Shader;
         text : *Magma.Shader;
         translucentMonochrome : *Magma.Shader;
+        translucentGradient : *Magma.Shader;
     }
 
     config : Config;
@@ -287,6 +288,7 @@ _shaders_init :: () {
     instance.shaders.monochrome = Magma.create_shader(instance.engine.renderer, "./assets/materials/monochrome");
     instance.shaders.text = Magma.create_shader(instance.engine.renderer, "./assets/materials/text", .{ depthWriteEnabled = false, alphaBlendingEnabled = true });
     instance.shaders.translucentMonochrome = Magma.create_shader(instance.engine.renderer, "./assets/materials/translucent-monochrome", .{ depthWriteEnabled = false, alphaBlendingEnabled = true });
+    instance.shaders.translucentGradient = Magma.create_shader(instance.engine.renderer, "./assets/materials/translucent-gradient", .{ depthWriteEnabled = false, alphaBlendingEnabled = true });
     instance.shaders.decorum = Magma.create_shader(instance.engine.renderer, "./assets/materials/decorum", .{ alphaBlendingEnabled = true });
 }
 

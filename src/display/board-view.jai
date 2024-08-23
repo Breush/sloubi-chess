@@ -11,7 +11,7 @@ BoardView :: struct {
     piecesTextures : [PieceIdCount]*Magma.Texture;
 
     arrows : [..]*MeshEntity;
-    bestMoveCentipawnsMeshNode : *Sill.MeshNode;
+    bestMoveArrow : *MeshEntity;
     movingPiece : MeshEntity;
     pawnPromotionSelecter : PawnPromotionSelecterEntity;
 
@@ -316,13 +316,19 @@ _update_highlights :: (using boardView : *BoardView, position : *Position = null
         Basic.array_add(*arrowNode.primitives, create_arrow_mesh(arrowLength, thickness = 0.16, basePadding = 0.24, headPadding = 0.08));
 
         if textNeeded {
-            bestMoveCentipawnsMeshNode = Basic.array_add(*arrow.mesh.nodes);
-            bestMoveCentipawnsMeshNode.transform.translation.x = -arrowLength / 2 * Math.sin(theta) * squareSize;
-            bestMoveCentipawnsMeshNode.transform.translation.y = arrowLength / 2 * Math.cos(theta) * squareSize;
-            Basic.array_add(*bestMoveCentipawnsMeshNode.primitives, create_text_mesh());
+            textNode := Basic.array_add(*arrow.mesh.nodes);
+            textNode.transform.translation.x = -arrowLength / 2 * Math.sin(theta) * squareSize;
+            textNode.transform.translation.y = arrowLength / 2 * Math.cos(theta) * squareSize;
+            textNode.transform.translation.z = -0.01;
+            textBackgroundMesh := create_rect_mesh(4.0 * instance.config.env.fontSize, instance.config.env.fontSize + 2 * UiConstants.PaddingVerticalSmall);
+            textBackgroundMesh.material = Magma.create_material(instance.shaders.translucentGradient);
+            Magma.material_set(textBackgroundMesh.material, "fadeInX", 0.25);
+            Magma.material_set(textBackgroundMesh.material, "fadeOutX", 0.75);
+            Basic.array_add(*textNode.primitives, textBackgroundMesh);
+            Basic.array_add(*textNode.primitives, create_text_mesh());
 
             if instance.metaBoard.orientation == .Black {
-                bestMoveCentipawnsMeshNode.transform.rotation = Chamber.quat.{0, 0, 1, 0};
+                textNode.transform.rotation = Chamber.quat.{0, 0, 1, 0};
             }
         }
 
@@ -332,7 +338,7 @@ _update_highlights :: (using boardView : *BoardView, position : *Position = null
         arrow.transform.translation.x = (0.5 + col - 4) * squareSize;
         arrow.transform.translation.y = (0.5 + (7 - row) - 4) * squareSize;
         arrow.transform.translation.z = UiConstants.DepthMetaBoardViewArrow;
-        arrow.transform.translation.z -= 0.1 * cast(float) (arrows.count - 1); // Preventing z-fight between arrows.
+        arrow.transform.translation.z -= 0.1 * cast(float) arrows.count; // Preventing z-fight between arrows.
         Sill.transform_commit(*arrow.transform);
 
         arrow.mesh.nodes[0].primitives[0].material = Magma.create_material(instance.shaders.translucentMonochrome);
@@ -343,9 +349,10 @@ _update_highlights :: (using boardView : *BoardView, position : *Position = null
     bestMove := instance.uci.bestMove;
     if coord_is_valid(bestMove.sourceCoord) && coord_is_valid(bestMove.targetCoord) {
         _create_arrow_mesh(boardView, bestMove.sourceCoord, bestMove.targetCoord, instance.config.analysis.highlightColor, textNeeded = true);
+        bestMoveArrow = arrows[arrows.count - 1];
         _update_best_move_centipawns(boardView);
     } else {
-        bestMoveCentipawnsMeshNode = null;
+        bestMoveArrow = null;
     }
 
     for arrowHighlight : position.highlights.arrows {
@@ -354,8 +361,15 @@ _update_highlights :: (using boardView : *BoardView, position : *Position = null
 }
 
 _update_best_move_centipawns :: (using boardView : *BoardView) {
+    backgroundColor := Chamber.clamp(cast(float) instance.uci.bestMoveCentipawns, -500.0, 500.0) / 1000.0 + 0.5;
+    textColor := ifx instance.uci.bestMoveCentipawns < 0 then 1.0 else 0.0;
+
     text := centipawns_to_display(instance.uci.bestMoveCentipawns);
-    text_mesh_update(bestMoveCentipawnsMeshNode.primitives[0], text, "mainLight", instance.config.env.textColor, anchor = .Center);
+    text_mesh_update(bestMoveArrow.mesh.nodes[1].primitives[1], text, "mainLight", .{textColor, textColor, textColor}, depth = -0.01, anchor = .Center);
+
+    Magma.material_set_color(bestMoveArrow.mesh.nodes[0].primitives[0].material, "color", .{backgroundColor, backgroundColor, backgroundColor, 0.9});
+    Magma.material_set_color(bestMoveArrow.mesh.nodes[1].primitives[0].material, "color", .{1.0 - textColor, 1.0 - textColor, 1.0 - textColor, 1.0});
+    Magma.material_set_color(bestMoveArrow.mesh.nodes[1].primitives[0].material, "fadeColor", .{1.0 - textColor, 1.0 - textColor, 1.0 - textColor, 0.0});
 }
 
 _init_resources :: (using boardView : *BoardView) {

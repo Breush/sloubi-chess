@@ -16,6 +16,11 @@ UciEntity :: struct {
 
     listener : Sill.ListenerComponent;
     behavior : Sill.BehaviorComponent;
+
+    on_cleanup :: (using this : *UciEntity) {
+        Thread.destroy(*mutex);
+        Basic.array_reset(*responses);
+    }
 }
 
 UciState :: enum {
@@ -81,9 +86,9 @@ uci_create :: () -> *UciEntity {
     Thread.thread_init(*uci.thread, _task);
     Thread.thread_start(*uci.thread);
 
-    uci.state = .InitWaitingForUciOk; Chamber.debug(uci.state);
+    uci.state = .InitWaitingForUciOk;
     _send(uci, .Uci);
-    uci.nextPositionOnBestMove.moveIndex = 0xFFFF; // To know that there is nothing to do.
+    nextPositionOnBestMove.moveIndex = 0xFFFF; // To know that there is nothing to do.
 
     return uci;
 }
@@ -107,7 +112,7 @@ uci_set_position :: (uci : *UciEntity, position : Position) {
 
     if uci.state == .GoPollingCentipawns {
         uci.nextPositionOnBestMove = position;
-        uci.state = .StopWaitingForBestMove; Chamber.debug(uci.state);
+        uci.state = .StopWaitingForBestMove;
         _send(uci, .Stop);
         return;
     }
@@ -134,20 +139,20 @@ _on_update :: (dt : float64, uci : *UciEntity) {
     for response : uci.responses {
         if uci.state == .InitWaitingForUciOk {
             if response.kind == .UciOk {
-                uci.state = .NewGameWaitingForReadyOk; Chamber.debug(uci.state);
+                uci.state = .NewGameWaitingForReadyOk;
                 _send(uci, .UciNewGame);
                 _send(uci, .IsReady);
             }
         } else if uci.state == .NewGameWaitingForReadyOk {
             if response.kind == .ReadyOk {
-                uci.state = .Ready; Chamber.debug(uci.state);
+                uci.state = .Ready;
             }
         } else if uci.state == .GoStarting {
             if response.kind == .Info {
                 // Whatever, this is depth 1, discard.
-                uci.state = .GoPollingCentipawns; Chamber.debug(uci.state);
+                uci.state = .GoPollingCentipawns;
                 if uci.nextPositionOnBestMove.moveIndex != 0xFFFF {
-                    uci.state = .StopWaitingForBestMove; Chamber.debug(uci.state);
+                    uci.state = .StopWaitingForBestMove;
                     _send(uci, .Stop);
                 }
             }
@@ -167,12 +172,12 @@ _on_update :: (dt : float64, uci : *UciEntity) {
                 if found {
                     right = String.trim_left(right);
                     mateIn := Basic.to_integer(right);
-                    newBestMoveCentipawns = (10000 + Math.abs(mateIn)) * (ifx mateIn < 0 then -1 else 1) * uci.centipawnsFactor;
+                    newBestMoveCentipawns = (100000 + Math.abs(mateIn)) * (ifx mateIn < 0 then -1 else 1) * uci.centipawnsFactor;
                 }
             }
         } else if uci.state == .StopWaitingForBestMove {
             if response.kind == .BestMove {
-                uci.state = .Ready; Chamber.debug(uci.state);
+                uci.state = .Ready;
                 if uci.nextPositionOnBestMove.moveIndex != 0xFFFF {
                     _send_position_and_go(uci, uci.nextPositionOnBestMove);
                     uci.nextPositionOnBestMove.moveIndex = 0xFFFF;
@@ -226,7 +231,7 @@ _task :: (thread : *Thread.Thread) -> s64 {
         }
 
         // Convert responseString to an array of responses.
-        responseLines := String.split(responseString, cast(u8) #char "\n");
+        responseLines := String.split(responseString, cast(u8) #char "\n",, allocator = Basic.temp);
         for responseLine : responseLines {
             if responseLine.count == 0 then continue;
             response : *UciResponse;
@@ -259,7 +264,7 @@ _task :: (thread : *Thread.Thread) -> s64 {
             } else {
                 Basic.log("Unknown UCI response: %\n", responseLine, flags = .WARNING);
             }
-            response.value = Basic.sprint("%", String.trim_left(response.value)); // @fixme memleak
+            response.value = Basic.sprint("%", String.trim_left(response.value));
         }
         responseString.count = 0;
 
@@ -287,14 +292,14 @@ _send :: (uci : *UciEntity, command : UciCommandKind, args := "") {
     commandString = Basic.tprint("%0%0%0\n", commandString, ifx args.count > 0 then " " else "", args);
     Process.write_to_process(*uci.process, cast([]u8) commandString);
 
-    Chamber.debug("Sent: ", commandString);
+    // Chamber.debug("Sent: ", commandString);
 }
 
 _send_position_and_go :: (uci : *UciEntity, position : Position) {
     if position.flags & .Mate then return;
 
-    uci.state = .GoStarting; Chamber.debug(uci.state);
-    _send(uci, .Position, Basic.tprint("fen %", position_to_fen(position)));
+    uci.state = .GoStarting;
+    _send(uci, .Position, Basic.tprint("fen %", position_to_fen(position,, allocator = Basic.temp)));
     _send(uci, .Go);
     uci.centipawnsFactor = ifx position_color_to_play(*position) == .White then 1 else -1;
 }
