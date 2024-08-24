@@ -238,6 +238,8 @@ _refresh_games_and_info_from_bytes :: (study : *Study) {
         else game = *study.games[gameIndex];
         game.bytes = bytes;
         game.study = study; // @fixme Not good, can be outdated
+        game.autoTitle = true;
+        game.kind = .None;
 
         // Skip until no more tags.
         while bytes[0] == #char "[" {
@@ -253,6 +255,13 @@ _refresh_games_and_info_from_bytes :: (study : *Study) {
             else if tagName == "White" then tags[4] = parse_until(*bytes, .[ #char "\"" ]);
             else if tagName == "Black" then tags[5] = parse_until(*bytes, .[ #char "\"" ]);
             else if tagName == "Result" then tags[6] = parse_until(*bytes, .[ #char "\"" ]);
+            else if tagName == "Title" {
+                game.title = Basic.copy_string(parse_until(*bytes, .[ #char "\"" ]));
+                game.autoTitle = false;
+            }
+            else if tagName == "Kind" {
+                game.kind = ifx parse_until(*bytes, .[ #char "\"" ]) == "Puzzle" then .Puzzle else .None;
+            }
 
             skip_until(*bytes, #char "\n");
             skip_blanks(*bytes);
@@ -269,8 +278,9 @@ _refresh_games_and_info_from_bytes :: (study : *Study) {
 
         game.bytes.count = game.bytes.count - bytes.count;
 
-        if game.title.count == 0 {
+        if game.autoTitle && game.title.count == 0 {
             game.title = Basic.sprint(instance.config.library.gameTitleFormat, tags[0], tags[1], tags[2], tags[3], tags[4], tags[5], tags[6]);
+            game.autoTitle = true;
         }
 
         gameIndex += 1;

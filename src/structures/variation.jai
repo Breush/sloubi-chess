@@ -31,7 +31,7 @@ variation_init :: (variation : *VariationEntity, game : *Game) {
         }
     }
 
-    if (variation.parentPly != null) {
+    if (variation.parentPly != null && game.kind != .Puzzle) {
         _init_decorum(variation);
     }
 }

@@ -8,6 +8,7 @@ Game :: struct {
 
     // -- User-level configurable data
     title : string;
+    kind : GameKind;
     // @note Tags are somewhat understood by SloubiChess, and can be overwritten
     // within a position. For instance, in PGN, we can write {[%tag BoardOrientation,White]}
     // to change the board orientation as we reach this position.
@@ -18,6 +19,7 @@ Game :: struct {
     bytes : string; @NoSerialize // View from the bytes array in study, showing one game in PGN format.
     summary : GameSummary;
     computeFlags : ComputeFlags;
+    autoTitle : bool;
     snapshots : [..]string; @NoSerialize
 
     ComputeFlags :: enum_flags u8 {
@@ -30,6 +32,11 @@ GameSummary :: struct {
     lastBoardPosition : CompactBoardPosition;
     lastMove : SimpleMove;
     lastBoardOrientation : Color;
+}
+
+GameKind :: enum u8 {
+    None :: 0;
+    Puzzle;
 }
 
 TagName :: enum u8 {
@@ -130,6 +137,7 @@ game_cleanup :: (game : *Game) {
 
     game_reset(game);
     Basic.free(game.title);
+    game.title.count = 0;
 
     if game.view != null {
         Sill.destroy_entity(game.view);

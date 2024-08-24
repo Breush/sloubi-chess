@@ -79,6 +79,11 @@ _on_message :: (using gameView : *GameView, message : *Message) {
 }
 
 _update_to_current_move :: (using gameView : *GameView) {
+    if game.kind == .Puzzle {
+        _update_to_current_move_as_puzzle(gameView);
+        return;
+    }
+
     // Uncollapse the tree if needed
     // @todo have it dynamic and hide it back when leaving?
     if game.ply != null {
@@ -117,6 +122,14 @@ _update_to_current_move :: (using gameView : *GameView) {
 
     delta := ifx Math.abs(deltaToFitAtTop) < Math.abs(deltaToFitAtBottom) then deltaToFitAtTop else deltaToFitAtBottom;
     tab_scroll(*game.study.view.tab, delta);
+}
+
+_update_to_current_move_as_puzzle :: (using gameView : *GameView) {
+    // Uncollapse the tree if needed
+    // @todo have it dynamic and hide it back when leaving?
+    if game.ply != null {
+        ply_place(game.ply, propagate = true);
+    }
 }
 
 _update_text_cursor :: (using gameView : *GameView, ply : *PlyEntity) {

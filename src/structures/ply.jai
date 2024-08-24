@@ -269,7 +269,12 @@ ply_place :: (ply : *PlyEntity, propagate := false, hidden := false) {
     // but hey, it's easier to do that since the introduction of compact moves,
     // which depend on both before and after moves.
     if propagate {
-        variation_place_plies(ply.parentVariation, 0, hidden = hidden);
+        if #complete ply.game.kind == {
+        case .None;
+            variation_place_plies(ply.parentVariation, 0, hidden = hidden);
+        case .Puzzle;
+            variation_place_plies(ply.game.mainVariation, 0);
+        }
         return;
     }
 
@@ -299,6 +304,37 @@ ply_place :: (ply : *PlyEntity, propagate := false, hidden := false) {
         ply.moveIndexTextWidth = text_mesh_update(ply.moveIndexMeshNode.primitives[0], moveIndexText, fontId, ply.moveColor, useMaterialCache = true);
         ply.moveTextWidth = text_mesh_update(ply.moveMeshNode.primitives[0], moveText, fontId, ply.moveColor, useMaterialCache = true);
         ply.moveTextDirty = false;
+    }
+
+    if ply.game.kind == .Puzzle {
+        isCurrentPly := ply == ply.game.ply;
+        if (isCurrentPly) {
+            if !ply.first {
+                ply.moveIndexMeshNode.primitives[0].disabled |= .Application;
+                ply.moveMeshNode.transform.translation.x = -ply.moveTextWidth / 2;
+                Chamber.round(*ply.moveMeshNode.transform.translation.xy);
+            }
+
+            if ply.charInfos.infos.count > 0 {
+                commentMaxWidth := 3 * maxWidth / 4;
+                commentWidth := ply.charInfos.infos[ply.charInfos.infos.count - 1].glyphOffset.x + ply.charInfos.infos[ply.charInfos.infos.count - 1].glyphExtent.x;
+                commentHeight, needCommentMeshUpdate := justify_char_infos(*ply.charInfos, commentMaxWidth, 0.0);
+                commentWidth = Chamber.min(commentWidth, commentMaxWidth);
+                ply.commentMeshNode.transform.translation.x = -commentWidth / 2;
+                ply.commentMeshNode.transform.translation.y = 2 * UiConstants.HeightLine;
+                Chamber.round(*ply.commentMeshNode.transform.translation.xy);
+                if needCommentMeshUpdate {
+                    _place_comment_from_char_infos(ply);
+                }
+            }
+
+            ply.transform.translation.x = maxWidth / 2;
+            ply.transform.translation.y = UiConstants.PaddingVertical;
+            Sill.transform_commit(*ply.transform);
+        }
+
+        Sill.entity_set_disabled(ply, !isCurrentPly);
+        return;
     }
 
     // Detect the ply location

@@ -28,6 +28,14 @@ TabComponent :: struct {
     page : TabPageEntity;
     linkedToSidebar : bool;
 
+    on_cleanup :: (using this : *TabComponent) {
+        for item : menu.items {
+            Basic.free(item);
+        }
+        Basic.array_free(menu.items);
+        Basic.array_free(actions);
+    }
+
     Action :: struct {
         text : string;
         icon : string;

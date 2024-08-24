@@ -37,6 +37,13 @@ load_pgn :: (bytes : string, game : *Game) -> bool {
                 // game.tags[TagName.Result].result = result;
             } else if tagName == "WhiteElo" { game.tags[TagName.WhiteElo].number = cast(u32) Basic.to_integer(_parse_to_end_of_string(*bytes));
             } else if tagName == "BlackElo" { game.tags[TagName.BlackElo].number = cast(u32) Basic.to_integer(_parse_to_end_of_string(*bytes));
+            } else if tagName == "Title" {
+                Basic.free(game.title);
+                game.title = _read_tag(*bytes);
+                game.autoTitle = false;
+            } else if tagName == "Kind" {
+                game.kind = ifx _parse_to_end_of_string(*bytes) == "Puzzle" then .Puzzle else .None;
+                game.autoTitle = false;
             } else if tagName == "SetUp" { // Ignored too. (Kind of duplicate with FEN.)
             } else {
                 extraTag := Basic.array_add(*game.extraTags);
@@ -99,6 +106,13 @@ write_pgn_from_plies :: (sb : *Basic.String_Builder, game : *Game) {
     if game.tags[TagName.BlackElo].number != 0 {
         Basic.print_to_builder(sb, "[BlackElo \"%\"]\n", game.tags[TagName.BlackElo].number);
     }
+    if !game.autoTitle && game.title.count != 0 {
+        Basic.print_to_builder(sb, "[Title \"%\"]\n", game.title);
+    }
+    if game.kind != .None {
+        Basic.print_to_builder(sb, "[Kind \"%\"]\n", game.kind);
+    }
+
     boardOrientation := game.tags[TagName.BoardOrientation].color;
     if boardOrientation != .White {
         Basic.print_to_builder(sb, "[BoardOrientation \"%\"]\n", boardOrientation);
@@ -808,6 +822,7 @@ _parse_potential_comment :: (bytes : *string, ply : *PlyEntity) -> (string, bool
                     else if tagName == "Black" then position_set_tag(position, .Black, .{ str = _read_tag(bytes) });
                     else if tagName == "WhiteElo" then position_set_tag(position, .WhiteElo, .{ number = cast(u32) Basic.to_integer(_parse_to_end_of_string(bytes)) });
                     else if tagName == "BlackElo" then position_set_tag(position, .BlackElo, .{ number = cast(u32) Basic.to_integer(_parse_to_end_of_string(bytes)) });
+                    else if tagName == "Title" {} // NoOp
                     else if tagName == "BoardOrientation" {
                         color := ifx bytes.*[0] == #char "W" then Color.White else .Black;
                         position_set_tag(position, .BoardOrientation, .{ color = color });

@@ -80,10 +80,10 @@ _on_reflow :: (using studyView : *StudyView) {
 _refresh_games_list :: (using studyView : *StudyView) {
     Basic.array_resize(*tab.menu.items, study.games.count + study.temporaryGames.count);
     for *game, gameIndex : study.games {
-        tab.menu.items[gameIndex] = game.title;
+        tab.menu.items[gameIndex] = Basic.copy_string(game.title);
     }
     for *game, gameIndex : study.temporaryGames {
-        tab.menu.items[study.games.count + gameIndex] = game.title;
+        tab.menu.items[study.games.count + gameIndex] = Basic.copy_string(game.title);
     }
     tab_commit_menu(*tab);
 }
@@ -204,6 +204,7 @@ _on_edit_game :: (using studyView : *StudyView) {
                 if elementIndex == 0 {
                     Basic.free(instance.currentGame.title);
                     instance.currentGame.title = Basic.copy_string(elementInfo.value);
+                    instance.currentGame.autoTitle = false;
                     send(.CurrentGameTitleChanged);
                 } else {
                     tagName := cast(TagName) (elementIndex - 1);
