@@ -6,7 +6,12 @@ ButtonComponent :: struct {
     ui : *Sill.UiComponent;
 
     // Editable at any time.
-    interactive := true;
+    locked := false;
+    backgroundColor : Chamber.vec3;
+    backgroundHoverColor : Chamber.vec3;
+    backgroundLockColor : Chamber.vec3;
+    callback : #type (data : *void);
+    callbackData : *void;
 
     // Editable before commit.
     text : string;
@@ -17,13 +22,24 @@ ButtonComponent :: struct {
     meshNode : *Sill.MeshNode;
     tooltipMeshNode : *Sill.MeshNode;
     tooltipExtent : Chamber.vec2;
+
+    // Internal
+    noBackground : bool;
+    hovered : bool;
 }
 
-component_init :: (using iButton : *ButtonComponent) {}
+component_init :: (using iButton : *ButtonComponent) {
+    backgroundColor = instance.config.env.contrastColor;
+    backgroundHoverColor = instance.config.env.hoverColor;
+    backgroundLockColor = instance.config.env.backgroundColor;
+}
+
 component_cleanup :: (using iButton : *ButtonComponent) {}
 component_update :: (using iButton : *ButtonComponent, dt : float64) {}
 
-button_commit :: (using iButton : *ButtonComponent, noBackground := false) {
+button_commit :: (iButton : *ButtonComponent, noBackground := false) {
+    iButton.noBackground = noBackground;
+
     // Background & text
     meshes, node := Sill.mesh_make_primitives(iButton.mesh, ifx noBackground then cast(u32) 1 else 2);
     if !noBackground {
@@ -32,43 +48,72 @@ button_commit :: (using iButton : *ButtonComponent, noBackground := false) {
     }
     textPrimitive := ifx noBackground then meshes[0] else meshes[1];
     create_text_mesh(existingMesh = textPrimitive);
-    text_mesh_update(textPrimitive, text, "mainLight", instance.config.env.textColor, anchor = .Center);
+    text_mesh_update(textPrimitive, iButton.text, "mainLight", instance.config.env.textColor, anchor = .Center);
 
     Sill.ui_on_trigger(iButton.ui, (trigger : Sill.UiTrigger, iButton : *ButtonComponent) {
-        hovered := iButton.interactive && (trigger.flags & .HoverStart);
-        Crater.window_pointer_style(instance.engine.window, ifx hovered then Crater.PointerStyle.HandPointing else .Default);
         if iButton.entity.flags & .Destroyed then return;
-        if iButton.tooltipText.count == 0 then return;
-        _update_button_from_hover(iButton, hovered);
-        if hovered then _place_tooltip(iButton);
-    }, Sill.UiCallbackFlags.HoverStart | .HoverStop, iButton);
+
+        << trigger.stopPropagation = true;
+
+        if trigger.flags & .Hovering then return;
+        if trigger.flags & .ClickStop {
+            if iButton.callback {
+                iButton.callback(iButton.callbackData);
+            }
+            return;
+        }
+
+        iButton.hovered = cast(bool) (trigger.flags & .HoverStart);
+        button_refresh(iButton);
+    }, Sill.UiCallbackFlags.HoverStart | .Hovering | .HoverStop | .ClickStop, iButton);
 
     // Tooltip background & text
-    if tooltipText.count != 0 {
+    if iButton.tooltipText.count != 0 {
         tooltipMeshes, tooltipNode := Sill.mesh_make_primitives(iButton.mesh, 2);
         create_text_mesh(existingMesh = tooltipMeshes[1]);
-        tooltipTextWidth := text_mesh_update(tooltipMeshes[1], tooltipText, "mainLight", instance.config.env.textColor, anchor = .Center);
+        tooltipTextWidth := text_mesh_update(tooltipMeshes[1], iButton.tooltipText, "mainLight", instance.config.env.textColor, anchor = .Center);
         create_rect_mesh(tooltipTextWidth + 2 * UiConstants.PaddingHorizontalMedium, instance.config.env.fontSize + UiConstants.PaddingVerticalMedium, 1, .Center, existingMesh = tooltipMeshes[0]);
         tooltipMeshes[0].material = Magma.create_material(instance.shaders.monochrome);
         Magma.material_set_color(tooltipMeshes[0].material, "color", instance.config.env.hoverColor);
         tooltipNode.transform.translation.z = UiConstants.DepthButtonTooltip;
 
-        meshNode = node;
-        tooltipMeshNode = tooltipNode;
-        tooltipExtent = Chamber.vec2.{tooltipTextWidth + 2 * UiConstants.PaddingHorizontalMedium, instance.config.env.fontSize + 2 * UiConstants.PaddingVerticalMedium};
-        _update_button_from_hover(iButton);
+        iButton.meshNode = node;
+        iButton.tooltipMeshNode = tooltipNode;
+        iButton.tooltipExtent = Chamber.vec2.{tooltipTextWidth + 2 * UiConstants.PaddingHorizontalMedium, instance.config.env.fontSize + 2 * UiConstants.PaddingVerticalMedium};
     }
+
+    button_refresh(iButton);
+}
+
+button_refresh :: (iButton : *ButtonComponent) {
+    if iButton.mesh.nodes.count == 0 then return;
+
+    if !iButton.noBackground {
+        color := iButton.backgroundColor;
+        if iButton.locked {
+            color = iButton.backgroundLockColor;
+            iButton.hovered = false;
+        } else if iButton.hovered {
+            color = iButton.backgroundHoverColor;
+        }
+
+        Magma.material_set_color(iButton.mesh.nodes[0].primitives[0].material, "color", color);
+    }
+
+    Crater.window_pointer_style(instance.engine.window, ifx iButton.hovered then Crater.PointerStyle.HandPointing else .Default);
+
+    if iButton.tooltipText.count == 0 then return;
+
+    // For each tooltip node primitive.
+    for primitive : iButton.tooltipMeshNode.primitives {
+        if iButton.hovered then primitive.disabled &= ~.Application;
+        else primitive.disabled |= .Application;
+    }
+
+    if iButton.hovered then _place_tooltip(iButton);
 }
 
 #scope_file
-
-_update_button_from_hover :: (iButton : *ButtonComponent, hovered := false) {
-    // For each tooltip node primitive.
-    for primitive : iButton.tooltipMeshNode.primitives {
-        if hovered then primitive.disabled &= ~.Application;
-        else primitive.disabled |= .Application;
-    }
-}
 
 _place_tooltip :: (using iButton : *ButtonComponent) {
     // @todo :UpdateAtEachHover We could somehow dirtify this on screen extent change and

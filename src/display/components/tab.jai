@@ -268,21 +268,19 @@ _refresh_actions :: (using iTab : *TabComponent) {
             actionEntity.button.text = action.icon;
             actionEntity.button.tooltipText = action.text;
             actionEntity.button.tooltipSide = .Top;
+            actionEntity.button.callback = xx (actionEntity : *TabPageTitleActionEntity) {
+                actionEntity.tabComponent.actions[actionEntity.actionIndex].callback(actionEntity.tabComponent.entity);
+            };
+            actionEntity.button.callbackData = actionEntity;
             actionEntity.ui.extent.width = UiConstants.SizeTabAction;
             actionEntity.ui.extent.height = UiConstants.SizeTabAction;
             button_commit(*actionEntity.button, noBackground = true);
             _update_action_hovered(actionEntity.button.meshNode);
 
             Sill.ui_on_trigger(*actionEntity.ui, (trigger : Sill.UiTrigger, actionEntity : *TabPageTitleActionEntity) {
-                trigger.stopPropagation.* = true;
-
-                if trigger.flags & .HoverStart || trigger.flags & .HoverStop {
-                    if actionEntity.flags & .Destroyed then return;
-                    _update_action_hovered(actionEntity.button.meshNode, cast(bool) (trigger.flags & .HoverStart));
-                } else if trigger.flags & .ClickStop {
-                    actionEntity.tabComponent.actions[actionEntity.actionIndex].callback(actionEntity.tabComponent.entity);
-                }
-            }, Sill.UiCallbackFlags.ClickStop | .HoverStart | .Hovering | .HoverStop, actionEntity);
+                if actionEntity.flags & .Destroyed then return;
+                _update_action_hovered(actionEntity.button.meshNode, cast(bool) (trigger.flags & .HoverStart));
+            }, .HoverStart | .HoverStop, actionEntity);
 
             iTab.page.title.actions[actionIndex] = actionEntity;
         }

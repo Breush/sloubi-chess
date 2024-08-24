@@ -70,7 +70,8 @@ _on_message :: (using sidebar : *SidebarEntity, message : *Message) {
     case .SelectTab;
         for tabButton : tabButtons {
             tabButton.active = (tabButton.tab.entity == message.entity);
-            _update_button_from_hover(tabButton);
+            tabButton.button.locked = tabButton.active;
+            button_refresh(*tabButton.button);
         }
 
     }
@@ -114,39 +115,12 @@ _make_button :: (button : *SidebarButtonEntity, icon : string, tooltipText : str
     button.ui.extent.height = UiConstants.WidthSidebar;
 
     button.button.text = icon;
+    button.button.backgroundColor = instance.config.env.contrastColor;
+    button.button.backgroundHoverColor = instance.config.env.hoverColor;
+    button.button.backgroundLockColor = instance.config.env.backgroundColor;
     button.button.tooltipText = tooltipText;
     button.button.tooltipSide = .Left;
     button_commit(*button.button);
 
-    Sill.ui_on_trigger(*button.ui, (trigger : Sill.UiTrigger, button : *SidebarButtonEntity) {
-        trigger.stopPropagation.* = true;
-
-        if trigger.flags & .HoverStart || trigger.flags & .HoverStop {
-            hovered := cast(bool) (trigger.flags & .HoverStart);
-            _update_button_from_hover(button, hovered);
-            Crater.window_pointer_style(instance.engine.window, ifx !button.active && hovered then Crater.PointerStyle.HandPointing else .Default);
-        }
-    }, Sill.UiCallbackFlags.ClickStop | .HoverStart | .Hovering | .HoverStop, button);
-
     button.transform.translation.z = UiConstants.DepthSidebarButton;
-    _update_button_from_hover(button);
-}
-
-_update_button_from_hover :: (button : *SidebarButtonEntity, hovered := false) {
-    // @note Check needed, as buttons can be constructed with delay.
-    if button.mesh.nodes.count == 0 then return;
-
-    // For each tooltip node primitive.
-    if button.button.tooltipMeshNode != null {
-        for primitive : button.button.tooltipMeshNode.primitives {
-            if !button.active && hovered then primitive.disabled &= ~.Application;
-            else primitive.disabled |= .Application;
-        }
-    }
-
-    color : *Chamber.vec3;
-    if button.active then color = *instance.config.env.backgroundColor;
-    else if hovered then color = *instance.config.env.hoverColor;
-    else color = *instance.config.env.contrastColor;
-    Magma.material_set_color(button.mesh.nodes[0].primitives[0].material, "color", << color);
 }

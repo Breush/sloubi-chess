@@ -57,10 +57,13 @@ DialogFormElement :: struct {
     text : string;
     value : string;
     anchor : Chamber.Anchor;
+    callback : #type (data : *void);
+    callbackData : *void;
 
     Kind :: enum u8 {
-        Label;
-        TextEntry;
+        Label;      // text, anchor
+        TextEntry;  // text, value
+        Button;     // text, callback, callbackData
     }
 }
 
@@ -185,6 +188,21 @@ _content_create :: (using dialogContent : *DialogContentEntity, data : DialogFor
 
             dialogWidth = Basic.max(dialogWidth, 2 * (label.ui.extent.width + UiConstants.PaddingHorizontalMedium) + textEntry.ui.extent.width);
             yOffset += UiConstants.HeightLine + UiConstants.PaddingVerticalMedium;
+        case .Button;
+            button := SillMeta.create_ui_button_entity(instance.engine);
+            Sill.entity_set_parent(button, dialogContent);
+            button.ui.extent.width = UiConstants.WidthButtonDialog;
+            button.ui.extent.height = UiConstants.HeightButtonDialog;
+            button.transform.translation.y = yOffset + button.ui.extent.height / 2.0;
+            button.transform.translation.z = UiConstants.DepthDialogButton;
+
+            button.button.text = element.text;
+            button.button.callback = element.callback;
+            button_commit(*button.button);
+
+            Magma.material_set_color(button.mesh.nodes[0].primitives[0].material, "color", instance.config.env.contrastColor);
+
+            yOffset += button.ui.extent.height + UiConstants.PaddingVerticalMedium;
         }
     }
 
@@ -214,24 +232,15 @@ _content_create :: (using dialogContent : *DialogContentEntity, data : DialogFor
         button.transform.translation.z = UiConstants.DepthDialogButton;
 
         button.button.text = choice;
+        button.button.callback = xx (button : *UiButtonEntity) {
+            dialogContent := cast(*DialogContentEntity) button.parent;
+            dialog := cast(*DialogEntity) dialogContent.parent;
+            found, choiceIndex := Basic.array_find(dialogContent.children, button);
+            choiceIndex -= dialogContent.choiceIndexOffset;
+            if found then dialog.callback(dialog, cast(u32) choiceIndex, dialog.userData);
+        };
+        button.button.callbackData = button;
         button_commit(*button.button); // @todo Unify, as Label and TextEntry don't work like that...
-
-        Magma.material_set_color(button.mesh.nodes[0].primitives[0].material, "color", instance.config.env.contrastColor);
-
-        Sill.ui_on_trigger(*button.ui, (trigger : Sill.UiTrigger, button : *UiButtonEntity) {
-            if trigger.flags & .HoverStart || trigger.flags & .HoverStop {
-                hovered := cast(bool) (trigger.flags & .HoverStart);
-                if button.flags & .Destroyed then return;
-                color := ifx hovered then instance.config.env.hoverColor else instance.config.env.contrastColor;
-                Magma.material_set_color(button.mesh.nodes[0].primitives[0].material, "color", color);
-            } else {
-                dialogContent := cast(*DialogContentEntity) button.parent;
-                dialog := cast(*DialogEntity) dialogContent.parent;
-                found, choiceIndex := Basic.array_find(dialogContent.children, button);
-                choiceIndex -= dialogContent.choiceIndexOffset;
-                if found then dialog.callback(dialog, cast(u32) choiceIndex, dialog.userData);
-            }
-        }, Sill.UiCallbackFlags.HoverStart | .HoverStop | .ClickStop, button);
     }
     yOffset += UiConstants.HeightButtonDialog;
 

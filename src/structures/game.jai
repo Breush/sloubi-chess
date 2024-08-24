@@ -90,6 +90,16 @@ load_game :: (filename : string, gameIndex : u32, computeFlags := Game.ComputeFl
 }
 
 game_create :: (game : *Game) {
+    game_setup_main_variation(game);
+    rootPly := variation_add_ply(game.mainVariation);
+    rootPly.position = get_starting_position();
+    rootPly.position.result = .Unknown;
+
+    game.tags[TagName.White].str = Basic.copy_string("White");
+    game.tags[TagName.Black].str = Basic.copy_string("Black");
+}
+
+game_open :: (game : *Game) {
     if game.mainVariation == null {
         load_pgn(game.bytes, game);
         game.computeFlags |= .Plies;

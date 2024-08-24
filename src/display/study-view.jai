@@ -183,7 +183,11 @@ _on_edit_game :: (using studyView : *StudyView) {
                     .{ kind = .TextEntry, text = "Round", value = game_subgame_tag_or_empty(instance.currentGame, firstPly, .Round).str },
                     .{ kind = .TextEntry, text = "White", value = game_subgame_tag_or_empty(instance.currentGame, firstPly, .White).str },
                     .{ kind = .TextEntry, text = "Black", value = game_subgame_tag_or_empty(instance.currentGame, firstPly, .Black).str },
-                    .{ kind = .Label, text = editPositionText, value = "mainLight", anchor = .Left });
+                    // .{ kind = .Button, text = "+", callback = (data : *void) {
+                    //     Chamber.debug("Hey");
+                    // }},
+                    .{ kind = .Label, text = editPositionText, value = "mainLight", anchor = .Left },
+                    );
                     // @todo BoardOrientation
                     // @todo NumberEntry for WhiteElo/BlackElo
 

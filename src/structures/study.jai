@@ -100,7 +100,7 @@ study_show_game :: (study : *Study, game : *Game) {
     }
 
     study.currentGame = game;
-    if game.view == null then game_create(game);
+    if game.view == null then game_open(game);
 
     send(.StudyCurrentGameChanged, study);
     send(.SelectTab, study.view);
@@ -114,10 +114,7 @@ study_add_game :: (study : *Study) {
         if game.view != null then game.view.game = game;
     }
 
-    game_setup_main_variation(game);
-    rootPly := variation_add_ply(game.mainVariation);
-    rootPly.position = get_starting_position();
-    rootPly.position.result = .Unknown;
+    game_create(game);
 
     send(.StudyGamesChanged, study);
     study_show_game(study, game);
