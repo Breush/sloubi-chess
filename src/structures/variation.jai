@@ -58,7 +58,6 @@ variation_add_ply :: (variation : *VariationEntity) -> *PlyEntity {
 
 variation_refresh_backlinks :: (variation : *VariationEntity, game : *Game) {
     for ply : variation.plies {
-        Chamber.debug("From ", ply.game, " to ", game);
         ply.game = game;
         for subVariation : ply.variations {
             variation_refresh_backlinks(subVariation, game);

@@ -58,6 +58,7 @@ controller_create :: () -> *ControllerEntity {
 
     Sill.behavior_on_update(*behaviorComponent, (dt : float64, using instance : *Instance) {
         if currentGame == null then return;
+        if controller.currentMode != .Game then return;
 
         if Sill.input_action_just_activated(*engine.input, "game.undo", true)                 then game_undo(currentGame);
         if Sill.input_action_just_activated(*engine.input, "game.ply.previous", true)         then game_go_to_previous_move(currentGame);
@@ -139,6 +140,20 @@ mode_pop :: () {
     send(.ModeChanged, instance.controller.currentMode, oldMode);
 }
 
+mode_pop_push :: (mode : Mode) {
+    if instance.controller.modeStack.count == 0 {
+        mode_push(mode);
+        return;
+    }
+
+    oldMode := Basic.peek(instance.controller.modeStack).mode;
+    if oldMode == mode then return;
+
+    instance.controller.currentMode = mode;
+    Basic.peek(instance.controller.modeStack).mode = mode;
+    send(.ModeChanged, instance.controller.currentMode, oldMode);
+}
+
 #scope_file
 
 _on_message :: (using controller : *ControllerEntity, message : *Message) {
@@ -148,8 +163,12 @@ _on_message :: (using controller : *ControllerEntity, message : *Message) {
     case .SelectTab;
         if message.entity.typeInfo == type_info(StudyView) {
             game_show((cast(*StudyView) message.entity).study.currentGame);
+            mode_pop();
+            mode_push(.Game);
         } else {
             game_show(null);
+            mode_pop();
+            mode_push(.Library);
         }
     }
 }

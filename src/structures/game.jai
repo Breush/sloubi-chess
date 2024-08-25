@@ -343,12 +343,13 @@ game_play_move :: (game : *Game, sourceCoord : Coord, targetCoord : Coord, promo
 }
 
 game_edit_ply_comment :: (game : *Game) {
-    if game.ply == null then return;
+    if game.ply == null || !instance.metaBoard.boardView.state.interactive then return;
     ply_edit_comment(game.ply);
 }
 
 game_delete_ply :: (game : *Game) {
-    if game.ply == null then return;
+    if game.ply == null || !instance.metaBoard.boardView.state.interactive then return;
+
     previousPly := ply_delete(game.ply);
 
     if previousPly {

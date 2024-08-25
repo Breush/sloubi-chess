@@ -35,6 +35,7 @@ DialogContentEntity :: struct {
         kind : DialogFormElement.Kind;
         changed : bool;
         value : string;
+        data : *void;
     }
 
     on_cleanup :: (using this : *DialogContentEntity) {
@@ -59,6 +60,7 @@ DialogFormElement :: struct {
     anchor : Chamber.Anchor;
     callback : #type (data : *void);
     callbackData : *void;
+    data : *void; // Just some user data.
 
     Kind :: enum u8 {
         Label;      // text, anchor
@@ -159,6 +161,8 @@ _content_create :: (using dialogContent : *DialogContentEntity, data : DialogFor
     yOffset := UiConstants.PaddingVerticalMedium;
     dialogWidth : float;
     for element, elementIndex : data.elements {
+        dialogContent.elementInfos[elementIndex].data = element.data;
+
         if #complete element.kind == {
         case .Label;
             label := create_label(element.text, style = element.value, anchor = element.anchor);

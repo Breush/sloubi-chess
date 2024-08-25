@@ -177,12 +177,12 @@ _on_edit_game :: (using studyView : *StudyView) {
     Basic.array_add(*elements,
                     .{ kind = .TextEntry, text = "Game title", value = instance.currentGame.title },
                     .{ kind = .Label, text = descriptionText, value = "mainLight", anchor = .Left },
-                    .{ kind = .TextEntry, text = "Event", value = game_subgame_tag_or_empty(instance.currentGame, firstPly, .Event).str },
-                    .{ kind = .TextEntry, text = "Site",  value = game_subgame_tag_or_empty(instance.currentGame, firstPly, .Site).str },
-                    .{ kind = .TextEntry, text = "Date",  value = game_subgame_tag_or_empty(instance.currentGame, firstPly, .Date).str },
-                    .{ kind = .TextEntry, text = "Round", value = game_subgame_tag_or_empty(instance.currentGame, firstPly, .Round).str },
-                    .{ kind = .TextEntry, text = "White", value = game_subgame_tag_or_empty(instance.currentGame, firstPly, .White).str },
-                    .{ kind = .TextEntry, text = "Black", value = game_subgame_tag_or_empty(instance.currentGame, firstPly, .Black).str },
+                    .{ kind = .TextEntry, data = xx TagName.Event, text = "Event", value = game_subgame_tag_or_empty(instance.currentGame, firstPly, .Event).str },
+                    .{ kind = .TextEntry, data = xx TagName.Site, text = "Site",  value = game_subgame_tag_or_empty(instance.currentGame, firstPly, .Site).str },
+                    .{ kind = .TextEntry, data = xx TagName.Date, text = "Date",  value = game_subgame_tag_or_empty(instance.currentGame, firstPly, .Date).str },
+                    .{ kind = .TextEntry, data = xx TagName.Round, text = "Round", value = game_subgame_tag_or_empty(instance.currentGame, firstPly, .Round).str },
+                    .{ kind = .TextEntry, data = xx TagName.White, text = "White", value = game_subgame_tag_or_empty(instance.currentGame, firstPly, .White).str },
+                    .{ kind = .TextEntry, data = xx TagName.Black, text = "Black", value = game_subgame_tag_or_empty(instance.currentGame, firstPly, .Black).str },
                     // .{ kind = .Button, text = "+", callback = (data : *void) {
                     //     Chamber.debug("Hey");
                     // }},
@@ -207,7 +207,7 @@ _on_edit_game :: (using studyView : *StudyView) {
                     instance.currentGame.autoTitle = false;
                     send(.CurrentGameTitleChanged);
                 } else {
-                    tagName := cast(TagName) (elementIndex - 1);
+                    tagName := cast(TagName) (elementInfo.data);
                     game_subgame_set_tag(instance.currentGame, firstPly, tagName, .{ str = Basic.copy_string(elementInfo.value) });
                 }
             }
