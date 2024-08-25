@@ -99,17 +99,20 @@ text_mesh_update :: (mesh : *Magma.Mesh, text : string, fontId : string, color :
     for *glyphInfo : glyphInfos {
         if glyphInfo.blank then continue;
 
-        mesh.vertices[4 * index + 0].position.x = glyphInfo.offset.x;
-        mesh.vertices[4 * index + 0].position.y = glyphInfo.offset.y;
+        glyphOffset := glyphInfo.offset;
+        Chamber.round(*glyphOffset);
+
+        mesh.vertices[4 * index + 0].position.x = glyphOffset.x;
+        mesh.vertices[4 * index + 0].position.y = glyphOffset.y;
         mesh.vertices[4 * index + 0].position.z = depth;
-        mesh.vertices[4 * index + 1].position.x = glyphInfo.offset.x;
-        mesh.vertices[4 * index + 1].position.y = glyphInfo.offset.y + glyphInfo.extent.height;
+        mesh.vertices[4 * index + 1].position.x = glyphOffset.x;
+        mesh.vertices[4 * index + 1].position.y = glyphOffset.y + glyphInfo.extent.height;
         mesh.vertices[4 * index + 1].position.z = depth;
-        mesh.vertices[4 * index + 2].position.x = glyphInfo.offset.x + glyphInfo.extent.width;
-        mesh.vertices[4 * index + 2].position.y = glyphInfo.offset.y + glyphInfo.extent.height;
+        mesh.vertices[4 * index + 2].position.x = glyphOffset.x + glyphInfo.extent.width;
+        mesh.vertices[4 * index + 2].position.y = glyphOffset.y + glyphInfo.extent.height;
         mesh.vertices[4 * index + 2].position.z = depth;
-        mesh.vertices[4 * index + 3].position.x = glyphInfo.offset.x + glyphInfo.extent.width;
-        mesh.vertices[4 * index + 3].position.y = glyphInfo.offset.y;
+        mesh.vertices[4 * index + 3].position.x = glyphOffset.x + glyphInfo.extent.width;
+        mesh.vertices[4 * index + 3].position.y = glyphOffset.y;
         mesh.vertices[4 * index + 3].position.z = depth;
         mesh.vertices[4 * index + 0].uv.x = glyphInfo.minUv.x;
         mesh.vertices[4 * index + 0].uv.y = glyphInfo.minUv.y;
@@ -245,7 +248,6 @@ justify_char_infos :: (charInfos : *CharInfos, maxWidth : float, startingOffsetX
     }
 
     for *charInfo : infos {
-        Chamber.round(*charInfo.effective.glyphOffset);
         charInfo.effective.xStart = charInfo.effective.glyphOffset.x;
         charInfo.effective.xEnd = charInfo.effective.glyphOffset.x + charInfo.glyphExtent.width;
         charInfo.effective.xEndWithAdvance = charInfo.effective.glyphOffset.x + charInfo.glyphAdvance;
@@ -272,14 +274,17 @@ place_from_char_infos :: (mesh : *Magma.Mesh, charInfos : *CharInfos, anchor : C
         if charInfo.effective.xEnd > maxBounds.x then maxBounds.x = charInfo.effective.xEnd;
         if charInfo.effective.yEnd > maxBounds.y then maxBounds.y = charInfo.effective.yEnd;
 
-        mesh.vertices[4 * index + 0].position.x = charInfo.effective.glyphOffset.x;
-        mesh.vertices[4 * index + 0].position.y = charInfo.effective.glyphOffset.y;
-        mesh.vertices[4 * index + 1].position.x = charInfo.effective.glyphOffset.x;
-        mesh.vertices[4 * index + 1].position.y = charInfo.effective.glyphOffset.y + charInfo.glyphExtent.height;
-        mesh.vertices[4 * index + 2].position.x = charInfo.effective.glyphOffset.x + charInfo.glyphExtent.width;
-        mesh.vertices[4 * index + 2].position.y = charInfo.effective.glyphOffset.y + charInfo.glyphExtent.height;
-        mesh.vertices[4 * index + 3].position.x = charInfo.effective.glyphOffset.x + charInfo.glyphExtent.width;
-        mesh.vertices[4 * index + 3].position.y = charInfo.effective.glyphOffset.y;
+        glyphOffset := charInfo.effective.glyphOffset;
+        Chamber.round(*glyphOffset);
+
+        mesh.vertices[4 * index + 0].position.x = glyphOffset.x;
+        mesh.vertices[4 * index + 0].position.y = glyphOffset.y;
+        mesh.vertices[4 * index + 1].position.x = glyphOffset.x;
+        mesh.vertices[4 * index + 1].position.y = glyphOffset.y + charInfo.glyphExtent.height;
+        mesh.vertices[4 * index + 2].position.x = glyphOffset.x + charInfo.glyphExtent.width;
+        mesh.vertices[4 * index + 2].position.y = glyphOffset.y + charInfo.glyphExtent.height;
+        mesh.vertices[4 * index + 3].position.x = glyphOffset.x + charInfo.glyphExtent.width;
+        mesh.vertices[4 * index + 3].position.y = glyphOffset.y;
 
         index += 1;
     }
