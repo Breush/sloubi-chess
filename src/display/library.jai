@@ -138,7 +138,7 @@ _reload_from_disk :: (using library : *LibraryEntity) {
     }
 
     Basic.log("Loading library from '%'", library.currentPath, flags = .VERBOSE_ONLY);
-    FileUtilities.visit_files(library.currentPath, false, library, visitor, visit_directories = true, follow_symlinks = false);
+    FileUtilities.visit_files(library.currentPath, false, library, visitor, visit_directories = true, visit_symlinks = false);
 
     // Sort entries, showing folders-like first, and alphabetic sorting.
     Sort.quick_sort(entries, (a : *EntryEntity, b : *EntryEntity) -> s64 {
@@ -305,7 +305,7 @@ _ariane_thread_add :: (using arianeThread : *TransformEntity, data : EntryEntity
 
         for arianeChild, arianeChildIndex : arianeThread.children {
             if arianeChild == arianeEntry {
-                for < i : arianeThread.children.count - 1 .. arianeChildIndex + 1 {
+                for #v2 < i : arianeChildIndex + 1 .. arianeThread.children.count - 1 {
                     Sill.destroy_entity(arianeThread.children[i], warnParent = false);
                 }
                 arianeThread.children.count = arianeChildIndex + 1;

@@ -119,7 +119,7 @@ smart_mover_remove_last_key :: (using smartMover : *SmartMoverEntity) {
     if keys.count == 0 return;
 
     keys.count -= 1;
-    for <i : keysText.count - 1 .. 0 {
+    for #v2 < i : 0 .. keysText.count - 1 {
         if keysText[i] == #char "[" {
             keysText.count = i;
             break;

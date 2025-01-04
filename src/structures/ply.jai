@@ -581,7 +581,7 @@ ply_effective_tag :: (ply : *PlyEntity, tagName : TagName) -> *TagValue {
     if ply == null then return null;
 
     // Check all plies in our variation, backwards.
-    for < index : ply.index .. 0 {
+    for #v2 < index : 0 .. ply.index {
         attributeValue := Hash.table_find_pointer(*ply.parentVariation.plies[index].position.tags, tagName);
         if attributeValue != null then return attributeValue;
     }
@@ -594,7 +594,7 @@ ply_subgame_first_ply :: (ply : *PlyEntity) -> *PlyEntity {
     if ply == null then return null;
 
     // Check all plies in our variation, backwards.
-    for < index : ply.index .. 0 {
+    for #v2 < index : 0 .. ply.index {
         if ply.first then return ply;
         if ply.parentVariation.plies[index].first {
             return ply.parentVariation.plies[index];
@@ -776,7 +776,7 @@ _is_within_compact_sequence :: (ply : *PlyEntity) -> (compact : bool, firstInSeq
     if ply.first || !is_compact(ply) then return false, false;
 
     compactPlyCount := 1;
-    for <i : ply.index - 1 .. 1 {
+    for #v2 < i : 1 .. ply.index - 1 {
         previousPly := ply.parentVariation.plies[i];
         if !is_compact(previousPly) break;
         compactPlyCount += 1;

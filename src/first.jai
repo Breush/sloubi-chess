@@ -85,5 +85,5 @@ ship :: () {
         } else {
             FileUtilities.copy_file(info.full_name, targetFileName);
         }
-    }, visit_directories = true, follow_symlinks = false);
+    }, visit_directories = true);
 }
