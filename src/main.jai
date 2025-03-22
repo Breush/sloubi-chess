@@ -127,17 +127,18 @@ main :: () {
     read_json_as(*instance.config, args.config);
     read_json_as(*instance.persistence, Basic.tprint("%.sloubi-chess/persistence.json", storagePath), silentOnError = true);
 
+    _storage_init();
+
     instance.engine = Sill.create_engine(SillMeta, .{
         windowTitle = "SloubiChess",
         eventHandler = _event_handler,
         fpsLimit = 60,
         renderEngine = .{
             features = .Window,
-            watchShaderFiles = true
+            watchShaderFiles = true,
+            shaderCacheFolder = ifx args.noCache then "" else Basic.sprint("%.sloubi-chess/cache/shaders/", storagePath),
         }
     });
-
-    _storage_init();
 
     if !args.noCache {
         _cache_init(*instance.studies, "studies", instance.STUDIES_VERSION);
@@ -334,11 +335,13 @@ _storage_init :: () {
     cacheStoragePath := Basic.tprint("%cache%", appStoragePath, Chamber.PATH_SEPARATOR);
     libraryStoragePath := Basic.tprint("%library%", appStoragePath, Chamber.PATH_SEPARATOR);
     downloadsStoragePath := Basic.tprint("%downloads", appStoragePath, Chamber.PATH_SEPARATOR);
+    shaderCacheStoragePath := Basic.tprint("%cache%shaders", appStoragePath, Chamber.PATH_SEPARATOR, Chamber.PATH_SEPARATOR);
 
     File.os_make_directory_if_it_does_not_exist(appStoragePath);
     File.os_make_directory_if_it_does_not_exist(cacheStoragePath);
     File.os_make_directory_if_it_does_not_exist(libraryStoragePath);
     File.os_make_directory_if_it_does_not_exist(downloadsStoragePath);
+    File.os_make_directory_if_it_does_not_exist(shaderCacheStoragePath);
 }
 
 #import "Math";
