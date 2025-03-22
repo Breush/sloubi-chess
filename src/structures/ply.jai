@@ -330,6 +330,7 @@ ply_place :: (ply : *PlyEntity, propagate := false, hidden := false) {
 
             ply.transform.translation.x = maxWidth / 2;
             ply.transform.translation.y = UiConstants.PaddingVertical;
+            Chamber.round(*ply.transform.translation);
             Sill.transform_commit(*ply.transform);
         }
 

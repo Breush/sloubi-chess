@@ -301,6 +301,7 @@ _refresh_actions :: (using iTab : *TabComponent) {
             iTab.page.title.actions[actionIndex].transform.translation = rightCurrentPosition;
             rightCurrentPosition.x -= UiConstants.SizeTabAction;
         }
+        Chamber.round(*iTab.page.title.actions[actionIndex].transform.translation);
     }
 
     Sill.transform_commit(*iTab.page.title.transform);
@@ -403,6 +404,7 @@ _refresh_menu_items :: (iTab : *TabComponent) {
         itemEntity.ui.extent.width = iTab.page.content.ui.extent.width - UiConstants.PaddingHorizontal;
         itemEntity.transform.translation.y = UiConstants.SizeTabAction + UiConstants.HeightLine * effectiveItemIndex;
         text_mesh_update(itemEntity.mesh.nodes[0].primitives[0], item, "mainLight", instance.config.env.textColor, anchor = .Left);
+        Chamber.round(*itemEntity.transform.translation);
         Sill.transform_commit(*itemEntity.transform);
         Sill.entity_set_disabled(itemEntity, menu.folded);
     }
@@ -422,8 +424,8 @@ _reflow :: (entity : *Sill.Entity) {
 
     // Vertical layout
     if extent.height > extent.width {
-        iTab.page.transform.translation.x = -Math.floor(extent.width / 2.0 + 0.5);
-        iTab.page.transform.translation.y = 0.0;
+        iTab.page.transform.translation.x = 0.0;
+        iTab.page.transform.translation.y = extent.height / 2;
         iTab.page.content.ui.anchor = .TopLeft;
         iTab.page.content.ui.extent.width = extent.width - UiConstants.PaddingHorizontal;
         iTab.page.content.ui.extent.height = extent.height / 2 - UiConstants.HeightTabPageTitle;
@@ -434,8 +436,8 @@ _reflow :: (entity : *Sill.Entity) {
     }
     // Horizontal layout
     else {
-        iTab.page.transform.translation.x = 0.0;
-        iTab.page.transform.translation.y = -Math.floor(extent.height / 2.0 + 0.5);
+        iTab.page.transform.translation.x = extent.width / 2;
+        iTab.page.transform.translation.y = 0.0;
         iTab.page.content.ui.anchor = .TopLeft;
         iTab.page.content.ui.extent.width = extent.width / 2 - UiConstants.WidthSidebar;
         iTab.page.content.ui.extent.height = extent.height - UiConstants.HeightTabPageTitle;
@@ -450,6 +452,7 @@ _reflow :: (entity : *Sill.Entity) {
     iTab.page.title.mesh.nodes[1].transform.translation.x = UiConstants.PaddingHorizontal / 2;
     iTab.page.title.mesh.nodes[1].transform.translation.y = UiConstants.HeightTabPageTitle;
 
+    Chamber.round(*iTab.page.transform.translation);
     Sill.transform_commit(*iTab.page.transform);
     Sill.mesh_commit_nodes(*iTab.page.title.mesh);
 

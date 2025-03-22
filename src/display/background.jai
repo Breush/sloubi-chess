@@ -10,7 +10,7 @@ background_create :: () -> *BackgroundEntity {
     using background := SillMeta.create_background_entity(instance.engine);
     Sill.listener_on_message(*listener, _on_message);
 
-    primitive := create_rect_mesh();
+    primitive := create_rect_mesh(anchor = .TopLeft);
     primitive.material = Magma.create_material(instance.shaders.monochrome);
     Magma.material_set_color(primitive.material, "color", instance.config.env.backgroundColor);
 

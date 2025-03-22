@@ -65,15 +65,15 @@ _reflow :: (using metaBoard : *MetaBoardEntity) {
     // Vertical layout
     if (eye.extent.height > eye.extent.width) {
         size = 0.95 * Basic.min(eye.extent.height / 2.0, cast(float) eye.extent.width - UiConstants.WidthSidebar);
-        transform.translation.x = -UiConstants.WidthSidebar / 2.0;
-        transform.translation.y = -size / 2.0;
+        transform.translation.x = eye.extent.width / 2.0 - UiConstants.WidthSidebar / 2.0;
+        transform.translation.y = eye.extent.height / 2.0 - size / 2.0;
     }
     // Horizontal layout
     else {
         // We want to fit the boardView in the left part of the screen nicely à 95% of the available space.
         size = 0.95 * Basic.min(eye.extent.width / 2.0, cast(float) eye.extent.height);
-        transform.translation.x = -size / 2.0;
-        transform.translation.y = 0.0;
+        transform.translation.x = eye.extent.width / 2.0 - size / 2.0;
+        transform.translation.y = eye.extent.height / 2.0;
     }
 
     board_view_update_to_size(*boardView, size);
@@ -94,6 +94,7 @@ _reflow :: (using metaBoard : *MetaBoardEntity) {
         blackPlayerName.transform.translation.y *= -1;
     }
 
+    Chamber.round(*transform.translation);
     Sill.transform_commit(*transform);
 }
 

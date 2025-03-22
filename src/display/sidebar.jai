@@ -84,9 +84,11 @@ _reflow :: (using sidebar : *SidebarEntity) {
     mesh.nodes[0].transform.scaling.y = extent.height;
     Sill.mesh_commit_nodes(*mesh, instantly = true);
 
-    transform.translation.x = extent.width / 2.0 - UiConstants.WidthSidebar / 2.0;
-    transform.translation.y = -extent.height / 2.0;
+    transform.translation.x = extent.width - UiConstants.WidthSidebar / 2.0;
+    transform.translation.y = 0;
     transform.translation.z = UiConstants.DepthSidebar;
+
+    Chamber.round(*transform.translation.xy);
     Sill.transform_commit(*transform);
 }
 

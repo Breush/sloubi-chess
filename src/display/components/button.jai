@@ -126,17 +126,17 @@ _place_tooltip :: (using iButton : *ButtonComponent) {
     else if tooltipSide == .Bottom then tooltipMeshNode.transform.translation.y = iButton.ui.extent.height / 2 + tooltipExtent.y / 2;
     else tooltipMeshNode.transform.translation.y = -iButton.ui.extent.height / 2 - tooltipExtent.y / 2;
 
+    // Needed to correctly compute where it is in screen-space.
     Sill.mesh_commit_nodes(iButton.mesh, instantly = true);
 
     // Ensure it fits the screen.
     screenExtent := Crater.window_get_extent(instance.engine.window, Chamber.vec2);
     tooltipPosition := tooltipMeshNode.primitives[0].transform.translation.xy;
-    if tooltipPosition.x + tooltipExtent.x / 2 > screenExtent.x / 2 then tooltipMeshNode.transform.translation.x -= tooltipPosition.x + tooltipExtent.x / 2 - screenExtent.x / 2;
-    else if tooltipPosition.x - tooltipExtent.x / 2 < -screenExtent.x / 2 then tooltipMeshNode.transform.translation.x += -screenExtent.x / 2 - tooltipPosition.x + tooltipExtent.x / 2;
-    if tooltipPosition.y + tooltipExtent.y / 2 > screenExtent.y / 2 then tooltipMeshNode.transform.translation.y -= tooltipPosition.y + tooltipExtent.y / 2 - screenExtent.y / 2;
-    else if tooltipPosition.y - tooltipExtent.y / 2 < -screenExtent.y / 2 then tooltipMeshNode.transform.translation.y += -screenExtent.y / 2 - tooltipPosition.y + tooltipExtent.y / 2;
+    if tooltipPosition.x + tooltipExtent.x / 2 > screenExtent.width then tooltipMeshNode.transform.translation.x -= tooltipPosition.x + tooltipExtent.x / 2 - screenExtent.width;
+    else if tooltipPosition.x - tooltipExtent.x / 2 < 0 then tooltipMeshNode.transform.translation.x += - tooltipPosition.x + tooltipExtent.x / 2;
+    if tooltipPosition.y + tooltipExtent.y / 2 > screenExtent.height then tooltipMeshNode.transform.translation.y -= tooltipPosition.y + tooltipExtent.y / 2 - screenExtent.height;
+    else if tooltipPosition.y - tooltipExtent.y / 2 < 0 then tooltipMeshNode.transform.translation.y += - tooltipPosition.y + tooltipExtent.y / 2;
 
     Chamber.round(*tooltipMeshNode.transform.translation.xy);
-
     Sill.mesh_commit_nodes(iButton.mesh);
 }

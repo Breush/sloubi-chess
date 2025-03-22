@@ -199,7 +199,7 @@ _write_variation :: (builder : *Basic.String_Builder, variation : *VariationEnti
                 tagValue := Hash.table_find_pointer(*ply.position.tags, tagName);
                 if tagValue == null then continue;
 
-                Basic.print_to_builder(builder, "\n{[%%tag % ", tagName);
+                Basic.print_to_builder(builder, "\n{[\%tag % ", tagName);
                 if #complete tagName == {
                     case .Event; Basic.print_to_builder(builder, "\"%\"", tagValue.str);
                     case .Site; Basic.print_to_builder(builder, "\"%\"", tagValue.str);
@@ -219,7 +219,7 @@ _write_variation :: (builder : *Basic.String_Builder, variation : *VariationEnti
         }
 
         if ply.customPosition {
-            Basic.print_to_builder(builder, "\n{[%%tag FEN \"%\"]}", position_to_fen(ply.position));
+            Basic.print_to_builder(builder, "\n{[\%tag FEN \"%\"]}", position_to_fen(ply.position));
         }
 
         if ply.position.highlights.squares.count != 0 {

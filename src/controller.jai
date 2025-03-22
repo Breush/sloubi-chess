@@ -82,8 +82,9 @@ controller_create :: () -> *ControllerEntity {
 
             if debug.enabled {
                 eye := Magma.renderer_get_eye(instance.engine.renderer, 0);
-                debug.origin = .{0, 0, 0};
-                debug.origin.z = - cast(float) instance.engine.options.windowExtent.x;
+                debug.origin = .{cast(float) eye.extent.x / 2, cast(float) eye.extent.y / 2, 0};
+                debug.origin.z = - cast(float) instance.engine.options.windowExtent.x * 1.15;
+                debug.target.xy = debug.origin.xy;
                 Chamber.infinite_perspective_projection(*eye.projectionMatrix, 70.0, (cast(float) eye.extent.width) / eye.extent.height, 0.1);
                 Sill.transform_origin_target(*transform, debug.origin, debug.target, referenceUp=.{0, -1, 0});
 
@@ -182,5 +183,5 @@ _setup_orthographic_camera :: (using controller : *ControllerEntity) {
 
     eye.viewMatrix = Chamber.look_at_matrix(.{0, 0, -1}, .{0, 0, 0}, .{0, -1, 0});
     Chamber.unnear_orthographic_projection(*eye.projectionMatrix, extent, 200.0); // Orthographic camera with 1 pixel = 1 unit
-    Sill.transform_origin_target(*transform, .{0, 0, -100}, .{0, 0, 0}, referenceUp=.{0, -1, 0});
+    Sill.transform_origin_target(*transform, .{extent.width / 2, extent.height / 2, -100}, .{extent.width / 2, extent.height / 2, 0}, referenceUp=.{0, -1, 0});
 }

@@ -120,10 +120,6 @@ board_view_preview_summary :: (using boardView : *BoardView, game : Game) {
     _update_from_board_view_position(boardView, board_position(game.summary.lastBoardPosition));
     board_view_update_from_orientation(boardView, game.summary.lastBoardOrientation);
 
-    for coord : 0 .. CoordCount - 1 {
-        Magma.material_set(_square_mesh(boardView, coord).material, "pieceTranslucency", 0);
-    }
-
     // @todo A better looking tracing would be a good idea,
     // but this might require to separate pieces from the boardView mesh.
     lastMove := game.summary.lastMove;
@@ -191,6 +187,8 @@ _update_from_interactive :: (using boardView : *BoardView) {
     if !state.interactive {
         _hide_pawn_promotion_selecter(boardView);
     }
+
+    _update_highlights(boardView);
 }
 
 _update_from_board_view_position :: (using boardView : *BoardView, boardPosition : BoardPosition) {
@@ -292,6 +290,8 @@ _update_highlights :: (using boardView : *BoardView, position : *Position = null
     if position == null then return;
 
     _reset_highlights(boardView);
+
+    if !state.interactive then return;
 
     for squareHighlight : position.highlights.squares {
         Magma.material_set_color(_square_mesh(boardView, squareHighlight.coord).material, "highlightColor", highlight_color_to_vec4(squareHighlight.color));

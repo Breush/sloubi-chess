@@ -92,7 +92,7 @@ dialog_form_create :: (data : DialogFormData) {
 
     // Full background.
     backgroundMesh := Sill.mesh_make_primitive(*dialog.mesh);
-    create_rect_mesh(depth = UiConstants.DepthDialogBackground, existingMesh = backgroundMesh);
+    create_rect_mesh(depth = UiConstants.DepthDialogBackground, anchor = .TopLeft, existingMesh = backgroundMesh);
     backgroundMesh.material = Magma.create_material(instance.shaders.translucentMonochrome);
     Magma.material_set_color(backgroundMesh.material, "color", Chamber.make_vec4(instance.config.env.backgroundColor, 0.99));
 
@@ -257,23 +257,27 @@ _content_create :: (using dialogContent : *DialogContentEntity, data : DialogFor
 _reflow :: (using dialog : *DialogEntity) {
     extent := Crater.window_get_extent(instance.engine.window, Chamber.vec2);
 
+    ui.extent = extent;
+    transform.translation.x = 0.0;
+    transform.translation.y = 0.0;
+
     if anchor == .Half {
         // Vertical layout
         if (extent.height > extent.width) {
-            extent.height = extent.height / 2;
-            transform.translation.y = Math.floor(extent.height / 2.0 + 0.5);
+            transform.translation.y = extent.height / 2;
+            ui.extent.height = extent.height / 2;
         } else {
-            extent.width = extent.width / 2;
-            transform.translation.x = Math.floor(extent.width / 2.0 + 0.5);
+            transform.translation.x = extent.width / 2;
+            ui.extent.width = extent.width / 2;
         }
-    } else {
-        transform.translation.x = 0.0;
     }
 
-    ui.extent = extent;
     mesh.nodes[0].transform.scaling.xy = ui.extent;
-    content.transform.translation.y = -Math.floor(content.ui.extent.y / 2.0 + 0.5);
-    Sill.transform_commit(*dialog.transform);
+    content.transform.translation.x = ui.extent.width / 2.0;
+    content.transform.translation.y = ui.extent.height / 2.0 - Math.floor(content.ui.extent.y / 2.0 + 0.5);
+    Chamber.round(*transform.translation);
+    Chamber.round(*content.transform.translation);
+    Sill.transform_commit(*transform);
 }
 
 _on_text_entry_changed :: (textEntry : *TextEntryEntity, elementInfo : *DialogContentEntity.ElementInfo) {
