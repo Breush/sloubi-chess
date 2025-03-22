@@ -137,7 +137,7 @@ board_ui_trigger :: (using board : *Board, trigger : Sill.UiTrigger) {
         } else {
             if arrowingStartCoord == hoveredCoord {
                 _toggle_hovered_coord_square_highlight(board);
-            } else {
+            } else if hoveredCoord != 0xFF {
                 arrowHighlight : ArrowHighlight;
                 arrowHighlight.color = highlight_color();
                 arrowHighlight.fromCoord = arrowingStartCoord;
