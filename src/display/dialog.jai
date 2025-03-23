@@ -231,9 +231,10 @@ _content_create :: (using dialogContent : *DialogContentEntity, data : DialogFor
         Sill.entity_set_parent(button, dialogContent);
         button.ui.extent.width = UiConstants.WidthButtonDialog;
         button.ui.extent.height = UiConstants.HeightButtonDialog;
-        button.transform.translation.x = dialogWidth / 2.0 - Math.floor((0.5 + choiceIndex) * (UiConstants.WidthButtonDialog + 1) + 0.5);
+        button.transform.translation.x = dialogWidth / 2.0 - (0.5 + choiceIndex) * (UiConstants.WidthButtonDialog + 1);
         button.transform.translation.y = yOffset + UiConstants.HeightButtonDialog / 2.0;
         button.transform.translation.z = UiConstants.DepthDialogButton;
+        Chamber.round(*button.transform.translation);
 
         button.button.text = choice;
         button.button.callback = xx (button : *UiButtonEntity) {
@@ -257,6 +258,7 @@ _content_create :: (using dialogContent : *DialogContentEntity, data : DialogFor
 _reflow :: (using dialog : *DialogEntity) {
     extent := Crater.window_get_extent(instance.engine.window, Chamber.vec2);
 
+    ui.anchor = .TopLeft;
     ui.extent = extent;
     transform.translation.x = 0.0;
     transform.translation.y = 0.0;

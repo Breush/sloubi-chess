@@ -30,7 +30,7 @@ Check the [Releases](https://github.com/Breush/sloubi-chess/releases) for your p
 
 ```bash
 jai ./src/first.jai         # Generate the binary in bin/
-jai ./src/first.jai -- ship # Create a release package for the current platform in releases/
+jai ./src/first.jai - ship  # Create a release package for the current platform in releases/
 ```
 
 ## Usage
