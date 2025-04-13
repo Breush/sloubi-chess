@@ -49,6 +49,16 @@ game_view_reflow :: (using gameView : *GameView) {
     }
 }
 
+game_view_is_ply_visible :: (using gameView : *GameView, ply : *PlyEntity) -> bool {
+    plyY := ply.transform.translation.y;
+    plyHeight := ply.ui.extent.height;
+
+    deltaToFitAtTop := 0 - (game.study.view.transform.translation.y + plyY);
+    deltaToFitAtBottom := game.study.view.tab.page.content.ui.extent.height - (game.study.view.transform.translation.y + plyY + plyHeight);
+
+    return deltaToFitAtTop - plyHeight < 0 && deltaToFitAtBottom + plyHeight > 0;
+}
+
 #scope_file
 
 _on_message :: (using gameView : *GameView, message : *Message) {
@@ -74,6 +84,10 @@ _on_message :: (using gameView : *GameView, message : *Message) {
             game_view_reflow(gameView);
         } else {
             Sill.entity_set_disabled(gameView, true);
+        }
+    case .TabScrolled;
+        if message.iTab.entity == game.study.view { // @fixme Incomplete condition, what if multiple tabs?
+            ply_place(game.ply, propagate = true); // @fixme Stupid, we just need to refresh texts.
         }
     }
 }

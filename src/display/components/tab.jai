@@ -221,6 +221,8 @@ tab_scroll :: (using iTab : *TabComponent, scrollDelta : float) {
     }
 
     Sill.transform_commit(iTab.transform);
+
+    send(.TabScrolled, iTab);
 }
 
 tab_commit_text :: (using iTab : *TabComponent) {

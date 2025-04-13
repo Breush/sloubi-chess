@@ -13,6 +13,7 @@ Message :: struct {
         entity : *Sill.Entity;
         newGame : *Game;
         study : *Study;
+        iTab : *TabComponent;
         move : Move;
         struct {
             mode : Mode;
@@ -59,6 +60,7 @@ MessageKind :: enum u32 {
     ModeChanged;                            // (mode : Mode, oldMode : Mode)
     UciBestMoveChanged;                     // (move : Move)
     UciBestMoveCentipawnsChanged;           // ()
+    TabScrolled;                            // (iTab : *TabComponent)
 }
 
 send :: (kind : MessageKind) {
@@ -136,5 +138,12 @@ send :: (kind : MessageKind, mode : Mode, oldMode : Mode) {
     message.kind = kind;
     message.mode = mode;
     message.oldMode = oldMode;
+    Sill.message_send(*instance.engine.message, message);
+}
+
+send :: (kind : MessageKind, iTab : *TabComponent) {
+    message : Message = ---;
+    message.kind = kind;
+    message.iTab = iTab;
     Sill.message_send(*instance.engine.message, message);
 }

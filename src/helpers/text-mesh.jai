@@ -339,6 +339,12 @@ byte_index_from_mouse_position :: (mousePosition : Chamber.vec2, text : string, 
     return cast(u32) text.count;
 }
 
+// @todo A default anchor to Center would be more coherent with what we have elsewhere (rect-mesh),
+// but it would be a breaking change, so this is not done yet.
+text_width :: (text : string, fontId : string) -> width : float {
+    return Sill.fonts_text_width(*instance.engine.fonts, fontId, text);
+}
+
 #scope_file
 
 _get_cached_text_material :: (fontTexture : *Magma.Texture, color : Chamber.vec3) -> *Magma.Material {
