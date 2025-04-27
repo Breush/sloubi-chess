@@ -26,6 +26,7 @@ UiConstants :: struct #type_info_none {
     DepthMetaBoardInfo :: -1.0; // Relative to meta board.
     DepthMetaBoardViewArrow :: -0.05; // Multiplied by parent's scaling, can't use better unit.
     DepthMetaBoardViewMovingPiece :: -0.1; // Multipled
+    DepthMetaBoardViewCapturedPiece :: -0.02; // Multipled
     DepthDialog :: -20.0;
     DepthDialogBackground :: 2.0; // Cumulative with DepthDialog.
     DepthDialogContentBackground :: 1.0; // Cumulative with DepthDialog.

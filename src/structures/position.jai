@@ -105,7 +105,7 @@ Move :: struct {
 AnnotatedMove :: struct {
     using #as move : Move;
 
-    capture : bool;
+    capturedPieceKind : PieceKind;
     annotation : MoveAnnotation;
 }
 
@@ -436,7 +436,7 @@ position_copy_state_from :: (position : *Position, sourcePosition : Position) {
     position.board = sourcePosition.board;
     position.lastMove.sourceCoord = sourcePosition.lastMove.sourceCoord;
     position.lastMove.targetCoord = sourcePosition.lastMove.targetCoord;
-    position.lastMove.capture = sourcePosition.lastMove.capture;
+    position.lastMove.capturedPieceKind = sourcePosition.lastMove.capturedPieceKind;
     position.lastMove.promotionPieceKind = sourcePosition.lastMove.promotionPieceKind;
     position.result = sourcePosition.result;
     position.moveIndex = sourcePosition.moveIndex;
@@ -786,14 +786,14 @@ position_play_move :: (position : *Position, sourceCoord : Coord, targetCoord : 
     }
 
     piece := position.board[sourceCoord];
-    capture := (position.board[targetCoord].kind != .None);
+    capturedPieceKind := position.board[targetCoord].kind;
 
     position.movesSinceLastCaptureOrPawnMove += 1;
-    if piece.kind == .Pawn || capture {
+    if piece.kind == .Pawn || capturedPieceKind != .None {
         position.movesSinceLastCaptureOrPawnMove = 0;
     }
 
-    if capture {
+    if capturedPieceKind != .None {
         position.piecesCount[piece_id(position.board[targetCoord])] -= 1;
     }
 
@@ -805,12 +805,13 @@ position_play_move :: (position : *Position, sourceCoord : Coord, targetCoord : 
     // Basic.log("%. Playing % from % to %.", fullMoveNumber, piece.kind, coord_to_algebraic(sourceCoord), coord_to_algebraic(targetCoord), flags = .VERBOSE_ONLY);
 
     if piece.kind == .Pawn {
-        capture = !coord_same_col(sourceCoord, targetCoord);
+        capture := !coord_same_col(sourceCoord, targetCoord);
 
         // En-passant, remove the captured pawn.
         if capture && position.board[targetCoord].kind == .None {
             targetRow, targetCol := row_col(targetCoord);
             enPassantCoord := coord(ifx piece.color == .White then targetRow - 1 else targetRow + 1, targetCol);
+            capturedPieceKind = position.board[enPassantCoord].kind;
             position.board[enPassantCoord].kind = .None;
         }
     } else if piece.kind == .King {
@@ -841,7 +842,7 @@ position_play_move :: (position : *Position, sourceCoord : Coord, targetCoord : 
     }
 
     position.moveIndex += 1;
-    position.lastMove.capture = capture;
+    position.lastMove.capturedPieceKind = capturedPieceKind;
     position.lastMove.promotionPieceKind = promotionPieceKind;
     position.lastMove.sourceCoord = sourceCoord;
     position.lastMove.targetCoord = targetCoord;

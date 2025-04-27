@@ -31,6 +31,7 @@ Config :: struct {
         }
         promotionSelecterColor : Chamber.vec4;
         highlightValidSquares : bool;
+        showCapturedPiece : bool;
         dragAndDropMove : struct {
             enabled : bool;
             ghostOpacity : float;

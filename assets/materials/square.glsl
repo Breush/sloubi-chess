@@ -18,6 +18,7 @@ layout(std140, set = MATERIAL_DESCRIPTOR_SET_INDEX, binding = 0) uniform Materia
     vec4 highlightColor;
     vec4 color;
     float pieceTranslucency;
+    float pieceDesaturation;
     bool flipped;
     bool hovered;
     bool selected;
@@ -77,6 +78,7 @@ void main() {
     vec4 pieceTextureColor = texture(pieceTexture, pieceUv);
     vec4 pieceColor = vec4(0.88, 0.70, 0.50, selectionHighlight);
     pieceColor.rgb = mix(pieceColor.rgb, pieceTextureColor.rgb, pieceTextureColor.a);
+    pieceColor.rgb = mix(pieceColor.rgb, vec3(0.5, 0.5, 0.5), material.pieceDesaturation);
     pieceColor.a = max(pieceColor.a, pieceTextureColor.a);
     outColor.rgb = mix(outColor.rgb, pieceColor.rgb, (1 - material.pieceTranslucency) * pieceColor.a);
     outColor.a = pieceColor.a + outColor.a * (1 - pieceColor.a);

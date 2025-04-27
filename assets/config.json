@@ -30,6 +30,7 @@
         },
         "promotionSelecterColor": [0.335, 0.573, 0.703, 0.9], // RGBA color, 0 to 1 values
         "highlightValidSquares": true, // Display valid squares when moving a piece (dragAndDrop or clickClick).
+        "showCapturedPiece": true,     // Display the captured piece on the bottom-right of moved piece square.
         "dragAndDropMove": {
             "enabled": true,    // Allow dragging a piece to play a move.
             "ghostOpacity": 0.2 // When dragging a piece, opacity of the piece on its starting square.

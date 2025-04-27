@@ -13,6 +13,7 @@ BoardView :: struct {
     arrows : [..]*MeshEntity;
     bestMoveCentipawnsMeshNode : *Sill.MeshNode;
     movingPiece : MeshEntity;
+    capturedPiece : MeshEntity;
     pawnPromotionSelecter : PawnPromotionSelecterEntity;
 
     #as state : Board;
@@ -88,6 +89,8 @@ board_view_update_to_size :: (using boardView : *BoardView, size : float) {
     squareScaling := Math.floor(size / 8 + 0.5);
 
     movingPiece.transform.factor = squareScaling;
+    capturedPiece.transform.factor = Math.floor(squareScaling / 2 + 0.5);
+    Math.set_from_axis_and_angle(*capturedPiece.transform.rotation, .{0, 0, 1}, 0.70 * Math.PI);
 
     mesh.nodes[0].transform.scaling.x = squareScaling;
     mesh.nodes[0].transform.scaling.y = squareScaling;
@@ -97,6 +100,7 @@ board_view_update_to_size :: (using boardView : *BoardView, size : float) {
     boardView.ui.extent.height = size;
 
     _update_highlights(boardView);
+    _update_captured_piece(boardView);
 }
 
 board_view_update_from_orientation :: (using boardView : *BoardView, orientation : Color) {
@@ -110,10 +114,13 @@ board_view_update_from_orientation :: (using boardView : *BoardView, orientation
     }
 
     Magma.material_set(movingPiece.mesh.nodes[0].primitives[0].material, "flipped", flipped);
+    Magma.material_set(capturedPiece.mesh.nodes[0].primitives[0].material, "flipped", flipped);
 
     for button : pawnPromotionSelecter.buttons {
         Magma.material_set(button.mesh.nodes[0].primitives[0].material, "flipped", flipped);
     }
+
+    _update_captured_piece(boardView);
 }
 
 board_view_preview_summary :: (using boardView : *BoardView, game : Game) {
@@ -173,8 +180,8 @@ _update_from_position_edit :: (using boardView : *BoardView) {
         Magma.material_set(_square_mesh(boardView, coord).material, "pieceTranslucency", pieceTranslucency);
     }
 
-    if state.positionEdit then _reset_highlights(boardView);
-    else _update_highlights(boardView);
+    _update_highlights(boardView);
+    _update_captured_piece(boardView);
 }
 
 _update_from_interactive :: (using boardView : *BoardView) {
@@ -189,6 +196,7 @@ _update_from_interactive :: (using boardView : *BoardView) {
     }
 
     _update_highlights(boardView);
+    _update_captured_piece(boardView);
 }
 
 _update_from_board_view_position :: (using boardView : *BoardView, boardPosition : BoardPosition) {
@@ -200,6 +208,8 @@ _update_from_board_view_position :: (using boardView : *BoardView, boardPosition
         Magma.material_set(squareMesh.material, "selected", false);
         Magma.material_set(squareMesh.material, "pieceTexture", pieceTexture);
     }
+
+    // @fixme Missing capturedPieceKind in summary
 }
 
 _update_from_position :: (using boardView : *BoardView, position : *Position = null) {
@@ -216,6 +226,7 @@ _update_from_position :: (using boardView : *BoardView, position : *Position = n
     }
 
     _update_highlights(boardView, position);
+    _update_captured_piece(boardView);
 }
 
 _update_from_position_coord :: inline (using boardView : *BoardView, coord : Coord) {
@@ -291,7 +302,7 @@ _update_highlights :: (using boardView : *BoardView, position : *Position = null
 
     _reset_highlights(boardView);
 
-    if !state.interactive then return;
+    if !state.interactive || state.positionEdit then return;
 
     for squareHighlight : position.highlights.squares {
         Magma.material_set_color(_square_mesh(boardView, squareHighlight.coord).material, "highlightColor", highlight_color_to_vec4(squareHighlight.color));
@@ -353,6 +364,27 @@ _update_highlights :: (using boardView : *BoardView, position : *Position = null
     }
 }
 
+_update_captured_piece :: (using boardView : *BoardView) {
+    if !instance.config.board.showCapturedPiece || state.position.lastMove.capturedPieceKind == .None || !state.interactive || state.positionEdit {
+        entity_set_disabled(*capturedPiece, true);
+        return;
+    }
+
+    entity_set_disabled(*capturedPiece, false);
+
+    capturedPieceMaterial := capturedPiece.mesh.nodes[0].primitives[0].material;
+    pieceTexture := piecesTextures[piece_id(state.position.lastMove.capturedPieceKind, position_color_to_play(state.position))];
+    Magma.material_set(capturedPieceMaterial, "pieceTexture", pieceTexture);
+
+    squareSize := Math.floor(ui.extent.width / 8 + 0.5);
+    row, col := row_col(state.position.lastMove.targetCoord);
+    offset := ifx instance.metaBoard.orientation == .White then 1 else 0;
+    capturedPiece.transform.translation.x = (offset + cast(float) col - 4) * squareSize;
+    capturedPiece.transform.translation.y =  (offset + (7 - cast(float) row) - 4) * squareSize;
+
+    Sill.transform_commit(*capturedPiece.transform);
+}
+
 _update_best_move_centipawns :: (using boardView : *BoardView) {
     text := centipawns_to_display(instance.uci.bestMoveCentipawns);
     text_mesh_update(bestMoveCentipawnsMeshNode.primitives[0], text, "mainLight", instance.config.env.textColor, anchor = .Center);
@@ -385,6 +417,10 @@ _init_resources :: (using boardView : *BoardView) {
     // Moving piece
     Sill.entity_set_disabled(*movingPiece, true);
     Sill.entity_set_parent(*movingPiece, boardView);
+
+    // Captured piece
+    Sill.entity_set_disabled(*capturedPiece, true);
+    Sill.entity_set_parent(*capturedPiece, boardView);
 
     // Pawn promotion selecter
     Sill.entity_set_parent(*pawnPromotionSelecter, boardView);
@@ -444,6 +480,14 @@ _init_meshes :: (using boardView : *BoardView) {
     movingPieceNode.transform.translation.z = UiConstants.DepthMetaBoardViewMovingPiece;
     Basic.array_add(*movingPieceNode.primitives, movingPieceMesh);
 
+    // Captured piece
+    capturedPieceMesh := create_rect_mesh();
+    capturedPieceMesh.material = Magma.create_material(squareShader);
+    capturedPieceNode := Basic.array_add(*capturedPiece.mesh.nodes);
+    capturedPieceNode.transform.translation.z = UiConstants.DepthMetaBoardViewCapturedPiece;
+    Basic.array_add(*capturedPieceNode.primitives, capturedPieceMesh);
+    Magma.material_set(capturedPieceNode.primitives[0].material, "pieceDesaturation", 0.25);
+
     // Pawn promotion selecter
     for button, buttonIndex : pawnPromotionSelecter.buttons {
         buttonMesh := create_rect_mesh();
@@ -468,7 +512,7 @@ _show_pawn_promotion_selecter :: (using boardView : *BoardView) {
         button.transform.translation.y = ifx color == .White then cast(float) buttonIndex else cast(float) -buttonIndex;
     }
 
-    squareSize := boardView.ui.extent.width / 8.;
+    squareSize := Math.floor(ui.extent.width / 8 + 0.5);
 
     row, col := row_col(state.pawnPromotionTargetCoord);
     pawnPromotionSelecter.transform.translation.x = squareSize * (col - 3.5);
