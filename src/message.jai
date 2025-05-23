@@ -61,6 +61,7 @@ MessageKind :: enum u32 {
     UciBestMoveChanged;                     // (move : Move)
     UciBestMoveCentipawnsChanged;           // ()
     TabScrolled;                            // (iTab : *TabComponent)
+    OpenSettingsDialog;                     // ()
 }
 
 send :: (kind : MessageKind) {

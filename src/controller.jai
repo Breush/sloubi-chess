@@ -172,6 +172,18 @@ _on_message :: (using controller : *ControllerEntity, message : *Message) {
             mode_pop();
             mode_push(.Library);
         }
+    case .OpenSettingsDialog;
+        // First, ensure no other settings dialog is already open to prevent duplicates if message is spammed
+        // This check might be more robust by querying currentMode or a specific flag
+        for item : modeStack {
+            if item.mode == .Settings return; // Already a settings dialog in the stack
+        }
+        
+        settings_dialog := settings_dialog_create();
+        // The mode_push expects a *DialogEntity. SettingsDialogEntity is not one.
+        // This cast is kept as per previous steps, but is a known point of potential fragility
+        // if other parts of the system expect DialogEntity-specific fields from item.dialog.
+        mode_push(.Settings, cast(*DialogEntity) settings_dialog);
     }
 }
 

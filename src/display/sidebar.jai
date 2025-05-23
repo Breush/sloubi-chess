@@ -9,12 +9,14 @@ SidebarEntity :: struct {
 
     tabButtonsDirty := false;
     tabButtons : [..]*SidebarButtonEntity;
+    settingsButton: *SidebarButtonEntity; // New button for settings
 
     on_cleanup :: (using this : *SidebarEntity) {
         for tabButton : tabButtons {
-            tabButton.tab.linkedToSidebar = false;
+            if tabButton.tab tabButton.tab.linkedToSidebar = false; // Check if tab exists
         }
         Basic.array_reset(*tabButtons);
+        // settingsButton is a child and will be cleaned up by Sill when sidebar is destroyed
     }
 }
 
@@ -46,6 +48,15 @@ sidebar_create :: () -> *SidebarEntity {
     Sill.behavior_on_update(*behavior, (dt : float64, sidebar : *SidebarEntity) {
         _update(sidebar);
     }, sidebar);
+
+    // Create Settings Button
+    sidebar.settingsButton = SillMeta.create_sidebar_button_entity(instance.engine);
+    Sill.entity_set_parent(sidebar.settingsButton, sidebar);
+    _make_button(sidebar.settingsButton, ForkAwesome.Cogs, "Settings"); // Using Cogs icon
+    Sill.ui_on_trigger(*sidebar.settingsButton.ui, (trigger : Sill.UiTrigger, userData : *void) {
+        send(.OpenSettingsDialog);
+    }, .ClickStop);
+    // Initial position will be set in _reflow
 
     return sidebar;
 }
@@ -90,26 +101,52 @@ _reflow :: (using sidebar : *SidebarEntity) {
 
     Chamber.round(*transform.translation.xy);
     Sill.transform_commit(*transform);
+
+    // Position settings button
+    if settingsButton {
+        // Position it at the bottom, below existing tab buttons, with some spacing
+        settings_button_y_offset := extent.height - (0.5 * UiConstants.WidthSidebar) - UiConstants.PaddingVerticalMedium;
+        settingsButton.transform.translation.y = settings_button_y_offset;
+         // If sidebar itself is not anchored at 0,0, this Y needs to be relative to sidebar's local coords.
+         // Assuming sidebar's transform.translation.y is its center or top, adjust accordingly.
+         // The current _reflow sets sidebar.transform.translation.y = 0 (meaning its center is at screen y=0 if parent is screen).
+         // This means children y are relative to this.
+         // Let's adjust to place it relative to the sidebar's extent.
+         // Sidebar origin is top-left due to create_rect_mesh anchor = .Top.
+         // So, sidebar.transform.translation.y is its top edge.
+         // Children Y positions are relative to this top edge.
+        settingsButton.transform.translation.y = ui.extent.height - (0.5 * UiConstants.WidthSidebar) - UiConstants.PaddingVerticalSmall;
+        settingsButton.transform.translation.x = 0; // Centered in sidebar width
+        Chamber.round(*settingsButton.transform.translation);
+        Sill.transform_commit(*settingsButton.transform);
+    }
 }
 
 _update :: (using sidebar : *SidebarEntity) {
-    if !sidebar.tabButtonsDirty then return;
-    sidebar.tabButtonsDirty = false;
-
-    for tabButton, tabButtonIndex : tabButtons {
-        // Create the button if it doesn't exist yet.
-        if tabButton.mesh.nodes.count == 0 {
-            _make_button(tabButton, tabButton.tab.icon, tabButton.tab.text);
-            Sill.ui_on_trigger(*tabButton.ui, (trigger : Sill.UiTrigger, tabButton : *SidebarButtonEntity) {
-                send(.SelectTab, tabButton.tab.entity);
-            }, .ClickStop, tabButton);
+    // Tab buttons update
+    if sidebar.tabButtonsDirty {
+        sidebar.tabButtonsDirty = false;
+        for tabButton, tabButtonIndex : tabButtons {
+            // Create the button if it doesn't exist yet.
+            if tabButton.mesh.nodes.count == 0 {
+                if tabButton.tab == null { // Should not happen for actual tab buttons
+                    Basic.log_error("Sidebar tabButton is missing its .tab component during _make_button call.");
+                    continue; 
+                }
+                _make_button(tabButton, tabButton.tab.icon, tabButton.tab.text);
+                Sill.ui_on_trigger(*tabButton.ui, (trigger : Sill.UiTrigger, tabButton : *SidebarButtonEntity) {
+                    if tabButton.tab then send(.SelectTab, tabButton.tab.entity);
+                }, .ClickStop, tabButton);
+            }
+            // Position the tab button.
+            tabButton.transform.translation.y = (tabButtonIndex + 0.5) * UiConstants.WidthSidebar;
+            tabButton.transform.translation.x = 0; // Centered in sidebar
         }
-
-        // Position the button.
-        tabButton.transform.translation.y = (tabButtonIndex + 0.5) * UiConstants.WidthSidebar;
+        Sill.transform_commit(*transform); // Commit transforms for tab buttons
     }
 
-    Sill.transform_commit(*transform);
+    // Settings button is positioned in _reflow as its Y depends on sidebar height.
+    // If settingsButton appearance could change (e.g. icon), refresh it here if needed.
 }
 
 _make_button :: (button : *SidebarButtonEntity, icon : string, tooltipText : string) {
