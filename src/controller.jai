@@ -37,6 +37,7 @@ Mode :: enum {
     GameCommentEdit;
     GameEdit;
     Dialog;
+    Settings;
 }
 
 controller_create :: () -> *ControllerEntity {

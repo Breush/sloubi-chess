@@ -27,6 +27,7 @@ for_expansion :: Hash.for_expansion;
 #load "display/library.jai";
 #load "display/meta-board.jai";
 #load "display/sidebar.jai";
+#load "display/settings_dialog.jai";
 #load "display/smart-mover.jai";
 #load "display/study-view.jai";
 #load "display/text-entry.jai";
